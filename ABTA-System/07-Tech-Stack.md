@@ -68,7 +68,8 @@ flowchart LR
 |-------|------|
 | สมาชิกสมัคร | Web Form → API → Firestore → LINE Notify |
 | สมาชิกพิมพ์ "เช็คสถานะ" | LINE → Webhook → API → Firestore → LINE Reply |
-| แอดมินอนุมัติ | Back Office → API → Firestore → LINE Notify |
+| แอดมินอนุมัติข้อมูล | Back Office → API → Firestore → LINE Notify |
+| เหรัญญิกอนุมัติสลิป | Back Office → API → Firestore → LINE Notify |
 | อัปโหลดสลิป | Web/LINE → API → Firebase Storage → Firestore |
 
 ---
@@ -96,11 +97,14 @@ flowchart LR
 
 ## ข้อมูลที่ต้องเก็บในฐานข้อมูล
 
+> อัปเดต schema ตาม Flow Phase 1 ที่ยืนยัน (11 ก.ค. 2569)
+
 ### ตาราง Members
 
 | Field | Type | หมายเหตุ |
 |-------|------|----------|
-| memberId | string | ชั่วคราว → ถาวร |
+| memberId | string | ชั่วคราว → ถาวร; ไม่ผ่านแอดมิน → regenerate |
+| tempMemberId | string | เลขชั่วคราว (ก่อน promote) |
 | firstName | string | |
 | lastName | string | |
 | phone | string | ใช้ค้นหา + ผูก LINE |
@@ -108,32 +112,77 @@ flowchart LR
 | organization | string | หน่วยงาน/ตึก |
 | lineUserId | string | ผูกกับ LINE OA |
 | status | enum | ดู [05-Status-and-SLA.md](./05-Status-and-SLA.md) |
+| memberCardUrl | string | URL บัตรสมาชิก (ID Card) — แสดงใน LINE OA |
 | expiryDate | timestamp | วันหมดอายุ |
+| dataReviewStatus | enum | `pending` / `approved` / `rejected` — ขั้นที่ 1 แอดมิน |
+| dataReviewedBy | string | นายทะเบียนที่ตรวจ |
+| dataReviewedAt | timestamp | |
 | createdAt | timestamp | |
 | updatedAt | timestamp | |
 
-### ตาราง Seminars / Registrations
+### ตาราง Seminars
 
-| Field | Type |
-|-------|------|
-| seminarId | string |
-| memberId | string |
-| shirtSize | string |
-| foodPreference | string |
-| paymentStatus | enum |
-| registrationStatus | enum |
+| Field | Type | หมายเหตุ |
+|-------|------|----------|
+| seminarId | string | |
+| title | string | ชื่องาน |
+| pricingType | enum | `public_paid` / `member_free` / `member_paid` |
+| publicPrice | number | ราคาคนทั่วไป |
+| memberPrice | number | ราคาสมาชิก (ถ้า member_paid) |
+| eventDate | timestamp | |
+| status | enum | `open` / `closed` / `cancelled` |
+
+### ตาราง Registrations (สมัครสัมมนา)
+
+| Field | Type | หมายเหตุ |
+|-------|------|----------|
+| registrationId | string | |
+| seminarId | string | |
+| memberId | string | null ได้ถ้าเป็นคนทั่วไป |
+| applicantType | enum | `public` / `member` — ตาม pricingType ของงาน |
+| shirtSize | string | |
+| foodPreference | string | |
+| paymentStatus | enum | |
+| registrationStatus | enum | |
+| amount | number | 0 ถ้า member_free |
 
 ### ตาราง Payments
 
-| Field | Type |
-|-------|------|
-| paymentId | string |
-| memberId | string |
-| slipUrl | string |
-| amount | number |
-| status | enum |
-| verifiedBy | string |
-| verifiedAt | timestamp |
+| Field | Type | หมายเหตุ |
+|-------|------|----------|
+| paymentId | string | |
+| memberId | string | |
+| receiptNumber | string | เลขใบเสร็จ — ชั่วคราว → ตัวจริง |
+| receiptStatus | enum | `temp` / `pending_review` / `official` / `rejected` |
+| receiptUrl | string | URL ใบเสร็จ — แสดงใน LINE OA |
+| previousReceiptNumber | string | เลขเดิมก่อน reject (audit) |
+| slipUrl | string | |
+| amount | number | |
+| status | enum | ดู Payment Status ใน [05-Status-and-SLA.md](./05-Status-and-SLA.md) |
+| dataReviewStatus | enum | สถานะขั้นที่ 1 (แอดมิน) |
+| verifiedBy | string | เหรัญญิกที่ตรวจสลip (ขั้นที่ 2) |
+| verifiedAt | timestamp | |
+| createdAt | timestamp | |
+| updatedAt | timestamp | |
+
+### Enum สำคัญ
+
+**Seminar.pricingType**
+
+| ค่า | ความหมาย |
+|-----|----------|
+| `public_paid` | คนทั่วไป — ต้องชำระ |
+| `member_free` | สมาชิก — เข้าฟรี |
+| `member_paid` | สมาชิก — ต้องชำระ |
+
+**Receipt.receiptStatus**
+
+| ค่า | ความหมาย |
+|-----|----------|
+| `temp` | ใบเสร็จชั่วคราว — ออกทันทีหลังสมัคร |
+| `pending_review` | รอเหรัญญิกตรวจสลิป |
+| `official` | ใบเสร็จตัวจริง |
+| `rejected` | ไม่ผ่าน — ระบบออกเลขใบเสร็จใหม่ |
 
 ---
 
