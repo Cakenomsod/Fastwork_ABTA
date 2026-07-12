@@ -1,0 +1,2325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ABTA Phase 1 — Mockup & Flow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* OKLCH tokens — Impeccable-inspired */
+      --line-green: oklch(0.72 0.19 145);
+      --line-green-hover: oklch(0.65 0.18 145);
+      --line-green-soft: oklch(0.94 0.06 145);
+      --line-chat-bg: oklch(0.82 0.04 250);
+      --line-bubble-user: oklch(0.88 0.14 130);
+      --line-dark: oklch(0.22 0.01 260);
+      --bo-primary: oklch(0.55 0.18 255);
+      --bo-sidebar: oklch(0.28 0.03 260);
+      --bg: oklch(0.97 0.005 260);
+      --card: oklch(1 0 0);
+      --border: oklch(0.91 0.01 260);
+      --border-strong: oklch(0.85 0.015 260);
+      --text: oklch(0.25 0.02 260);
+      --muted: oklch(0.55 0.02 260);
+      --warning: oklch(0.75 0.15 75);
+      --warning-soft: oklch(0.96 0.04 85);
+      --success: oklch(0.65 0.15 155);
+      --success-soft: oklch(0.95 0.04 155);
+      --danger: oklch(0.58 0.2 25);
+      --danger-soft: oklch(0.95 0.04 25);
+      --info-soft: oklch(0.96 0.03 250);
+      --temp: oklch(0.68 0.16 55);
+      --temp-soft: oklch(0.95 0.05 55);
+      --official-soft: oklch(0.95 0.04 250);
+      --shadow-sm: 0 1px 2px oklch(0.25 0.02 260 / 0.04);
+      --shadow-md: 0 4px 16px oklch(0.25 0.02 260 / 0.08);
+      --shadow-lg: 0 12px 40px oklch(0.25 0.02 260 / 0.12);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Sarabun', 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+      color: #fff;
+      padding: 1.25rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,.15);
+    }
+    .topbar h1 { font-size: 1.35rem; font-weight: 700; }
+    .topbar p { font-size: .85rem; opacity: .85; margin-top: .15rem; }
+    .badge-mockup {
+      display: inline-block;
+      background: rgba(255,255,255,.2);
+      border: 1px solid rgba(255,255,255,.4);
+      padding: .15rem .6rem;
+      border-radius: 999px;
+      font-size: .75rem;
+      margin-left: .5rem;
+      vertical-align: middle;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem; }
+    section { margin-bottom: 3rem; }
+    section > h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      padding-bottom: .5rem;
+      border-bottom: 2px solid var(--bo-primary);
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    section > h2 .icon { font-size: 1.4rem; }
+
+    /* ── Channel pills ── */
+    .channels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      margin-bottom: 1.5rem;
+    }
+    .channel-pill {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .75rem 1.25rem;
+      font-size: .9rem;
+    }
+    .channel-pill .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .dot-line { background: var(--line-green); }
+    .dot-liff { background: #8b5cf6; }
+    .dot-bo { background: var(--bo-primary); }
+
+    /* ── Flow diagrams ── */
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem;
+    }
+    .flow-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .flow-card-header {
+      padding: .85rem 1.25rem;
+      font-weight: 600;
+      font-size: .95rem;
+      color: #fff;
+    }
+    .flow-card-header.member { background: var(--line-green); }
+    .flow-card-header.seminar { background: #7c3aed; }
+    .flow-card-header.status { background: #0891b2; }
+    .flow-card-header.bo { background: var(--bo-sidebar); }
+    .flow-body { padding: 1.25rem; }
+
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+      margin-bottom: .5rem;
+    }
+    .flow-num {
+      flex-shrink: 0;
+      width: 26px; height: 26px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .flow-step.active .flow-num {
+      background: var(--bo-primary);
+      border-color: var(--bo-primary);
+      color: #fff;
+    }
+    .flow-step.highlight .flow-num {
+      background: var(--line-green);
+      border-color: var(--line-green);
+      color: #fff;
+    }
+    .flow-step-content { flex: 1; font-size: .875rem; }
+    .flow-step-content strong { display: block; }
+    .flow-step-content span { color: var(--muted); font-size: .8rem; }
+    .flow-arrow {
+      text-align: center;
+      color: var(--muted);
+      font-size: .9rem;
+      margin: .15rem 0 .15rem 10px;
+    }
+    .flow-branch {
+      margin: .5rem 0 .5rem 2rem;
+      padding: .6rem .85rem;
+      background: #f8fafc;
+      border-left: 3px solid var(--border);
+      border-radius: 0 8px 8px 0;
+      font-size: .8rem;
+    }
+    .flow-branch.yes { border-left-color: var(--success); }
+    .flow-branch.no { border-left-color: var(--danger); }
+
+    /* ── Role table ── */
+    .role-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+      margin-top: 1rem;
+    }
+    .role-table th, .role-table td {
+      padding: .6rem .85rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .role-table th { background: #f8fafc; font-weight: 600; }
+    .role-tag {
+      display: inline-block;
+      padding: .15rem .5rem;
+      border-radius: 4px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .role-admin { background: #dbeafe; color: #1d4ed8; }
+    .role-registrar { background: #fef3c7; color: #b45309; }
+    .role-treasurer { background: #d1fae5; color: #047857; }
+
+    /* ── Screen navigator ── */
+    .screen-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+    .screen-nav button {
+      padding: .5rem 1rem;
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: .82rem;
+      font-family: inherit;
+      transition: all .15s;
+    }
+    .screen-nav button:hover { border-color: var(--bo-primary); color: var(--bo-primary); }
+    .screen-nav button.active {
+      background: var(--bo-primary);
+      color: #fff;
+      border-color: var(--bo-primary);
+    }
+    .screen-nav button.line-btn.active { background: var(--line-green); border-color: var(--line-green); }
+
+    /* ── Screen panels ── */
+    .screen-panel { display: none; }
+    .screen-panel.active { display: block; }
+
+    .screen-wrapper {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    /* Phone frame (LINE / LIFF) */
+    .phone-frame {
+      width: 390px;
+      background: oklch(0.18 0.01 260);
+      border-radius: 44px;
+      padding: 10px;
+      box-shadow: var(--shadow-lg), 0 0 0 1px oklch(0.3 0.01 260);
+    }
+    .phone-screen {
+      background: var(--surface-elevated, #fff);
+      border-radius: 36px;
+      overflow: hidden;
+      min-height: 720px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .phone-notch {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 28px;
+      background: oklch(0.18 0.01 260);
+      border-radius: 20px;
+      z-index: 10;
+    }
+    .phone-status-bar {
+      background: var(--line-dark);
+      color: oklch(0.95 0 0);
+      padding: 14px 24px 8px;
+      font-size: .72rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      letter-spacing: 0.02em;
+    }
+    .line-header {
+      background: var(--line-green);
+      color: #fff;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 1px 0 oklch(0 0 0 / 0.08);
+    }
+    .line-header.chat-mode { background: var(--line-dark); }
+    .line-header .back-btn {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      opacity: .9;
+      font-size: 1.1rem;
+    }
+    .line-header .avatar {
+      width: 40px; height: 40px;
+      background: oklch(1 0 0 / 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .85rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      border: 1.5px solid oklch(1 0 0 / 0.25);
+    }
+    .line-header .info h3 { font-size: .95rem; font-weight: 600; letter-spacing: -0.01em; }
+    .line-header .info p { font-size: .72rem; opacity: .8; margin-top: 1px; }
+    .line-chat {
+      flex: 1;
+      background: var(--line-chat-bg);
+      padding: 16px 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+    }
+    .chat-date-divider {
+      text-align: center;
+      font-size: .68rem;
+      color: oklch(0.45 0.03 250);
+      margin: 4px 0;
+    }
+    .chat-bubble {
+      max-width: 88%;
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: .88rem;
+      line-height: 1.55;
+    }
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: var(--line-bubble-user);
+      border-bottom-right-radius: 6px;
+      color: oklch(0.22 0.02 130);
+    }
+    .chat-bubble.bot {
+      align-self: flex-start;
+      background: var(--card);
+      border-bottom-left-radius: 6px;
+      box-shadow: var(--shadow-sm);
+      color: var(--text);
+    }
+    .chat-bubble .greeting {
+      font-weight: 500;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+    .chat-bubble.bot .card-mini {
+      margin-top: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--card);
+      transition: box-shadow .15s;
+    }
+    .chat-bubble.bot .card-mini + .card-mini { margin-top: 8px; }
+    .card-mini-header {
+      background: oklch(0.32 0.04 260);
+      color: oklch(0.95 0 0);
+      padding: 8px 12px;
+      font-size: .72rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.02em;
+    }
+    .card-mini-body {
+      padding: 10px 12px;
+      font-size: .8rem;
+      line-height: 1.6;
+    }
+    .card-mini-body .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+    }
+    .card-mini-body .row .lbl { color: var(--muted); font-size: .75rem; }
+    .card-mini-action {
+      display: block;
+      text-align: center;
+      padding: 8px;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--line-green);
+      border-top: 1px solid var(--border);
+      background: oklch(0.98 0.005 260);
+    }
+    .chat-time { font-size: .62rem; color: oklch(0.55 0.02 250); text-align: right; margin-top: 6px; }
+    .chat-quick-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .chat-quick-btn {
+      padding: 6px 12px;
+      border: 1.5px solid var(--line-green);
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--line-green);
+      background: var(--card);
+    }
+
+    /* LIFF form inside phone */
+    .liff-body {
+      flex: 1;
+      overflow-y: auto;
+      background: oklch(0.98 0.004 260);
+      display: flex;
+      flex-direction: column;
+    }
+    .liff-hero {
+      background: linear-gradient(160deg, oklch(0.38 0.06 260) 0%, oklch(0.32 0.05 260) 100%);
+      color: #fff;
+      padding: 20px 20px 28px;
+      position: relative;
+    }
+    .liff-hero::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0; right: 0;
+      height: 16px;
+      background: oklch(0.98 0.004 260);
+      border-radius: 16px 16px 0 0;
+    }
+    .liff-hero .step-label {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: .7;
+      margin-bottom: 6px;
+    }
+    .liff-title {
+      font-size: clamp(1.15rem, 4vw, 1.35rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+    }
+    .liff-sub {
+      font-size: .82rem;
+      opacity: .8;
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+    .liff-progress {
+      display: flex;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .liff-progress .bar {
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: oklch(1 0 0 / 0.25);
+    }
+    .liff-progress .bar.done,
+    .liff-progress .bar.active { background: oklch(1 0 0 / 0.9); }
+    .liff-content { padding: 4px 16px 100px; flex: 1; }
+    .form-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .form-section-title {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .form-section-title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: var(--line-green);
+      border-radius: 2px;
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-group label {
+      display: block;
+      font-size: .78rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .form-group label .req { color: var(--danger); margin-left: 2px; }
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-wrap .input-icon {
+      position: absolute;
+      left: 12px;
+      color: var(--muted);
+      font-size: .85rem;
+      pointer-events: none;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 11px 12px 11px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: .88rem;
+      font-family: inherit;
+      background: var(--card);
+      color: var(--text);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .form-group input.has-icon { padding-left: 36px; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--line-green);
+      box-shadow: 0 0 0 3px var(--line-green-soft);
+    }
+    .form-group input[readonly] {
+      background: oklch(0.97 0.005 260);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .form-group textarea { resize: vertical; min-height: 72px; }
+    .form-group select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+    .upload-zone {
+      border: 2px dashed var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: .82rem;
+      background: oklch(0.98 0.005 260);
+      transition: border-color .15s, background .15s;
+      cursor: pointer;
+    }
+    .upload-zone:hover { border-color: var(--line-green); background: var(--line-green-soft); }
+    .upload-zone .upload-icon {
+      width: 48px; height: 48px;
+      margin: 0 auto 10px;
+      background: var(--line-green-soft);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+    .upload-zone strong { display: block; color: var(--text); margin-bottom: 4px; }
+    .upload-zone small { font-size: .72rem; opacity: .8; }
+    .upload-preview {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--success-soft);
+      border: 1px solid oklch(0.85 0.06 155);
+      border-radius: var(--radius-sm);
+      margin-top: 10px;
+    }
+    .upload-preview .thumb {
+      width: 44px; height: 44px;
+      background: var(--card);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      border: 1px solid var(--border);
+    }
+    .upload-preview .meta { flex: 1; font-size: .78rem; }
+    .upload-preview .meta strong { display: block; color: var(--text); }
+    .upload-preview .meta span { color: var(--muted); }
+    .liff-footer {
+      position: sticky;
+      bottom: 0;
+      padding: 12px 16px 20px;
+      background: linear-gradient(to top, var(--card) 70%, oklch(1 0 0 / 0));
+      border-top: 1px solid var(--border);
+    }
+    .fee-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background: oklch(0.97 0.01 260);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+      font-size: .85rem;
+    }
+    .fee-card .amount { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .event-banner {
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 12px;
+    }
+    .event-banner .date-box {
+      width: 48px;
+      text-align: center;
+      background: oklch(0.55 0.15 290);
+      color: #fff;
+      border-radius: var(--radius-sm);
+      padding: 6px 4px;
+      flex-shrink: 0;
+    }
+    .event-banner .date-box .day { font-size: 1.1rem; font-weight: 700; line-height: 1; }
+    .event-banner .date-box .mon { font-size: .65rem; opacity: .85; }
+    .event-banner .details h4 { font-size: .9rem; font-weight: 600; }
+    .event-banner .details p { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+    .price-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+    .price-tag.free { background: var(--success-soft); color: oklch(0.45 0.12 155); }
+    .price-tag.paid { background: var(--warning-soft); color: oklch(0.45 0.12 75); }
+    .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      padding: 8px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      font-size: .82rem;
+      font-weight: 500;
+      background: var(--card);
+      cursor: pointer;
+    }
+    .chip.selected {
+      border-color: var(--line-green);
+      background: var(--line-green-soft);
+      color: oklch(0.4 0.12 145);
+      font-weight: 600;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      width: 100%;
+      text-align: center;
+      letter-spacing: -0.01em;
+      transition: transform .1s, box-shadow .15s, background .15s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-line {
+      background: var(--line-green);
+      color: #fff;
+      box-shadow: 0 2px 8px oklch(0.55 0.15 145 / 0.35);
+    }
+    .btn-line:hover { background: var(--line-green-hover); }
+    .btn-primary { background: var(--bo-primary); color: #fff; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-sm { padding: .4rem .75rem; font-size: .8rem; width: auto; }
+
+    .info-box {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: var(--info-soft);
+      border: 1px solid oklch(0.88 0.03 250);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: .82rem;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    .info-box .info-icon { flex-shrink: 0; font-size: 1rem; }
+    .info-box.warn { background: var(--warning-soft); border-color: oklch(0.88 0.06 85); }
+    .info-box.success { background: var(--success-soft); border-color: oklch(0.85 0.06 155); }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    .status-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: .6;
+    }
+    .status-temp { background: var(--temp-soft); color: oklch(0.48 0.14 55); }
+    .status-pending { background: var(--warning-soft); color: oklch(0.48 0.12 75); }
+    .status-active { background: var(--success-soft); color: oklch(0.42 0.12 155); }
+    .status-official { background: var(--official-soft); color: oklch(0.42 0.12 250); }
+    .status-rejected { background: var(--danger-soft); color: oklch(0.48 0.15 25); }
+
+    /* Member ID Card */
+    .member-card {
+      background: linear-gradient(145deg, oklch(0.32 0.05 260) 0%, oklch(0.28 0.04 270) 50%, oklch(0.35 0.08 250) 100%);
+      color: #fff;
+      border-radius: var(--radius-lg);
+      padding: 0;
+      margin: 8px 0 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+    .member-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, oklch(0.75 0.15 85), oklch(0.7 0.12 145), oklch(0.65 0.15 250));
+    }
+    .member-card-inner { padding: 20px; }
+    .member-card .logo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .member-card .logo { font-size: .68rem; opacity: .75; line-height: 1.4; max-width: 70%; }
+    .member-card .chip-icon {
+      width: 36px; height: 28px;
+      background: linear-gradient(135deg, oklch(0.75 0.12 85), oklch(0.65 0.1 75));
+      border-radius: 4px;
+      opacity: .9;
+    }
+    .member-card .name { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+    .member-card .id {
+      font-size: .85rem;
+      opacity: .85;
+      margin: 6px 0 16px;
+      font-family: 'DM Sans', monospace;
+      letter-spacing: 0.04em;
+    }
+    .member-card .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: .72rem;
+      opacity: .8;
+      padding-top: 14px;
+      border-top: 1px solid oklch(1 0 0 / 0.15);
+    }
+    .member-card .meta-grid span { display: block; }
+    .member-card .meta-grid .lbl { opacity: .6; font-size: .65rem; margin-bottom: 2px; }
+    .qr-placeholder {
+      width: 100px; height: 100px;
+      margin: 0 auto 16px;
+      background: var(--card);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .7rem;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+    }
+
+    /* Receipt mock */
+    .receipt {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0;
+      background: var(--card);
+      font-size: .84rem;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .receipt-top-stripe {
+      height: 4px;
+      background: linear-gradient(90deg, var(--line-green), oklch(0.55 0.15 250));
+    }
+    .receipt-inner { padding: 20px 18px; }
+    .receipt-header {
+      text-align: center;
+      border-bottom: 1px dashed var(--border-strong);
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+    }
+    .receipt-header strong { font-size: .9rem; display: block; margin-bottom: 2px; }
+    .receipt-header small { color: var(--muted); font-size: .72rem; }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+    }
+    .receipt-row .label { color: var(--muted); font-size: .78rem; }
+    .receipt-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0 4px;
+      margin-top: 8px;
+      border-top: 2px solid var(--text);
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .receipt-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .receipt-compare .box {
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      font-size: .75rem;
+      line-height: 1.5;
+      border: 1px solid;
+    }
+    .receipt-compare .box.temp { background: var(--temp-soft); border-color: oklch(0.85 0.06 55); }
+    .receipt-compare .box.temp strong { color: oklch(0.48 0.14 55); }
+    .receipt-compare .box.official { background: var(--official-soft); border-color: oklch(0.85 0.04 250); }
+    .receipt-compare .box.official strong { color: oklch(0.42 0.12 250); }
+
+    /* Status reference — journey swimlane */
+    .status-key-rule {
+      background: var(--warning-soft);
+      border: 1px solid oklch(0.88 0.06 75);
+      border-left: 4px solid var(--warning);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      font-size: .85rem;
+      line-height: 1.55;
+    }
+    .status-key-rule strong { color: var(--text); }
+    .status-legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      padding: 12px 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 16px;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+    .status-legend-bar .legend-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .status-legend-bar .legend-label {
+      font-weight: 600;
+      color: var(--text);
+      margin-right: 2px;
+    }
+    .actor-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .actor-badge.system { background: var(--line-green-soft); color: oklch(0.42 0.12 145); }
+    .actor-badge.registrar { background: var(--warning-soft); color: oklch(0.45 0.12 75); }
+    .actor-badge.treasurer { background: var(--official-soft); color: oklch(0.42 0.12 250); }
+    .track-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .track-dot.member { background: oklch(0.55 0.15 145); }
+    .track-dot.payment { background: oklch(0.55 0.14 75); }
+    .track-dot.receipt { background: oklch(0.5 0.14 250); }
+
+    .status-journey {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 20px;
+    }
+    .status-journey-title {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: .95rem;
+      font-weight: 700;
+    }
+    .status-journey-grid {
+      display: grid;
+      grid-template-columns: 36px 1.4fr 110px 1fr 1fr 1fr;
+      font-size: .8rem;
+    }
+    .status-journey-head {
+      display: contents;
+    }
+    .status-journey-head > div {
+      padding: 10px 12px;
+      background: oklch(0.97 0.005 260);
+      border-bottom: 2px solid var(--border);
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+    .status-journey-head .col-member { color: oklch(0.42 0.12 145); }
+    .status-journey-head .col-payment { color: oklch(0.45 0.12 75); }
+    .status-journey-head .col-receipt { color: oklch(0.42 0.12 250); }
+    .status-journey-row {
+      display: contents;
+    }
+    .status-journey-row > div {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      min-height: 56px;
+    }
+    .status-journey-row:last-child > div { border-bottom: none; }
+    .status-journey-row:hover > div { background: oklch(0.98 0.004 260); }
+    .journey-step-num {
+      justify-content: center;
+      font-weight: 700;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .journey-phase-title {
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .journey-phase-sub {
+      font-size: .7rem;
+      color: var(--muted);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+    .journey-actor { justify-content: center; }
+    .journey-status {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: .74rem;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .status-pill.member { background: var(--line-green-soft); color: oklch(0.38 0.1 145); }
+    .status-pill.payment { background: var(--warning-soft); color: oklch(0.4 0.1 75); }
+    .status-pill.receipt { background: var(--official-soft); color: oklch(0.38 0.1 250); }
+    .status-pill.none {
+      background: oklch(0.97 0.005 260);
+      color: var(--muted);
+      border: 1px dashed var(--border-strong);
+      font-weight: 500;
+    }
+    .status-pill.code {
+      font-family: 'DM Sans', monospace;
+      font-size: .68rem;
+      font-weight: 500;
+      padding: 2px 7px;
+      margin-top: 2px;
+    }
+    .status-pill.success { background: var(--success-soft); color: oklch(0.38 0.1 155); }
+
+    .status-exceptions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .status-exception-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      font-size: .82rem;
+    }
+    .status-exception-card.reject {
+      border-left: 3px solid var(--danger);
+      background: var(--danger-soft);
+    }
+    .status-exception-card h4 {
+      font-size: .82rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-exception-card p { color: var(--muted); line-height: 1.5; font-size: .78rem; }
+
+    .status-ref-tables {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .status-ref-table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .status-ref-table-card .table-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: .88rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-ref-table-card.member .table-header { background: var(--line-green-soft); }
+    .status-ref-table-card.payment .table-header { background: var(--warning-soft); }
+    .status-ref-table-card.receipt .table-header { background: var(--official-soft); }
+    .status-ref-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .76rem;
+    }
+    .status-ref-table th {
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--muted);
+      background: oklch(0.98 0.004 260);
+      border-bottom: 1px solid var(--border);
+      font-size: .7rem;
+    }
+    .status-ref-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid oklch(0.96 0.005 260);
+      vertical-align: top;
+      line-height: 1.45;
+    }
+    .status-ref-table tr:last-child td { border-bottom: none; }
+    .status-ref-table .status-name { font-weight: 600; color: var(--text); white-space: nowrap; }
+    .status-ref-table .actor-cell { font-size: .7rem; color: var(--muted); }
+
+    .status-sla-bar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      font-size: .78rem;
+    }
+    .status-sla-bar h4 {
+      font-size: .82rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .status-sla-items {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .status-sla-item {
+      padding: 10px 12px;
+      background: oklch(0.98 0.004 260);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .status-sla-item .sla-time {
+      font-weight: 700;
+      font-size: .85rem;
+      color: var(--bo-primary);
+      margin-bottom: 2px;
+    }
+    .status-sla-item .sla-desc { color: var(--muted); line-height: 1.4; font-size: .72rem; }
+    .status-sla-item .sla-actor { margin-top: 4px; }
+    .status-overview {
+      background: linear-gradient(135deg, oklch(0.97 0.01 260), oklch(0.95 0.02 250));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+    .status-overview h3 {
+      font-size: .95rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .status-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .status-overview-item {
+      text-align: center;
+      padding: 16px 12px;
+      background: var(--card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+    .status-overview-item .num { font-size: 1.5rem; font-weight: 700; }
+    .status-overview-item .lbl { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+    .status-overview-item.member .num { color: oklch(0.55 0.15 145); }
+    .status-overview-item.payment .num { color: oklch(0.55 0.14 75); }
+    .status-overview-item.receipt .num { color: oklch(0.5 0.14 250); }
+
+    /* Desktop Back Office */
+    .bo-frame {
+      width: 100%;
+      max-width: 960px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    }
+    .bo-layout { display: flex; min-height: 560px; }
+    .bo-sidebar {
+      width: 200px;
+      background: var(--bo-sidebar);
+      color: #fff;
+      padding: 1rem 0;
+      flex-shrink: 0;
+    }
+    .bo-sidebar .logo-area {
+      padding: 0 1rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      margin-bottom: .5rem;
+    }
+    .bo-sidebar .logo-area h3 { font-size: .85rem; }
+    .bo-sidebar .logo-area p { font-size: .7rem; opacity: .6; }
+    .bo-nav-item {
+      padding: .6rem 1rem;
+      font-size: .82rem;
+      cursor: pointer;
+      opacity: .7;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .bo-nav-item.active { background: rgba(255,255,255,.1); opacity: 1; font-weight: 600; }
+    .bo-nav-item .count {
+      margin-left: auto;
+      background: var(--danger);
+      color: #fff;
+      font-size: .65rem;
+      padding: .1rem .4rem;
+      border-radius: 999px;
+    }
+    .bo-main { flex: 1; display: flex; flex-direction: column; }
+    .bo-topbar {
+      padding: .85rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+    }
+    .bo-topbar h3 { font-size: 1rem; }
+    .bo-content { padding: 1.25rem; flex: 1; overflow-y: auto; }
+
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .75rem;
+      margin-bottom: 1.25rem;
+    }
+    .stat-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .85rem;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 1.5rem; font-weight: 700; color: var(--bo-primary); }
+    .stat-card .lbl { font-size: .72rem; color: var(--muted); }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .82rem;
+    }
+    .data-table th {
+      background: #f1f5f9;
+      padding: .6rem .75rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+    .data-table td {
+      padding: .6rem .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table tr:hover td { background: #f8fafc; }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+    .detail-section h4 {
+      font-size: .85rem;
+      margin-bottom: .6rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: .4rem 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: .85rem;
+    }
+    .slip-preview {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .action-bar {
+      display: flex;
+      gap: .5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Screen label */
+    .screen-label {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-size: .9rem;
+      color: var(--muted);
+    }
+    .screen-label strong { color: var(--text); display: block; font-size: 1rem; }
+
+    /* Annotation */
+    .annotation {
+      max-width: 280px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--line-green);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      font-size: .82rem;
+      align-self: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .annotation h4 { font-size: .85rem; margin-bottom: 8px; color: var(--text); font-weight: 700; }
+    .annotation ul { padding-left: 1.2rem; color: var(--muted); }
+    .annotation li { margin-bottom: 4px; line-height: 1.5; }
+
+    /* Phase note */
+    .phase-note {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      font-size: .85rem;
+      color: var(--muted);
+    }
+    .phase-note strong { color: var(--text); }
+
+    @media (max-width: 768px) {
+      .stat-cards { grid-template-columns: repeat(2, 1fr); }
+      .detail-grid { grid-template-columns: 1fr; }
+      .bo-layout { flex-direction: column; }
+      .bo-sidebar { width: 100%; display: flex; overflow-x: auto; padding: .5rem; }
+      .bo-nav-item { white-space: nowrap; }
+      .status-overview-grid { grid-template-columns: 1fr; }
+      .status-journey-grid {
+        display: block;
+        overflow-x: auto;
+      }
+      .status-journey-grid > .status-journey-head,
+      .status-journey-grid > .status-journey-row {
+        display: grid;
+        grid-template-columns: 36px 200px 90px 140px 140px 140px;
+        min-width: 760px;
+      }
+      .status-exceptions { grid-template-columns: 1fr; }
+      .status-ref-tables { grid-template-columns: 1fr; }
+      .status-sla-items { grid-template-columns: repeat(2, 1fr); }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>ABTA ระบบบริหารจัดการสมาชิก <span class="badge-mockup">MOCKUP — Phase 1</span></h1>
+  <p>สมาคมการค้าผู้ประกอบการธุรกิจห้องเช่า · อัปเดต Flow 12 ก.ค. 2569</p>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════ OVERVIEW ═══════════ -->
+  <section id="overview">
+    <h2><span class="icon">📋</span> ภาพรวม Phase 1</h2>
+    <div class="channels">
+      <div class="channel-pill"><span class="dot dot-line"></span> <strong>LINE OA</strong> — สมาชิก: สมัคร, เช็คสถานะ, ดูบัตร+ใบเสร็จ</div>
+      <div class="channel-pill"><span class="dot dot-liff"></span> <strong>Web / LIFF</strong> — ฟอร์มกรอกข้อมูล + อัปโหลดสลิป</div>
+      <div class="channel-pill"><span class="dot dot-bo"></span> <strong>Back Office</strong> — แอดมิน / นายทะเบียน / เหรัญญิก</div>
+    </div>
+    <div class="phase-note">
+      <strong>6 ระบบใน Phase 1:</strong> (1) รับสมัครสมาชิก (2) รับสมัครสัมมนา (3) อัปโหลดหลักฐานชำระเงิน (Manual) (4) Back Office (5) แจ้งเตือน LINE OA (6) <strong>เช็คสถานะ — ลำดับแรก</strong><br>
+      <strong>ไม่อยู่ใน Phase 1:</strong> OCR/AI, QR Check-in, Self-Service Web, PDF อัตโนมัติเต็มรูปแบบ, Export Excel
+    </div>
+  </section>
+
+  <!-- ═══════════ FLOWS ═══════════ -->
+  <section id="flows">
+    <h2><span class="icon">🔀</span> Flow Diagrams</h2>
+    <div class="flow-grid">
+
+      <!-- Member Registration Flow -->
+      <div class="flow-card">
+        <div class="flow-card-header member">สมัครสมาชิก (LINE OA → LIFF)</div>
+        <div class="flow-body">
+          <div class="flow-step highlight"><div class="flow-num">1</div><div class="flow-step-content"><strong>เปิดจาก LINE OA</strong><span>Rich Menu / ลิงก์ฟอร์ม</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>เช็คข้อมูลเดิม</strong><span>เบอร์โทร / LINE User ID</span></div></div>
+          <div class="flow-branch yes">✅ มีข้อมูล → แสดงให้ยืนยัน</div>
+          <div class="flow-branch no">❌ ไม่มี → กรอกข้อมูลใหม่</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-step-content"><strong>แนบสลิปโอนเงิน</strong><span>ขั้นตอนเดียว (กรอก + สลิปพร้อมกัน)</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step highlight"><div class="flow-num">4</div><div class="flow-step-content"><strong>ออก Member ID ชั่วคราวทันที</strong><span>ภายใน 5 นาที</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">5</div><div class="flow-step-content"><strong>แจ้งยืนยันผ่าน LINE OA</strong><span>+ ส่งเข้า Back Office</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">6</div><div class="flow-step-content"><strong>นายทะเบียนอนุมัติข้อมูล</strong><span>ผ่าน → ออกใบเสร็จชั่วคราว</span></div></div>
+        </div>
+      </div>
+
+      <!-- Back Office 2-step -->
+      <div class="flow-card">
+        <div class="flow-card-header bo">Back Office — ตรวจ 2 ขั้น</div>
+        <div class="flow-body">
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-step-content"><strong>ขั้นที่ 1: นายทะเบียน</strong><span>ตรวจข้อมูลสมาชิก</span></div></div>
+          <div class="flow-branch yes">✅ ผ่าน → ใช้เลขสมาชิกเดิม + ออกใบเสร็จชั่วคราว</div>
+          <div class="flow-branch no">❌ ไม่ผ่าน → ออกเลขสมาชิกชั่วคราวใหม่</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>ขั้นที่ 2: เหรัญญิก</strong><span>ตรวจสลิป / ใบเสร็จ</span></div></div>
+          <div class="flow-branch yes">✅ ผ่าน → ใบเสร็จตัวจริง + เลขถาวร</div>
+          <div class="flow-branch no">❌ ไม่ผ่าน → ออกเลขใบเสร็จใหม่ + แจ้งสมาชิก</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step highlight"><div class="flow-num">3</div><div class="flow-step-content"><strong>แจ้งเตือนสมาชิกผ่าน LINE</strong><span>บัตรสมาชิก + ใบเสร็จอัปเดต</span></div></div>
+          <table class="role-table">
+            <tr><th>บทบาท</th><th>หน้าที่</th></tr>
+            <tr><td><span class="role-tag role-admin">แอดมิน</span></td><td>CRUD ข้อมูล, Dashboard</td></tr>
+            <tr><td><span class="role-tag role-registrar">นายทะเบียน</span></td><td>ตรวจข้อมูล, ออกใบเสร็จชั่วคราว, อนุมัติสัมมนา</td></tr>
+            <tr><td><span class="role-tag role-treasurer">เหรัญญิก</span></td><td>ตรวจสลิป, ออกใบเสร็จตัวจริง</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Seminar Flow -->
+      <div class="flow-card">
+        <div class="flow-card-header seminar">สมัครสัมมนา</div>
+        <div class="flow-body">
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-step-content"><strong>เลือกงานสัมมนา</strong><span>จาก LINE OA</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>ระบุประเภทผู้สมัคร</strong></div></div>
+          <div class="flow-branch">👤 คนทั่วไป — เสียค่าลงทะเบียน</div>
+          <div class="flow-branch">🎫 สมาชิก — เข้าฟรี</div>
+          <div class="flow-branch">💳 สมาชิก — เสียค่าลงทะเบียน</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-step-content"><strong>กรอกข้อมูลเพิ่ม</strong><span>ไซส์เสื้อ, ประเภทอาหาร, ข้อมูลพิเศษ</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">4</div><div class="flow-step-content"><strong>อัปโหลดสลิป (ถ้าต้องชำระ)</strong></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step highlight"><div class="flow-num">5</div><div class="flow-step-content"><strong>รออนุมัติ → แจ้งเตือน LINE</strong></div></div>
+        </div>
+      </div>
+
+      <!-- Check Status Flow -->
+      <div class="flow-card">
+        <div class="flow-card-header status">เช็คสถานะ ⭐ ลำดับแรก</div>
+        <div class="flow-body">
+          <div class="flow-step highlight"><div class="flow-num">1</div><div class="flow-step-content"><strong>พิมพ์ "เช็คสถานะ"</strong><span>หรือเลือกจาก Rich Menu</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>ค้นหาจาก LINE User ID / เบอร์</strong></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step highlight"><div class="flow-num">3</div><div class="flow-step-content"><strong>ตอบกลับอัตโนมัติ</strong></div></div>
+          <div class="flow-branch">🪪 บัตรสมาชิก (Member ID Card)</div>
+          <div class="flow-branch">🧾 ใบเสร็จ (ชั่วคราว / ตัวจริง)</div>
+          <div class="flow-branch">📊 สถานะสมาชิก + การชำระเงิน</div>
+          <div class="flow-branch">📅 วันหมดอายุ + สถานะต่ออายุ</div>
+          <div class="flow-branch">🎤 สถานะการสมัครสัมมนา</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ SCREEN MOCKUPS ═══════════ -->
+  <section id="mockups">
+    <h2><span class="icon">📱</span> Screen Mockups</h2>
+
+    <div class="screen-nav" id="screenNav">
+      <button class="line-btn active" data-screen="check-status">⭐ เช็คสถานะ (LINE)</button>
+      <button class="line-btn" data-screen="register">สมัครสมาชิก (LIFF)</button>
+      <button class="line-btn" data-screen="renew">ต่ออายุสมาชิก (LIFF)</button>
+      <button class="line-btn" data-screen="seminar">สมัครสัมมนา (LIFF)</button>
+      <button class="line-btn" data-screen="id-card">บัตรสมาชิก</button>
+      <button class="line-btn" data-screen="receipt">ใบเสร็จ</button>
+      <button data-screen="bo-dashboard">BO: Dashboard</button>
+      <button data-screen="bo-registrar">BO: นายทะเบียน</button>
+      <button data-screen="bo-treasurer">BO: เหรัญญิก</button>
+      <button data-screen="bo-seminar">BO: อนุมัติสัมมนา</button>
+    </div>
+
+    <!-- ── 1. Check Status (LINE) ── -->
+    <div class="screen-panel active" id="screen-check-status">
+      <div class="screen-wrapper">
+        <div>
+          <div class="screen-label"><strong>เช็คสถานะผ่าน LINE OA</strong>สมาชิกพิมพ์ "เช็คสถานะ" → บอทตอบอัตโนมัติ</div>
+          <div class="phone-frame">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋</span></div>
+              <div class="line-header chat-mode">
+                <div class="back-btn">‹</div>
+                <div class="avatar">AB</div>
+                <div class="info"><h3>ABTA สมาคมฯ</h3><p>@abta_official</p></div>
+              </div>
+              <div class="line-chat">
+                <div class="chat-date-divider">วันนี้</div>
+                <div class="chat-bubble user">เช็คสถานะ<div class="chat-time">09:15</div></div>
+                <div class="chat-bubble bot">
+                  <div class="greeting">สวัสดีค่ะ คุณสมชาย 👋<br>นี่คือข้อมูลสมาชิกของคุณค่ะ</div>
+                  <div class="card-mini">
+                    <div class="card-mini-header">บัตรสมาชิก</div>
+                    <div class="card-mini-body">
+                      <strong style="font-size:.9rem;">สมชาย ใจดี</strong>
+                      <div class="row"><span class="lbl">Member ID</span><strong>ABTA-2026-T0042</strong></div>
+                      <div class="row"><span class="lbl">สถานะ</span><span class="status-badge status-temp">สมาชิกชั่วคราว</span></div>
+                      <div class="row"><span class="lbl">หมดอายุ</span><span>31 ธ.ค. 2569</span></div>
+                    </div>
+                    <div class="card-mini-action">ดูบัตรสมาชิกเต็มรูปแบบ →</div>
+                  </div>
+                  <div class="card-mini">
+                    <div class="card-mini-header">ใบเสร็จรับเงิน</div>
+                    <div class="card-mini-body">
+                      <div class="row"><span class="lbl">เลขที่</span><span style="color:var(--muted);">— ยังไม่มี</span></div>
+                      <div class="row"><span class="lbl">สถานะ</span><span class="status-badge status-pending">รอตรวจข้อมูล</span></div>
+                      <div class="row"><span class="lbl">หมายเหตุ</span><span style="font-size:.75rem;color:var(--muted);">ออกหลังนายทะเบียนอนุมัติ</span></div>
+                    </div>
+                  </div>
+                  <div class="card-mini">
+                    <div class="card-mini-header">สัมมนา</div>
+                    <div class="card-mini-body">
+                      <div class="row"><span class="lbl">สัมมนาภาษี 2569</span><span class="status-badge status-active">ยืนยันแล้ว</span></div>
+                    </div>
+                  </div>
+                  <div class="chat-quick-actions">
+                    <span class="chat-quick-btn">ต่ออายุ</span>
+                    <span class="chat-quick-btn">สมัครสัมมนา</span>
+                  </div>
+                  <div class="chat-time">09:15</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="annotation">
+          <h4>หมายเหตุ Mockup</h4>
+          <ul>
+            <li>พัฒนาก่อนเป็นอันดับ 1 (5–6 วัน)</li>
+            <li>ได้ Member ID ทันที — ใบเสร็จออกหลังนายทะเบียนอนุมัติ</li>
+            <li>ค้นหาจาก LINE User ID อัตโนมัติ</li>
+            <li>Self-Service Web → Phase 2</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 2. Register (LIFF) ── -->
+    <div class="screen-panel" id="screen-register">
+      <div class="screen-wrapper">
+        <div>
+          <div class="screen-label"><strong>สมัครสมาชิกใหม่</strong>เปิดจาก LINE OA → Web/LIFF Form</div>
+          <div class="phone-frame">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋</span></div>
+              <div class="line-header">
+                <div class="back-btn">‹</div>
+                <div class="info" style="flex:1"><h3>สมัครสมาชิก</h3><p>ABTA Membership</p></div>
+              </div>
+              <div class="liff-body">
+                <div class="liff-hero">
+                  <div class="step-label">ขั้นตอนที่ 1 จาก 1</div>
+                  <div class="liff-title">สมัครสมาชิกใหม่</div>
+                  <div class="liff-sub">กรอกข้อมูลและแนบสลิปในขั้นตอนเดียว</div>
+                  <div class="liff-progress">
+                    <div class="bar active"></div>
+                  </div>
+                </div>
+                <div class="liff-content">
+                  <div class="info-box">
+                    <span class="info-icon">ℹ️</span>
+                    <span>ระบบไม่พบข้อมูลเดิม — กรุณากรอกข้อมูลใหม่</span>
+                  </div>
+                  <div class="form-section">
+                    <div class="form-section-title">ข้อมูลส่วนตัว</div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>ชื่อ <span class="req">*</span></label>
+                        <div class="input-wrap">
+                          <input type="text" value="สมชาย" readonly>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label>นามสกุล <span class="req">*</span></label>
+                        <input type="text" value="ใจดี" readonly>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>เบอร์โทรศัพท์ <span class="req">*</span></label>
+                      <div class="input-wrap">
+                        <span class="input-icon">📱</span>
+                        <input type="tel" class="has-icon" value="081-234-5678" readonly>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>อีเมล</label>
+                      <div class="input-wrap">
+                        <span class="input-icon">✉️</span>
+                        <input type="email" class="has-icon" value="somchai@email.com" readonly>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>หน่วยงาน / ตึก</label>
+                      <input type="text" value="อาคาร ABC ชั้น 5" readonly>
+                    </div>
+                  </div>
+                  <div class="form-section">
+                    <div class="form-section-title">หลักฐานการชำระเงิน</div>
+                    <div class="fee-card">
+                      <span>ค่าธรรมเนียมสมาชิก</span>
+                      <span class="amount">500 บาท</span>
+                    </div>
+                    <div class="form-group">
+                      <label>แนบสลิปโอนเงิน <span class="req">*</span></label>
+                      <div class="upload-zone">
+                        <div class="upload-icon">📎</div>
+                        <strong>แตะเพื่ออัปโหลดสลิป</strong>
+                        <small>รองรับ JPG, PNG · สูงสุด 5 MB</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="info-box warn">
+                    <span class="info-icon">⚡</span>
+                    <span>หลังส่ง จะได้รับ <strong>Member ID ชั่วคราว</strong> ภายใน 5 นาที — ใบเสร็จชั่วคราวออกหลังนายทะเบียนอนุมัติข้อมูล</span>
+                  </div>
+                </div>
+                <div class="liff-footer">
+                  <button class="btn btn-line">ส่งใบสมัคร</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="annotation">
+          <h4>Flow หลังกดส่ง</h4>
+          <ul>
+            <li>บันทึกลงฐานข้อมูล</li>
+            <li>ออก ABTA-2026-T00XX ทันที</li>
+            <li>แจ้ง LINE OA ยืนยัน (เลขสมาชิก)</li>
+            <li>ส่งเข้าคิว Back Office</li>
+            <li>นายทะเบียนอนุมัติ → ออก RC-T-XXXX</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 3. Renew (LIFF) ── -->
+    <div class="screen-panel" id="screen-renew">
+      <div class="screen-wrapper">
+        <div>
+          <div class="screen-label"><strong>ต่ออายุสมาชิก</strong>ดึงข้อมูลเดิมอัตโนมัติ</div>
+          <div class="phone-frame">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋</span></div>
+              <div class="line-header">
+                <div class="back-btn">‹</div>
+                <div class="info" style="flex:1"><h3>ต่ออายุสมาชิก</h3><p>Renewal</p></div>
+              </div>
+              <div class="liff-body">
+                <div class="liff-hero">
+                  <div class="step-label">ขั้นตอนที่ 1 จาก 1</div>
+                  <div class="liff-title">ต่ออายุสมาชิก</div>
+                  <div class="liff-sub">ตรวจสอบข้อมูลเดิมก่อนยืนยัน</div>
+                  <div class="liff-progress"><div class="bar active"></div></div>
+                </div>
+                <div class="liff-content">
+                  <div class="info-box success">
+                    <span class="info-icon">✓</span>
+                    <span>พบข้อมูลสมาชิกเดิม — กรุณาตรวจสอบและยืนยัน</span>
+                  </div>
+                  <div class="form-section">
+                    <div class="form-section-title">ข้อมูลสมาชิกปัจจุบัน</div>
+                    <div class="form-group">
+                      <label>ชื่อ-นามสกุล</label>
+                      <input type="text" value="สมชาย ใจดี" readonly>
+                    </div>
+                    <div class="form-group">
+                      <label>Member ID</label>
+                      <input type="text" value="ABTA-2025-0156" readonly style="font-family:'DM Sans',monospace;letter-spacing:.04em;">
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>หมดอายุปัจจุบัน</label>
+                        <input type="text" value="31 มี.ค. 2569" readonly>
+                      </div>
+                      <div class="form-group">
+                        <label>หมดอายุใหม่</label>
+                        <input type="text" value="31 มี.ค. 2570" readonly>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-section">
+                    <div class="form-section-title">ชำระเงิน</div>
+                    <div class="fee-card">
+                      <span>ค่าธรรมเนียมต่ออายุ</span>
+                      <span class="amount">500 บาท</span>
+                    </div>
+                    <div class="form-group">
+                      <label>แนบสลิปโอนเงิน <span class="req">*</span></label>
+                      <div class="upload-zone">
+                        <div class="upload-icon">📎</div>
+                        <strong>แตะเพื่ออัปโหลดสลิป</strong>
+                        <small>JPG, PNG · สูงสุด 5 MB</small>
+                      </div>
+                      <div class="upload-preview">
+                        <div class="thumb">🧾</div>
+                        <div class="meta">
+                          <strong>slip_110769.jpg</strong>
+                          <span>245 KB · อัปโหลดแล้ว</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="liff-footer">
+                  <button class="btn btn-line">ยืนยันต่ออายุ</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="annotation">
+          <h4>แจ้งเตือนอัตโนมัติ</h4>
+          <ul>
+            <li>ก่อนหมดอายุ 1 เดือน</li>
+            <li>ก่อนหมดอายุ 0.5 เดือน</li>
+            <li>Flow ตรวจเหมือนสมัครใหม่</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 4. Seminar (LIFF) ── -->
+    <div class="screen-panel" id="screen-seminar">
+      <div class="screen-wrapper">
+        <div>
+          <div class="screen-label"><strong>สมัครสัมมนา</strong>รองรับ 3 ประเภทราคา</div>
+          <div class="phone-frame">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋</span></div>
+              <div class="line-header">
+                <div class="back-btn">‹</div>
+                <div class="info" style="flex:1"><h3>ลงทะเบียนสัมมนา</h3><p>Seminar Registration</p></div>
+              </div>
+              <div class="liff-body">
+                <div class="liff-hero" style="background: linear-gradient(160deg, oklch(0.42 0.1 290) 0%, oklch(0.35 0.08 280) 100%);">
+                  <div class="step-label">สัมมนาภาษี 2569</div>
+                  <div class="liff-title">ลงทะเบียนเข้าร่วม</div>
+                  <div class="liff-sub">15 สิงหาคม 2569 · โรงแรม XYZ</div>
+                  <div class="liff-progress"><div class="bar active"></div></div>
+                </div>
+                <div class="liff-content">
+                  <div class="event-banner">
+                    <div class="date-box">
+                      <div class="day">15</div>
+                      <div class="mon">ส.ค.</div>
+                    </div>
+                    <div class="details">
+                      <h4>สัมมนาภาษี 2569</h4>
+                      <p>โรงแรม XYZ · 09:00–16:00 น.</p>
+                      <div style="margin-top:8px;"><span class="price-tag free">สมาชิก — เข้าร่วมฟรี</span></div>
+                    </div>
+                  </div>
+                  <div class="form-section">
+                    <div class="form-section-title">ข้อมูลผู้ลงทะเบียน</div>
+                    <div class="form-group">
+                      <label>ชื่อ-นามสกุล</label>
+                      <input type="text" value="สมชาย ใจดี" readonly>
+                    </div>
+                    <div class="form-group">
+                      <label>เบอร์โทร</label>
+                      <input type="tel" value="081-234-5678" readonly>
+                    </div>
+                  </div>
+                  <div class="form-section">
+                    <div class="form-section-title">ข้อมูลเพิ่มเติม</div>
+                    <div class="form-group">
+                      <label>ไซส์เสื้อ</label>
+                      <div class="chip-group">
+                        <span class="chip">S</span>
+                        <span class="chip">M</span>
+                        <span class="chip selected">L</span>
+                        <span class="chip">XL</span>
+                        <span class="chip">XXL</span>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>ประเภทอาหาร</label>
+                      <select><option>ทั่วไป</option><option>มังสวิรัติ</option><option>ฮาลาล</option></select>
+                    </div>
+                    <div class="form-group">
+                      <label>ข้อมูลพิเศษ / อาหารแพ้</label>
+                      <textarea placeholder="เช่น แพ้ถั่วลิสง, ต้องการที่นั่งพิเศษ"></textarea>
+                    </div>
+                  </div>
+                  <div class="info-box success">
+                    <span class="info-icon">✓</span>
+                    <span>ไม่ต้องชำระเงิน — กดยืนยันได้เลย</span>
+                  </div>
+                </div>
+                <div class="liff-footer">
+                  <button class="btn btn-line">ยืนยันการสมัคร</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="annotation">
+          <h4>ประเภทราคา 3 แบบ</h4>
+          <ul>
+            <li><strong>public_paid</strong> — คนทั่วไปจ่าย</li>
+            <li><strong>member_free</strong> — สมาชิกฟรี</li>
+            <li><strong>member_paid</strong> — สมาชิกจ่าย</li>
+            <li>กำหนดได้ต่องาน</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 5. Member ID Card ── -->
+    <div class="screen-panel" id="screen-id-card">
+      <div class="screen-wrapper">
+        <div>
+          <div class="screen-label"><strong>บัตรสมาชิก (Member ID Card)</strong>แสดงใน LINE OA เมื่อเช็คสถานะ</div>
+          <div class="phone-frame">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋</span></div>
+              <div class="line-header">
+                <div class="back-btn">‹</div>
+                <div class="info" style="flex:1"><h3>บัตรสมาชิก</h3><p>Member ID Card</p></div>
+              </div>
+              <div class="liff-body">
+                <div class="liff-content" style="padding-top:20px;">
+                  <div class="member-card">
+                    <div class="member-card-inner">
+                      <div class="logo-row">
+                        <div class="logo">สมาคมการค้าผู้ประกอบการ<br>ธุรกิจห้องเช่า (ABTA)</div>
+                        <div class="chip-icon"></div>
+                      </div>
+                      <div class="name">สมชาย ใจดี</div>
+                      <div class="id">ABTA-2026-0042</div>
+                      <div class="meta-grid">
+                        <div><span class="lbl">หน่วยงาน</span><span>อาคาร ABC</span></div>
+                        <div><span class="lbl">สถานะ</span><span>สมาชิกสมบูรณ์</span></div>
+                        <div><span class="lbl">วันที่สมัคร</span><span>1 ม.ค. 2569</span></div>
+                        <div><span class="lbl">หมดอายุ</span><span>31 ธ.ค. 2569</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="qr-placeholder">QR Code<br><small>Phase 3–4</small></div>
+                  <div class="info-box" style="text-align:center; justify-content:center;">
+                    <span>Phase 1 แสดงใน LINE OA · PDF Template สวยงาม → Phase 2</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 6. Receipt ── -->
+    <div class="screen-panel" id="screen-receipt">
+      <div class="screen-wrapper">
+        <div>
+          <div class="screen-label"><strong>ใบเสร็จรับเงิน</strong>ชั่วคราว → ตัวจริง (หลังเหรัญญิกอนุมัติ)</div>
+          <div class="phone-frame">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋</span></div>
+              <div class="line-header">
+                <div class="back-btn">‹</div>
+                <div class="info" style="flex:1"><h3>ใบเสร็จรับเงิน</h3><p>RC-2026-0088</p></div>
+              </div>
+              <div class="liff-body">
+                <div class="liff-content" style="padding-top:20px;">
+                  <div class="receipt">
+                    <div class="receipt-top-stripe"></div>
+                    <div class="receipt-inner">
+                      <div class="receipt-header">
+                        <strong>สมาคมการค้าผู้ประกอบการ<br>ธุรกิจห้องเช่า (ABTA)</strong>
+                        <small>Association of Business Tenants Association</small>
+                      </div>
+                      <div class="receipt-row"><span class="label">เลขที่</span><span>RC-2026-0088</span></div>
+                      <div class="receipt-row"><span class="label">สถานะ</span><span class="status-badge status-official">ใบเสร็จตัวจริง</span></div>
+                      <div class="receipt-row"><span class="label">วันที่</span><span>5 ก.ค. 2569</span></div>
+                      <div class="receipt-row"><span class="label">ผู้ชำระ</span><span>สมชาย ใจดี</span></div>
+                      <div class="receipt-row"><span class="label">Member ID</span><span style="font-family:'DM Sans',monospace;">ABTA-2026-0042</span></div>
+                      <div class="receipt-row"><span class="label">รายการ</span><span>ค่าธรรมเนียมสมาชิก 2569</span></div>
+                      <div class="receipt-total">
+                        <span>จำนวนเงิน</span>
+                        <span>500.00 บาท</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="receipt-compare">
+                    <div class="box temp">
+                      <strong>ชั่วคราว</strong>
+                      RC-T-2026-0088<br>
+                      หลังนายทะเบียนอนุมัติ
+                    </div>
+                    <div class="box official">
+                      <strong>ตัวจริง</strong>
+                      RC-2026-0088<br>
+                      หลังเหรัญญิกอนุมัติ
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 7. BO Dashboard ── -->
+    <div class="screen-panel" id="screen-bo-dashboard">
+      <div class="screen-label"><strong>Back Office — Dashboard</strong>สรุปข้อมูลเบื้องต้น (แอดมิน)</div>
+      <div class="bo-frame">
+        <div class="bo-layout">
+          <div class="bo-sidebar">
+            <div class="logo-area"><h3>ABTA Back Office</h3><p>Phase 1 Mockup</p></div>
+            <div class="bo-nav-item active">📊 Dashboard</div>
+            <div class="bo-nav-item">👥 สมาชิก</div>
+            <div class="bo-nav-item">📋 ตรวจข้อมูล <span class="count">3</span></div>
+            <div class="bo-nav-item">💰 ตรวจสลิป <span class="count">2</span></div>
+            <div class="bo-nav-item">🎤 สัมมนา <span class="count">5</span></div>
+          </div>
+          <div class="bo-main">
+            <div class="bo-topbar"><h3>Dashboard</h3><span style="font-size:.82rem; color:var(--muted);">แอดมิน: คุณตุ๊กตา</span></div>
+            <div class="bo-content">
+              <div class="stat-cards">
+                <div class="stat-card"><div class="num">156</div><div class="lbl">สมาชิกทั้งหมด</div></div>
+                <div class="stat-card"><div class="num">3</div><div class="lbl">รอตรวจข้อมูล</div></div>
+                <div class="stat-card"><div class="num">2</div><div class="lbl">รอตรวจสลิป</div></div>
+                <div class="stat-card"><div class="num">5</div><div class="lbl">รออนุมัติสัมมนา</div></div>
+              </div>
+              <h4 style="font-size:.9rem; margin-bottom:.75rem;">รายการล่าสุด</h4>
+              <table class="data-table">
+                <thead><tr><th>วันที่</th><th>ชื่อ</th><th>ประเภท</th><th>สถานะ</th><th>ผู้รับผิดชอบ</th></tr></thead>
+                <tbody>
+                  <tr><td>11/07/69</td><td>สมชาย ใจดี</td><td>สมัครใหม่</td><td><span class="status-badge status-pending">รอตรวจข้อมูล</span></td><td>นายทะเบียน</td></tr>
+                  <tr><td>11/07/69</td><td>สมหญิง รักดี</td><td>ต่ออายุ</td><td><span class="status-badge status-pending">รอตรวจสลิป</span></td><td>เหรัญญิก</td></tr>
+                  <tr><td>10/07/69</td><td>วิชัย มั่นคง</td><td>สัมมนา</td><td><span class="status-badge status-pending">รออนุมัติ</span></td><td>นายทะเบียน</td></tr>
+                  <tr><td>10/07/69</td><td>มาลี สุขใจ</td><td>สมัครใหม่</td><td><span class="status-badge status-active">สมาชิกสมบูรณ์</span></td><td>—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 8. BO Registrar ── -->
+    <div class="screen-panel" id="screen-bo-registrar">
+      <div class="screen-label"><strong>Back Office — ขั้นที่ 1: นายทะเบียน</strong>ตรวจสอบข้อมูลสมาชิก</div>
+      <div class="bo-frame">
+        <div class="bo-layout">
+          <div class="bo-sidebar">
+            <div class="logo-area"><h3>ABTA Back Office</h3><p>นายทะเบียน</p></div>
+            <div class="bo-nav-item">📊 Dashboard</div>
+            <div class="bo-nav-item active">📋 ตรวจข้อมูล <span class="count">3</span></div>
+            <div class="bo-nav-item">💰 ตรวจสลิป</div>
+            <div class="bo-nav-item">🎤 สัมมนา</div>
+          </div>
+          <div class="bo-main">
+            <div class="bo-topbar"><h3>ตรวจสอบข้อมูลสมาชิก — ขั้นที่ 1</h3><span class="status-badge status-pending">รอตรวจสอบ</span></div>
+            <div class="bo-content">
+              <div class="detail-grid">
+                <div class="detail-section">
+                  <h4>ข้อมูลผู้สมัคร</h4>
+                  <div class="detail-row"><span>ชื่อ-นามสกุล</span><strong>สมชาย ใจดี</strong></div>
+                  <div class="detail-row"><span>เบอร์โทร</span><strong>081-234-5678</strong></div>
+                  <div class="detail-row"><span>อีเมล</span><strong>somchai@email.com</strong></div>
+                  <div class="detail-row"><span>หน่วยงาน</span><strong>อาคาร ABC ชั้น 5</strong></div>
+                  <div class="detail-row"><span>Member ID ชั่วคราว</span><strong>ABTA-2026-T0042</strong></div>
+                  <div class="detail-row"><span>ประเภท</span><strong>สมัครใหม่</strong></div>
+                  <div class="detail-row"><span>วันที่สมัคร</span><strong>11 ก.ค. 2569 09:10</strong></div>
+                </div>
+                <div class="detail-section">
+                  <h4>สลิปการโอนเงิน (ดูอย่างเดียว)</h4>
+                  <div class="slip-preview">🖼️ ตัวอย่างสลิปโอนเงิน<br><small>ตรวจโดยเหรัญญิกในขั้นที่ 2</small></div>
+                  <div class="detail-row" style="margin-top:.75rem;"><span>จำนวนเงิน</span><strong>500 บาท</strong></div>
+                  <div class="detail-row"><span>ใบเสร็จชั่วคราว</span><strong style="color:var(--muted);">— ยังไม่ออก (รออนุมัติ)</strong></div>
+                </div>
+              </div>
+              <div class="action-bar">
+                <button class="btn btn-success btn-sm">✅ อนุมัติ — ใช้เลขเดิม + ออกใบเสร็จชั่วคราว</button>
+                <button class="btn btn-danger btn-sm">❌ ไม่ผ่าน — ออกเลขชั่วคราวใหม่</button>
+                <button class="btn btn-outline btn-sm">ส่งต่อเหรัญญิก →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 9. BO Treasurer ── -->
+    <div class="screen-panel" id="screen-bo-treasurer">
+      <div class="screen-label"><strong>Back Office — ขั้นที่ 2: เหรัญญิก</strong>ตรวจสลิปและออกใบเสร็จตัวจริง</div>
+      <div class="bo-frame">
+        <div class="bo-layout">
+          <div class="bo-sidebar">
+            <div class="logo-area"><h3>ABTA Back Office</h3><p>เหรัญญิก</p></div>
+            <div class="bo-nav-item">📊 Dashboard</div>
+            <div class="bo-nav-item">📋 ตรวจข้อมูล</div>
+            <div class="bo-nav-item active">💰 ตรวจสลิป <span class="count">2</span></div>
+            <div class="bo-nav-item">🎤 สัมมนา</div>
+          </div>
+          <div class="bo-main">
+            <div class="bo-topbar"><h3>ตรวจสอบสลิป — ขั้นที่ 2</h3><span class="status-badge status-pending">รอตรวจสลิป</span></div>
+            <div class="bo-content">
+              <div class="info-box" style="margin-bottom:1rem;">ℹ️ นายทะเบียนอนุมัติข้อมูลแล้ว — รอเหรัญญิกตรวจสลิป</div>
+              <div class="detail-grid">
+                <div class="detail-section">
+                  <h4>ข้อมูลการชำระเงิน</h4>
+                  <div class="detail-row"><span>ผู้ชำระ</span><strong>สมชาย ใจดี</strong></div>
+                  <div class="detail-row"><span>Member ID</span><strong>ABTA-2026-T0042</strong></div>
+                  <div class="detail-row"><span>ใบเสร็จชั่วคราว</span><strong>RC-T-2026-0088</strong></div>
+                  <div class="detail-row"><span>จำนวนเงิน</span><strong>500 บาท</strong></div>
+                  <div class="detail-row"><span>วันที่โอน</span><strong>11 ก.ค. 2569</strong></div>
+                </div>
+                <div class="detail-section">
+                  <h4>สลิปการโอนเงิน</h4>
+                  <div class="slip-preview" style="height:280px; background:#fff;">🖼️ สลิปโอนเงิน 500 บาท<br>ธ.กรุงไทย · 11/07/69 08:55</div>
+                </div>
+              </div>
+              <div class="action-bar">
+                <button class="btn btn-success btn-sm">✅ ยืนยัน — ออกใบเสร็จตัวจริง + เลขถาวร</button>
+                <button class="btn btn-danger btn-sm">❌ ไม่ผ่าน — ออกเลขใบเสร็จใหม่</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 10. BO Seminar ── -->
+    <div class="screen-panel" id="screen-bo-seminar">
+      <div class="screen-label"><strong>Back Office — อนุมัติสัมมนา</strong>นายทะเบียนตรวจสอบผู้สมัคร</div>
+      <div class="bo-frame">
+        <div class="bo-layout">
+          <div class="bo-sidebar">
+            <div class="logo-area"><h3>ABTA Back Office</h3><p>นายทะเบียน</p></div>
+            <div class="bo-nav-item">📊 Dashboard</div>
+            <div class="bo-nav-item">📋 ตรวจข้อมูล</div>
+            <div class="bo-nav-item">💰 ตรวจสลิป</div>
+            <div class="bo-nav-item active">🎤 สัมมนา <span class="count">5</span></div>
+          </div>
+          <div class="bo-main">
+            <div class="bo-topbar"><h3>อนุมัติผู้สมัครสัมมนา — สัมมนาภาษี 2569</h3></div>
+            <div class="bo-content">
+              <table class="data-table">
+                <thead><tr><th>ชื่อ</th><th>ประเภท</th><th>ไซส์เสื้อ</th><th>อาหาร</th><th>ชำระเงิน</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>สมชาย ใจดี</td>
+                    <td>สมาชิก (ฟรี)</td>
+                    <td>L</td>
+                    <td>ทั่วไป</td>
+                    <td>—</td>
+                    <td><span class="status-badge status-pending">รออนุมัติ</span></td>
+                    <td><button class="btn btn-success btn-sm">อนุมัติ</button></td>
+                  </tr>
+                  <tr>
+                    <td>วิชัย มั่นคง</td>
+                    <td>คนทั่วไป</td>
+                    <td>XL</td>
+                    <td>มังสวิรัติ</td>
+                    <td>1,000 บาท ✓</td>
+                    <td><span class="status-badge status-pending">รออนุมัติ</span></td>
+                    <td><button class="btn btn-success btn-sm">อนุมัติ</button></td>
+                  </tr>
+                  <tr>
+                    <td>มาลี สุขใจ</td>
+                    <td>สมาชิก (จ่าย)</td>
+                    <td>M</td>
+                    <td>ทั่วไป</td>
+                    <td>500 บาท ✓</td>
+                    <td><span class="status-badge status-active">ยืนยันสิทธิ์แล้ว</span></td>
+                    <td>—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════ STATUS REFERENCE ═══════════ -->
+  <section id="status-ref">
+    <h2><span class="icon">🏷️</span> สถานะในระบบ (อ้างอิง)</h2>
+
+    <div class="status-key-rule">
+      <strong>กฎสำคัญ (อัปเดต 12 ก.ค. 2569):</strong> ใบเสร็จชั่วคราว <strong>ไม่</strong> ออกทันทีหลังสมัคร — ออกเฉพาะหลัง<strong>นายทะเบียน</strong>อนุมัติข้อมูลสมาชิก (ขั้นที่ 1) เท่านั้น · Member ID ชั่วคราวออกทันทีโดย<strong>ระบบ</strong> (ภายใน 5 นาที)
+    </div>
+
+    <div class="status-overview">
+      <h3>3 กลุ่มสถานะที่ทำงานคู่กัน</h3>
+      <div class="status-overview-grid">
+        <div class="status-overview-item member">
+          <div class="num">👤</div>
+          <div class="lbl">สถานะสมาชิก</div>
+          <div style="font-size:.7rem;color:var(--muted);margin-top:6px;line-height:1.4;">ID ชั่วคราวทันที → ID ถาวรหลังเหรัญญิกอนุมัติ</div>
+        </div>
+        <div class="status-overview-item payment">
+          <div class="num">💰</div>
+          <div class="lbl">สถานะการชำระเงิน</div>
+          <div style="font-size:.7rem;color:var(--muted);margin-top:6px;line-height:1.4;">ตรวจ 2 ขั้น: นายทะเบียน → เหรัญญิก</div>
+        </div>
+        <div class="status-overview-item receipt">
+          <div class="num">🧾</div>
+          <div class="lbl">สถานะใบเสร็จ</div>
+          <div style="font-size:.7rem;color:var(--muted);margin-top:6px;line-height:1.4;">ยังไม่มี → ชั่วคราว → ตัวจริง</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-legend-bar">
+      <div class="legend-group">
+        <span class="legend-label">ผู้รับผิดชอบ:</span>
+        <span class="actor-badge system">⚙️ ระบบ</span>
+        <span class="actor-badge registrar">📋 นายทะเบียน</span>
+        <span class="actor-badge treasurer">💼 เหรัญญิก</span>
+      </div>
+      <div class="legend-group">
+        <span class="legend-label">แทร็ก:</span>
+        <span><span class="track-dot member"></span> สมาชิก</span>
+        <span><span class="track-dot payment"></span> การชำระเงิน</span>
+        <span><span class="track-dot receipt"></span> ใบเสร็จ</span>
+      </div>
+    </div>
+
+    <div class="status-journey">
+      <div class="status-journey-title">เส้นทางสมัครสมาชิก — 3 แทร็กทำงานพร้อมกัน</div>
+      <div class="status-journey-grid">
+        <div class="status-journey-head">
+          <div>#</div>
+          <div>ขั้นตอน</div>
+          <div>ผู้รับผิดชอบ</div>
+          <div class="col-member">👤 สมาชิก</div>
+          <div class="col-payment">💰 การชำระเงิน</div>
+          <div class="col-receipt">🧾 ใบเสร็จ</div>
+        </div>
+
+        <div class="status-journey-row">
+          <div class="journey-step-num">1</div>
+          <div>
+            <div class="journey-phase-title">สมัคร + ส่งสลิป</div>
+            <div class="journey-phase-sub">กรอกฟอร์มและแนบหลักฐานชำระเงิน</div>
+          </div>
+          <div class="journey-actor"><span class="actor-badge system">ระบบ</span></div>
+          <div class="journey-status"><span class="status-pill member">สมัครแล้ว</span></div>
+          <div class="journey-status"><span class="status-pill payment">ได้รับหลักฐานการชำระเงินแล้ว</span></div>
+          <div class="journey-status"><span class="status-pill none">ยังไม่มี</span></div>
+        </div>
+
+        <div class="status-journey-row">
+          <div class="journey-step-num">2</div>
+          <div>
+            <div class="journey-phase-title">ออก Member ID ชั่วคราว</div>
+            <div class="journey-phase-sub">ทันทีภายใน 5 นาที · แจ้ง LINE OA</div>
+          </div>
+          <div class="journey-actor"><span class="actor-badge system">ระบบ</span></div>
+          <div class="journey-status"><span class="status-pill member">สมาชิกชั่วคราว</span></div>
+          <div class="journey-status"><span class="status-pill payment">ได้รับหลักฐานการชำระเงินแล้ว</span></div>
+          <div class="journey-status"><span class="status-pill none">ยังไม่มี</span></div>
+        </div>
+
+        <div class="status-journey-row">
+          <div class="journey-step-num">3</div>
+          <div>
+            <div class="journey-phase-title">ตรวจข้อมูลสมาชิก</div>
+            <div class="journey-phase-sub">ขั้นที่ 1 · SLA 7 วันทำการ</div>
+          </div>
+          <div class="journey-actor"><span class="actor-badge registrar">นายทะเบียน</span></div>
+          <div class="journey-status"><span class="status-pill member">รอตรวจสอบเอกสาร</span></div>
+          <div class="journey-status"><span class="status-pill payment">รอตรวจสอบข้อมูล</span></div>
+          <div class="journey-status"><span class="status-pill none">ยังไม่มี</span></div>
+        </div>
+
+        <div class="status-journey-row">
+          <div class="journey-step-num">4</div>
+          <div>
+            <div class="journey-phase-title">อนุมัติข้อมูล → ออกใบเสร็จชั่วคราว</div>
+            <div class="journey-phase-sub">นายทะเบียนผ่าน → มีเลขใบเสร็จชั่วคราว</div>
+          </div>
+          <div class="journey-actor"><span class="actor-badge registrar">นายทะเบียน</span></div>
+          <div class="journey-status"><span class="status-pill member">สมาชิกชั่วคราว</span></div>
+          <div class="journey-status"><span class="status-pill payment">ออกใบเสร็จชั่วคราวแล้ว</span></div>
+          <div class="journey-status">
+            <span class="status-pill receipt">ชั่วคราว</span>
+            <span class="status-pill receipt code">temp</span>
+          </div>
+        </div>
+
+        <div class="status-journey-row">
+          <div class="journey-step-num">5</div>
+          <div>
+            <div class="journey-phase-title">ตรวจสลิป</div>
+            <div class="journey-phase-sub">ขั้นที่ 2 · SLA 7 วันทำการ</div>
+          </div>
+          <div class="journey-actor"><span class="actor-badge treasurer">เหรัญญิก</span></div>
+          <div class="journey-status"><span class="status-pill member">สมาชิกชั่วคราว</span></div>
+          <div class="journey-status"><span class="status-pill payment">รอตรวจสอบสลิป</span></div>
+          <div class="journey-status">
+            <span class="status-pill receipt">รอตรวจสอบ</span>
+            <span class="status-pill receipt code">pending_review</span>
+          </div>
+        </div>
+
+        <div class="status-journey-row">
+          <div class="journey-step-num">6</div>
+          <div>
+            <div class="journey-phase-title">อนุมัติสลิป → ใบเสร็จตัวจริง + ID ถาวร</div>
+            <div class="journey-phase-sub">เหรัญญิกผ่าน → สมาชิกสมบูรณ์</div>
+          </div>
+          <div class="journey-actor"><span class="actor-badge treasurer">เหรัญญิก</span></div>
+          <div class="journey-status"><span class="status-pill member success">สมาชิกสมบูรณ์</span></div>
+          <div class="journey-status">
+            <span class="status-pill payment success">ยืนยันการชำระเงินแล้ว</span>
+            <span class="status-pill payment success">ออกใบเสร็จตัวจริงแล้ว</span>
+          </div>
+          <div class="journey-status">
+            <span class="status-pill receipt success">ตัวจริง</span>
+            <span class="status-pill receipt code">official</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-exceptions">
+      <div class="status-exception-card reject">
+        <h4>❌ นายทะเบียนไม่ผ่าน (ขั้นที่ 1)</h4>
+        <p>ข้อมูลสมาชิกไม่ถูกต้อง → ระบบออก <strong>Member ID ใหม่</strong> · ใบเสร็จยังไม่ออก</p>
+      </div>
+      <div class="status-exception-card reject">
+        <h4>❌ เหรัญญิกไม่ผ่าน (ขั้นที่ 2)</h4>
+        <p>สลิปไม่ถูกต้อง → สถานะใบเสร็จ <code>rejected</code> · ออก<strong>เลขใบเสร็จใหม่</strong> · สมาชิกส่งสลิปใหม่</p>
+      </div>
+    </div>
+
+    <div class="status-ref-tables">
+      <div class="status-ref-table-card member">
+        <div class="table-header">👤 สถานะสมาชิกทั้งหมด</div>
+        <table class="status-ref-table">
+          <thead><tr><th>สถานะ</th><th>ความหมาย</th></tr></thead>
+          <tbody>
+            <tr><td class="status-name">สมัครแล้ว</td><td>กรอกฟอร์มแล้ว รอดำเนินการ</td></tr>
+            <tr><td class="status-name">รอตรวจสอบเอกสาร</td><td>ส่งเอกสารแล้ว รอนายทะเบียน</td></tr>
+            <tr><td class="status-name">สมาชิกชั่วคราว</td><td>ได้ Member ID ชั่วคราว ใช้สิทธิ์ได้</td></tr>
+            <tr><td class="status-name">สมาชิกสมบูรณ์</td><td>อนุมัติครบ มีเลขถาวร</td></tr>
+            <tr><td class="status-name">ใกล้หมดอายุ</td><td>ระบบแจ้งเตือนอัตโนมัติ</td></tr>
+            <tr><td class="status-name">หมดอายุ</td><td>ต้องต่ออายุ</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="status-ref-table-card payment">
+        <div class="table-header">💰 สถานะการชำระเงินทั้งหมด</div>
+        <table class="status-ref-table">
+          <thead><tr><th>สถานะ</th><th>ความหมาย</th></tr></thead>
+          <tbody>
+            <tr><td class="status-name">รอชำระเงิน</td><td>ยังไม่ได้รับสลิป</td></tr>
+            <tr><td class="status-name">ได้รับหลักฐานแล้ว</td><td>ระบบรับสลิปแล้ว รอตรวจข้อมูล</td></tr>
+            <tr><td class="status-name">รอตรวจสอบข้อมูล</td><td class="actor-cell">นายทะเบียนกำลังตรวจ</td></tr>
+            <tr><td class="status-name">ออกใบเสร็จชั่วคราวแล้ว</td><td class="actor-cell">นายทะเบียนอนุมัติแล้ว</td></tr>
+            <tr><td class="status-name">รอตรวจสอบสลิป</td><td class="actor-cell">เหรัญญิกกำลังตรวจ</td></tr>
+            <tr><td class="status-name">ยืนยันการชำระเงินแล้ว</td><td class="actor-cell">เหรัญญิกอนุมัติสลิปแล้ว</td></tr>
+            <tr><td class="status-name">ออกใบเสร็จตัวจริงแล้ว</td><td>เปลี่ยนจากชั่วคราวเป็นตัวจริง</td></tr>
+            <tr><td class="status-name">ปฏิเสธ</td><td>สลิปไม่ผ่าน ออกเลขใบเสร็จใหม่</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="status-ref-table-card receipt">
+        <div class="table-header">🧾 สถานะใบเสร็จทั้งหมด</div>
+        <table class="status-ref-table">
+          <thead><tr><th>สถานะ</th><th>ความหมาย</th></tr></thead>
+          <tbody>
+            <tr><td class="status-name">ยังไม่มี</td><td>รอนายทะเบียนอนุมัติข้อมูล</td></tr>
+            <tr><td class="status-name">ชั่วคราว <code>temp</code></td><td class="actor-cell">หลังนายทะเบียนอนุมัติ</td></tr>
+            <tr><td class="status-name">รอตรวจสอบ <code>pending_review</code></td><td class="actor-cell">เหรัญญิกกำลังตรวจสลิป</td></tr>
+            <tr><td class="status-name">ตัวจริง <code>official</code></td><td class="actor-cell">เหรัญญิกอนุมัติแล้ว</td></tr>
+            <tr><td class="status-name">ปฏิเสธ <code>rejected</code></td><td>ไม่ผ่าน ออกเลขใบเสร็จใหม่</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="status-sla-bar">
+      <h4>⏱️ SLA มาตรฐาน ABTA</h4>
+      <div class="status-sla-items">
+        <div class="status-sla-item">
+          <div class="sla-time">≤ 5 นาที</div>
+          <div class="sla-desc">สมัคร → Member ID ชั่วคราว</div>
+          <div class="sla-actor"><span class="actor-badge system">ระบบ</span></div>
+        </div>
+        <div class="status-sla-item">
+          <div class="sla-time">≤ 24 ชม.</div>
+          <div class="sla-desc">ระบบยืนยันรับสลิป</div>
+          <div class="sla-actor"><span class="actor-badge system">ระบบ</span></div>
+        </div>
+        <div class="status-sla-item">
+          <div class="sla-time">≤ 7 วันทำการ</div>
+          <div class="sla-desc">ตรวจข้อมูล + ออกใบเสร็จชั่วคราว</div>
+          <div class="sla-actor"><span class="actor-badge registrar">นายทะเบียน</span></div>
+        </div>
+        <div class="status-sla-item">
+          <div class="sla-time">≤ 7 วันทำการ</div>
+          <div class="sla-desc">ตรวจสลิป + ใบเสร็จตัวจริง + ID ถาวร</div>
+          <div class="sla-actor"><span class="actor-badge treasurer">เหรัญญิก</span></div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+<script>
+  document.querySelectorAll('#screenNav button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#screenNav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.screen-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('screen-' + btn.dataset.screen).classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
