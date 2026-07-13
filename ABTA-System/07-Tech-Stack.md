@@ -11,7 +11,7 @@
 | **Frontend** | React |
 | **Backend** | Node.js |
 | **Database** | Firebase (Firestore) |
-| **LINE Integration** | LINE Messaging API + Webhook |
+| **LINE Integration** | Messaging API (LINE OA) + LINE Login channel (LIFF) + Webhook |
 | **Hosting** | Firebase Hosting |
 
 ### ทางเลือกอื่นที่เคยพิจารณา
@@ -22,15 +22,62 @@
 
 ---
 
-## การตั้งค่า LINE Official Account
+## การตั้งค่า LINE (2 Channels)
 
-ขั้นตอนที่ลูกค้าต้องทำ (หรือทำร่วมกับผู้พัฒนา):
+> **นโยบาย LINE:** ตั้งแต่ ก.พ. 2020 ห้ามสร้าง LIFF app บน Messaging API channel — ต้องใช้ **LINE Login channel** แยกต่างหาก ([อ้างอิง](https://developers.line.biz/en/news/2019/11/11/liff-cannot-be-used-with-messaging-api-channels/))  
+> Flow ฝั่งสมาชิกยังเปิดฟอร์มจาก LINE OA ได้ตามปกติ (Rich Menu / ลิงก์) แต่ LIFF ลงทะเบียนบน LINE Login channel
+
+ระบบ ABTA ใช้ **2 channel ภายใต้ Provider เดียวกัน**:
+
+| Channel | หน้าที่ | ใช้ในระบบ ABTA |
+|---------|--------|----------------|
+| **Messaging API** | LINE Official Account — ส่งข้อความ, Webhook, Rich Menu | เช็คสถานะ, แจ้งเตือน, Reply/Push |
+| **LINE Login** | LIFF app — ฟอร์มเว็บใน LINE, ดึง `lineUserId` | สมัครสมาชิก, ยืนยันสมาชิกเก่า, สัมมนา, อัปโหลดสลิป |
+
+### ขั้นตอนที่ลูกค้าต้องทำ (หรือทำร่วมกับผู้พัฒนา)
+
+**เตรียมบัญชี**
 
 1. สร้าง **Gmail ใหม่** ชื่อสมาคม
-2. สมัคร **LINE Official Account**
-3. ตั้งค่า **Messaging API**
-4. กำหนด **Webhook URL** ชี้ไปที่ Backend
-5. เปิดใช้งาน Webhook
+2. สร้าง **Provider** บน [LINE Developers Console](https://developers.line.biz/console/)
+
+**Channel 1 — Messaging API (LINE OA)**
+
+3. สมัคร **LINE Official Account** และเชื่อมกับ Messaging API channel
+4. ตั้งค่า **Messaging API** — เก็บ Channel ID, Channel Secret, Channel Access Token
+5. กำหนด **Webhook URL** ชี้ไปที่ Backend
+6. เปิดใช้งาน Webhook
+7. ตั้ง **Rich Menu** — ปุ่มเปิด LIFF URL (ชี้ไปฟอร์มบน Firebase Hosting)
+
+**Channel 2 — LINE Login (LIFF)**
+
+8. สร้าง **LINE Login channel** ภายใต้ Provider เดียวกัน
+9. เพิ่ม **LIFF app** บนแท็บ LIFF ของ LINE Login channel
+   - Endpoint URL → Firebase Hosting (เช่น `https://abta-xxxxx.web.app/liff/register`)
+   - Size: Full
+   - Scopes: `profile`, `openid` (ดึง LINE User ID)
+10. เก็บ **LIFF ID** แต่ละฟอร์ม (ใช้ใน `liff.init()` และ Rich Menu)
+
+**LIFF apps ที่วางแผนไว้ (Phase 1)**
+
+| LIFF App | ใช้กับ Flow |
+|----------|-------------|
+| สมัครสมาชิกใหม่ | กรอกข้อมูล + แนบสลิป |
+| ยืนยันสมาชิกเก่า | ค้นหา legacy + ผูก LINE UID |
+| ต่ออายุสมาชิก | กรอก/ยืนยันข้อมูล + สลิป |
+| สมัครสัมมนา | ลงทะเบียน + สลิป (ถ้าต้องจ่าย) |
+| อัปโหลดสลิป | ส่งสลิปใหม่หลัง reject |
+
+> อาจรวมเป็นหน้าเดียวแล้ว route ตาม query param (`?flow=register|legacy|renewal|seminar|slip`) หรือแยก LIFF app ตามฟอร์ม — ตัดสินใจตอน implement
+
+**Credentials ที่ Backend ต้องเก็บ**
+
+| ตัวแปร | มาจาก |
+|--------|-------|
+| `LINE_MESSAGING_CHANNEL_SECRET` | Messaging API channel |
+| `LINE_MESSAGING_ACCESS_TOKEN` | Messaging API channel |
+| `LINE_LOGIN_CHANNEL_ID` | LINE Login channel (ถ้าต้อง verify ID token) |
+| `LIFF_ID_*` | แต่ละ LIFF app |
 
 ---
 
@@ -39,8 +86,9 @@
 ```mermaid
 flowchart LR
     subgraph Client
-        LINE[LINE OA]
-        WEB[Web App / Back Office]
+        OA[LINE OA\nMessaging API]
+        LIFF[LIFF Forms\nLINE Login channel]
+        WEB[Back Office]
     end
 
     subgraph Backend
@@ -54,11 +102,15 @@ flowchart LR
         STORAGE[Firebase Storage]
     end
 
-    LINE --> WH
+    OA -->|Rich Menu / ลิงก์| LIFF
+    OA --> WH
+    LIFF --> HOST
+    LIFF --> API
     WEB --> API
     WH --> API
     API --> FB
     API --> STORAGE
+    API -->|Push / Reply| OA
     WEB --> HOST
 ```
 
@@ -67,6 +119,7 @@ flowchart LR
 | Event | Flow |
 |-------|------|
 | สมาชิกสมัคร | Web Form → API → Firestore → LINE Notify |
+| สมาชิกเก่ายืนยันตัวตน + ผูก LINE | LIFF Form → API → ค้นหา Legacy DB → ผูก lineUserId → ออก memberId ใหม่ → LINE Notify |
 | สมาชิกพิมพ์ "เช็คสถานะ" | LINE → Webhook → API → Firestore → LINE Reply |
 | แอดมินอนุมัติข้อมูล | Back Office → API → Firestore → LINE Notify |
 | เหรัญญิกอนุมัติสลิป | Back Office → API → Firestore → LINE Notify |
@@ -97,20 +150,26 @@ flowchart LR
 
 ## ข้อมูลที่ต้องเก็บในฐานข้อมูล
 
-> อัปเดต schema ตาม Flow Phase 1 ที่ยืนยัน (11 ก.ค. 2569)
+> อัปเดต schema ตาม Flow Phase 1 ที่ยืนยัน (11 ก.ค. 2569)  
+> อัปเดต schema ผูก LINE สมาชิกเก่า (13 ก.ค. 2569)
 
 ### ตาราง Members
 
 | Field | Type | หมายเหตุ |
 |-------|------|----------|
-| memberId | string | ชั่วคราว → ถาวร; ไม่ผ่านแอดมิน → regenerate |
-| tempMemberId | string | เลขชั่วคราว (ก่อน promote) |
+| memberId | string | ชั่วคราว → ถาวร (promote โดยนายทะเบียนขั้นที่ 1) / รูปแบบใหม่หลังผูก LINE สมาชิกเก่า |
+| tempMemberId | string | เลขชั่วคราวก่อน promote |
+| legacyMemberId | string | เลขสมาชิกเก่าจากฐานข้อมูลเดิม (อ้างอิง) |
 | firstName | string | |
 | lastName | string | |
-| phone | string | ใช้ค้นหา + ผูก LINE |
-| email | string | |
-| organization | string | หน่วยงาน/ตึก |
+| legalEntityName | string | ชื่อนิติบุคคล — ใช้ยืนยันตัวตนสมาชิกเก่า |
+| phone | string | ใช้ค้นหา + ผูก LINE (ไม่ใช้ค่าเดียวในการ match สมาชิกเก่า) |
+| email | string | ไม่ใช้ค่าเดียวในการ match สมาชิกเก่า (อาจซ้ำหลายคน) |
+| organization | string | หน่วยงาน |
+| buildingName | string | ชื่อตึก — ใช้ยืนยันตัวตนสมาชิกเก่า |
 | lineUserId | string | ผูกกับ LINE OA |
+| lineLinkedAt | timestamp | วันที่ผูก LINE UID สำเร็จ |
+| linkType | enum | `new_registration` / `legacy_bind` / `renewal` |
 | status | enum | ดู [05-Status-and-SLA.md](./05-Status-and-SLA.md) |
 | memberCardUrl | string | URL บัตรสมาชิก (ID Card) — แสดงใน LINE OA |
 | expiryDate | timestamp | วันหมดอายุ |
@@ -183,6 +242,30 @@ flowchart LR
 | `pending_review` | รอเหรัญญิกตรวจสลิป |
 | `official` | ใบเสร็จตัวจริง |
 | `rejected` | ไม่ผ่าน — ระบบออกเลขใบเสร็จใหม่ |
+
+**Member.linkType**
+
+| ค่า | ความหมาย |
+|-----|----------|
+| `new_registration` | สมัครสมาชิกใหม่ผ่านฟอร์ม + สลิป |
+| `legacy_bind` | ยืนยันสมาชิกเก่า + ผูก LINE UID |
+| `renewal` | ต่ออายุสมาชิกที่ผูก LINE แล้ว |
+
+### ตาราง LegacyMembers (ฐานข้อมูลสมาชิกเก่า — อ่านอย่างเดียว)
+
+| Field | Type | หมายเหตุ |
+|-------|------|----------|
+| legacyMemberId | string | เลขสมาชิกเก่า |
+| firstName | string | |
+| lastName | string | |
+| legalEntityName | string | |
+| buildingName | string | |
+| phone | string | อาจซ้ำหลายรายการ |
+| email | string | อาจซ้ำหลายรายการ |
+| status | enum | สถานะเดิม |
+| expiryDate | timestamp | วันหมดอายุเดิม |
+
+> การค้นหายืนยันตัวตน: match `firstName` + `lastName` + `legalEntityName` + `buildingName` (+ phone/email เป็น secondary) — ถ้าพบหลายรายการ ให้ผู้ใช้เลือก
 
 ---
 

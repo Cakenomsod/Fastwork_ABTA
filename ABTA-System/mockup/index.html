@@ -53,29 +53,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Top bar ── */
-    .topbar {
-      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
-      color: #fff;
-      padding: 1.25rem 2rem;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 2px 12px rgba(0,0,0,.15);
-    }
-    .topbar h1 { font-size: 1.35rem; font-weight: 700; }
-    .topbar p { font-size: .85rem; opacity: .85; margin-top: .15rem; }
-    .badge-mockup {
-      display: inline-block;
-      background: rgba(255,255,255,.2);
-      border: 1px solid rgba(255,255,255,.4);
-      padding: .15rem .6rem;
-      border-radius: 999px;
-      font-size: .75rem;
-      margin-left: .5rem;
-      vertical-align: middle;
-    }
-
     /* ── Layout ── */
     .container { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem; }
     section { margin-bottom: 3rem; }
@@ -134,9 +111,12 @@
       color: #fff;
     }
     .flow-card-header.member { background: var(--line-green); }
+    .flow-card-header.legacy { background: #d97706; }
     .flow-card-header.seminar { background: #7c3aed; }
     .flow-card-header.status { background: #0891b2; }
     .flow-card-header.bo { background: var(--bo-sidebar); }
+    .flow-card-header.exception { background: #dc2626; }
+    .flow-card-header.edge { background: #64748b; }
     .flow-body { padding: 1.25rem; }
 
     .flow-step {
@@ -187,6 +167,7 @@
     }
     .flow-branch.yes { border-left-color: var(--success); }
     .flow-branch.no { border-left-color: var(--danger); }
+    .flow-branch.loop { border-left-color: #d97706; background: #fffbeb; }
 
     /* ── Role table ── */
     .role-table {
@@ -617,6 +598,37 @@
       font-size: .85rem;
     }
     .fee-card .amount { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+
+    .match-list { display: flex; flex-direction: column; gap: .5rem; }
+    .match-card {
+      display: flex;
+      gap: .75rem;
+      align-items: flex-start;
+      padding: 12px 14px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .match-card:hover { border-color: #d97706; background: oklch(0.98 0.02 75); }
+    .match-card.selected {
+      border-color: #d97706;
+      background: oklch(0.97 0.04 75);
+      box-shadow: 0 0 0 3px oklch(0.85 0.08 75 / 0.35);
+    }
+    .match-card input { margin-top: 3px; accent-color: #d97706; }
+    .match-card .match-body { flex: 1; min-width: 0; }
+    .match-card .match-title { font-weight: 600; font-size: .88rem; margin-bottom: 4px; }
+    .match-card .match-meta { font-size: .75rem; color: var(--muted); line-height: 1.45; }
+    .match-card .match-id {
+      font-family: 'DM Sans', monospace;
+      font-size: .72rem;
+      color: #b45309;
+      font-weight: 600;
+      letter-spacing: .03em;
+    }
+
     .event-banner {
       display: flex;
       gap: 12px;
@@ -1017,7 +1029,7 @@
 
     .status-exceptions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, 1fr);
       gap: 12px;
       margin-bottom: 20px;
     }
@@ -1031,6 +1043,10 @@
     .status-exception-card.reject {
       border-left: 3px solid var(--danger);
       background: var(--danger-soft);
+    }
+    .status-exception-card.edge {
+      border-left: 3px solid #64748b;
+      background: #f8fafc;
     }
     .status-exception-card h4 {
       font-size: .82rem;
@@ -1341,23 +1357,19 @@
 </head>
 <body>
 
-<div class="topbar">
-  <h1>ABTA ระบบบริหารจัดการสมาชิก <span class="badge-mockup">MOCKUP — Phase 1</span></h1>
-  <p>สมาคมการค้าผู้ประกอบการธุรกิจห้องเช่า · อัปเดต Flow 12 ก.ค. 2569</p>
-</div>
-
 <div class="container">
 
   <!-- ═══════════ OVERVIEW ═══════════ -->
   <section id="overview">
     <h2><span class="icon">📋</span> ภาพรวม Phase 1</h2>
     <div class="channels">
-      <div class="channel-pill"><span class="dot dot-line"></span> <strong>LINE OA</strong> — สมาชิก: สมัคร, เช็คสถานะ, ดูบัตร+ใบเสร็จ</div>
+      <div class="channel-pill"><span class="dot dot-line"></span> <strong>LINE OA</strong> — สมาชิก: สมัคร, ยืนยันสมาชิกเก่า, เช็คสถานะ, ดูบัตร+ใบเสร็จ</div>
       <div class="channel-pill"><span class="dot dot-liff"></span> <strong>Web / LIFF</strong> — ฟอร์มกรอกข้อมูล + อัปโหลดสลิป</div>
       <div class="channel-pill"><span class="dot dot-bo"></span> <strong>Back Office</strong> — แอดมิน / นายทะเบียน / เหรัญญิก</div>
     </div>
     <div class="phase-note">
-      <strong>6 ระบบใน Phase 1:</strong> (1) รับสมัครสมาชิก (2) รับสมัครสัมมนา (3) อัปโหลดหลักฐานชำระเงิน (Manual) (4) Back Office (5) แจ้งเตือน LINE OA (6) <strong>เช็คสถานะ — ลำดับแรก</strong><br>
+      <strong>6 ระบบใน Phase 1:</strong> (1) รับสมัครสมาชิก + ยืนยันสมาชิกเก่า (2) รับสมัครสัมมนา (3) อัปโหลดหลักฐานชำระเงิน (Manual) (4) Back Office (5) แจ้งเตือน LINE OA (6) <strong>เช็คสถานะ — ลำดับแรก</strong><br>
+      <strong>อัปเดต 13 ก.ค. 2569:</strong> Flow ผูก LINE สมาชิกเก่า · Exception (ส่งใหม่) · สิทธิ์สมาชิกชั่วคราวครบ · Edge cases ผ่านแชทแอดมิน<br>
       <strong>ไม่อยู่ใน Phase 1:</strong> OCR/AI, QR Check-in, Self-Service Web, PDF อัตโนมัติเต็มรูปแบบ, Export Excel
     </div>
   </section>
@@ -1367,23 +1379,42 @@
     <h2><span class="icon">🔀</span> Flow Diagrams</h2>
     <div class="flow-grid">
 
+      <!-- Legacy Member LINE Binding Flow -->
+      <div class="flow-card">
+        <div class="flow-card-header legacy">ผูก LINE UID สมาชิกเก่า ⭐ ใหม่</div>
+        <div class="flow-body">
+          <div class="flow-step highlight"><div class="flow-num">1</div><div class="flow-step-content"><strong>เปิดจาก LINE OA</strong><span>ยังไม่ผูก LINE User ID</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>กรอกข้อมูลยืนยันตัวตน</strong><span>ชื่อ, นามสกุล, ชื่อนิติบุคคล, ชื่อตึก, อีเมล, เบอร์โทร</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-step-content"><strong>ค้นหาในฐานข้อมูลเก่า</strong><span>match หลายฟิลด์ร่วมกัน (ไม่ใช้แค่อีเมล/เบอร์)</span></div></div>
+          <div class="flow-branch yes">✅ พบ 1 รายการ → แสดงเลขสมาชิกเก่าให้ยืนยัน</div>
+          <div class="flow-branch">🔀 พบหลายรายการ → เลือกรายการที่ตรง (ชื่อนิติบุคคล/ตึก)</div>
+          <div class="flow-branch no">❌ ไม่พบ → สมัครสมาชิกใหม่</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step highlight"><div class="flow-num">4</div><div class="flow-step-content"><strong>ยืนยันผูก LINE UID</strong><span>+ ออกเลขสมาชิกรูปแบบใหม่</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">5</div><div class="flow-step-content"><strong>เข้าใช้ระบบใหม่ได้</strong><span>เช็คสถานะ, ต่ออายุ, สัมมนา</span></div></div>
+        </div>
+      </div>
+
       <!-- Member Registration Flow -->
       <div class="flow-card">
-        <div class="flow-card-header member">สมัครสมาชิก (LINE OA → LIFF)</div>
+        <div class="flow-card-header member">สมัครสมาชิกใหม่ (LINE OA → LIFF)</div>
         <div class="flow-body">
           <div class="flow-step highlight"><div class="flow-num">1</div><div class="flow-step-content"><strong>เปิดจาก LINE OA</strong><span>Rich Menu / ลิงก์ฟอร์ม</span></div></div>
           <div class="flow-arrow">↓</div>
-          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>เช็คข้อมูลเดิม</strong><span>เบอร์โทร / LINE User ID</span></div></div>
-          <div class="flow-branch yes">✅ มีข้อมูล → แสดงให้ยืนยัน</div>
-          <div class="flow-branch no">❌ ไม่มี → กรอกข้อมูลใหม่</div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>เช็ค LINE User ID</strong><span>ผูกแล้ว → ใช้งานปกติ / ยังไม่ผูก → สมัครใหม่ หรือ ยืนยันสมาชิกเก่า</span></div></div>
+          <div class="flow-branch yes">✅ เลือกสมัครใหม่ → กรอกข้อมูล + แนบสลิป</div>
+          <div class="flow-branch">🔗 เลือกยืนยันสมาชิกเก่า → Flow แยก (ไม่ต้องแนบสลิป)</div>
           <div class="flow-arrow">↓</div>
           <div class="flow-step"><div class="flow-num">3</div><div class="flow-step-content"><strong>แนบสลิปโอนเงิน</strong><span>ขั้นตอนเดียว (กรอก + สลิปพร้อมกัน)</span></div></div>
           <div class="flow-arrow">↓</div>
-          <div class="flow-step highlight"><div class="flow-num">4</div><div class="flow-step-content"><strong>ออก Member ID ชั่วคราวทันที</strong><span>ภายใน 5 นาที</span></div></div>
+          <div class="flow-step highlight"><div class="flow-num">4</div><div class="flow-step-content"><strong>ออก Member ID ชั่วคราวทันที</strong><span>ภายใน 5 นาที · ใช้สิทธิ์ครบเหมือนสมาชิกจริง (รอตรวจสอบเท่านั้น)</span></div></div>
           <div class="flow-arrow">↓</div>
           <div class="flow-step"><div class="flow-num">5</div><div class="flow-step-content"><strong>แจ้งยืนยันผ่าน LINE OA</strong><span>+ ส่งเข้า Back Office</span></div></div>
           <div class="flow-arrow">↓</div>
-          <div class="flow-step"><div class="flow-num">6</div><div class="flow-step-content"><strong>นายทะเบียนอนุมัติข้อมูล</strong><span>ผ่าน → ออกใบเสร็จชั่วคราว</span></div></div>
+          <div class="flow-step"><div class="flow-num">6</div><div class="flow-step-content"><strong>นายทะเบียนอนุมัติข้อมูล</strong><span>ผ่าน → promote เลขถาวร + ออกใบเสร็จชั่วคราว</span></div></div>
         </div>
       </div>
 
@@ -1392,12 +1423,14 @@
         <div class="flow-card-header bo">Back Office — ตรวจ 2 ขั้น</div>
         <div class="flow-body">
           <div class="flow-step"><div class="flow-num">1</div><div class="flow-step-content"><strong>ขั้นที่ 1: นายทะเบียน</strong><span>ตรวจข้อมูลสมาชิก</span></div></div>
-          <div class="flow-branch yes">✅ ผ่าน → ใช้เลขสมาชิกเดิม + ออกใบเสร็จชั่วคราว</div>
-          <div class="flow-branch no">❌ ไม่ผ่าน → ออกเลขสมาชิกชั่วคราวใหม่</div>
-          <div class="flow-arrow">↓</div>
+          <div class="flow-branch yes">✅ ผ่าน → promote เลขถาวร + สมาชิกสมบูรณ์ + ออกใบเสร็จชั่วคราว → ส่งต่อเหรัญญิก</div>
+          <div class="flow-branch no">❌ ไม่ผ่าน → แจ้งสมาชิกแก้ไข/ส่งใหม่ · ใบเสร็จยังไม่ออก</div>
+          <div class="flow-branch loop">↩️ สมาชิกส่งใหม่ → กลับขั้นที่ 1 (ไม่ส่งเหรัญญิก)</div>
+          <div class="flow-arrow">↓ เฉพาะผ่านขั้นที่ 1</div>
           <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>ขั้นที่ 2: เหรัญญิก</strong><span>ตรวจสลิป / ใบเสร็จ</span></div></div>
-          <div class="flow-branch yes">✅ ผ่าน → ใบเสร็จตัวจริง + เลขถาวร</div>
+          <div class="flow-branch yes">✅ ผ่าน → ใบเสร็จตัวจริง</div>
           <div class="flow-branch no">❌ ไม่ผ่าน → ออกเลขใบเสร็จใหม่ + แจ้งสมาชิก</div>
+          <div class="flow-branch loop">↩️ สมาชิกส่งสลิปใหม่ → กลับขั้นที่ 2 (คงเลขถาวร)</div>
           <div class="flow-arrow">↓</div>
           <div class="flow-step highlight"><div class="flow-num">3</div><div class="flow-step-content"><strong>แจ้งเตือนสมาชิกผ่าน LINE</strong><span>บัตรสมาชิก + ใบเสร็จอัปเดต</span></div></div>
           <table class="role-table">
@@ -1417,7 +1450,7 @@
           <div class="flow-arrow">↓</div>
           <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>ระบุประเภทผู้สมัคร</strong></div></div>
           <div class="flow-branch">👤 คนทั่วไป — เสียค่าลงทะเบียน</div>
-          <div class="flow-branch">🎫 สมาชิก — เข้าฟรี</div>
+          <div class="flow-branch">🎫 สมาชิก — เข้าฟรี (รวมชั่วคราว ถ้ายังไม่หมดอายุ)</div>
           <div class="flow-branch">💳 สมาชิก — เสียค่าลงทะเบียน</div>
           <div class="flow-arrow">↓</div>
           <div class="flow-step"><div class="flow-num">3</div><div class="flow-step-content"><strong>กรอกข้อมูลเพิ่ม</strong><span>ไซส์เสื้อ, ประเภทอาหาร, ข้อมูลพิเศษ</span></div></div>
@@ -1445,6 +1478,48 @@
         </div>
       </div>
 
+      <!-- Exception: Data Reject -->
+      <div class="flow-card">
+        <div class="flow-card-header exception">ส่งใหม่ — ข้อมูลไม่ผ่าน (ขั้นที่ 1)</div>
+        <div class="flow-body">
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-step-content"><strong>นายทะเบียนปฏิเสธข้อมูล</strong><span>บันทึกเหตุผล + แจ้ง LINE OA</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>สมาชิกเปิดฟอร์มแก้ไข</strong><span>จาก LINE OA (LIFF)</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-step-content"><strong>แก้ไขข้อมูล + แนบสลิปใหม่ถ้าจำเป็น</strong></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step highlight"><div class="flow-num">4</div><div class="flow-step-content"><strong>ออก Member ID ชั่วคราวใหม่</strong><span>เก็บเลขเก่าใน audit log</span></div></div>
+          <div class="flow-branch loop">↩️ กลับคิวนายทะเบียน — ไม่ส่งเหรัญญิก · ใบเสร็จยังไม่ออก</div>
+        </div>
+      </div>
+
+      <!-- Exception: Slip Reject -->
+      <div class="flow-card">
+        <div class="flow-card-header exception">ส่งใหม่ — สลิปไม่ผ่าน (ขั้นที่ 2)</div>
+        <div class="flow-body">
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-step-content"><strong>เหรัญญิกปฏิเสธสลิป</strong><span>ใบเสร็จ → rejected</span></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-step-content"><strong>แจ้ง LINE OA พร้อมเหตุผล</strong></div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-step-content"><strong>สมาชิกส่งสลิปใหม่</strong><span>ผ่าน LINE OA หรือฟอร์มอัปโหลด — ไม่ต้องกรอกข้อมูลใหม่ทั้งหมด</span></div></div>
+          <div class="flow-branch yes">✅ คงเลขถาวร + สถานะสมาชิกสมบูรณ์</div>
+          <div class="flow-branch loop">↩️ กลับคิวเหรัญญิก — ออกเลขใบเสร็จใหม่เมื่อผ่าน</div>
+        </div>
+      </div>
+
+      <!-- Edge Cases -->
+      <div class="flow-card">
+        <div class="flow-card-header edge">Edge Cases — จัดการผ่านแชทแอดมิน</div>
+        <div class="flow-body">
+          <div class="flow-branch">⏰ สมาชิกเก่าผูก LINE แล้วแต่หมดอายุ → ใช้ระบบได้ · ต่ออายุตาม Flow ปกติ</div>
+          <div class="flow-branch">🔀 เลือกรายการผูก LINE ผิด → ติดต่อแอดมิน · แก้ใน Back Office</div>
+          <div class="flow-branch">🔗 legacy ถูกผูก LINE แล้ว / LINE UID ซ้ำ → แจ้งข้อความในระบบ + แชทแอดมิน</div>
+          <div class="flow-branch">❓ ยืนยันตัวตนไม่พบแต่เคยเป็นสมาชิก → แชทแอดมินตรวจด้วยมือ</div>
+          <div class="flow-branch">👤 คนทั่วไปสมัครสัมมนา → เปิด LIFF จาก LINE (ไม่ต้องผูก LINE)</div>
+          <div class="flow-branch">📅 สมาชิกหมดอายุ + member_paid → คิดราคาสมาชิก (ไม่ได้สิทธิ์ฟรี)</div>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -1454,6 +1529,8 @@
 
     <div class="screen-nav" id="screenNav">
       <button class="line-btn active" data-screen="check-status">⭐ เช็คสถานะ (LINE)</button>
+      <button class="line-btn" data-screen="legacy-verify">ยืนยันสมาชิกเก่า (1/2)</button>
+      <button class="line-btn" data-screen="legacy-confirm">ยืนยันสมาชิกเก่า (2/2)</button>
       <button class="line-btn" data-screen="register">สมัครสมาชิก (LIFF)</button>
       <button class="line-btn" data-screen="renew">ต่ออายุสมาชิก (LIFF)</button>
       <button class="line-btn" data-screen="seminar">สมัครสัมมนา (LIFF)</button>
@@ -1522,9 +1599,174 @@
           <h4>หมายเหตุ Mockup</h4>
           <ul>
             <li>พัฒนาก่อนเป็นอันดับ 1 (5–6 วัน)</li>
+            <li>สมาชิกชั่วคราวใช้สิทธิ์ครบ — สัมมนา/บัตร/ต่ออายุได้ทันที</li>
             <li>ได้ Member ID ทันที — ใบเสร็จออกหลังนายทะเบียนอนุมัติ</li>
             <li>ค้นหาจาก LINE User ID อัตโนมัติ</li>
             <li>Self-Service Web → Phase 2</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 1b. Legacy Verify (LIFF) Step 1 ── -->
+    <div class="screen-panel" id="screen-legacy-verify">
+      <div class="screen-wrapper">
+        <div>
+          <div class="screen-label"><strong>ยืนยันสมาชิกเก่า — ขั้นที่ 1</strong>กรอกข้อมูลยืนยันตัวตนเพื่อค้นหาในฐานข้อมูลเก่า</div>
+          <div class="phone-frame">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋</span></div>
+              <div class="line-header" style="background:#d97706;">
+                <div class="back-btn">‹</div>
+                <div class="info" style="flex:1"><h3>ยืนยันสมาชิกเก่า</h3><p>Legacy Member Verification</p></div>
+              </div>
+              <div class="liff-body">
+                <div class="liff-hero" style="background: linear-gradient(160deg, oklch(0.52 0.12 65) 0%, oklch(0.42 0.1 55) 100%);">
+                  <div class="step-label">ขั้นตอนที่ 1 จาก 2</div>
+                  <div class="liff-title">ยืนยันตัวตนสมาชิกเก่า</div>
+                  <div class="liff-sub">กรอกข้อมูลให้ตรงกับที่เคยสมัครไว้</div>
+                  <div class="liff-progress">
+                    <div class="bar active"></div>
+                    <div class="bar"></div>
+                  </div>
+                </div>
+                <div class="liff-content">
+                  <div class="info-box warn">
+                    <span class="info-icon">⚠️</span>
+                    <span>ระบบยังไม่พบ LINE User ID ของคุณ — กรุณายืนยันตัวตนก่อนเข้าใช้งาน</span>
+                  </div>
+                  <div class="form-section">
+                    <div class="form-section-title">ข้อมูลยืนยันตัวตน</div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>ชื่อ <span class="req">*</span></label>
+                        <input type="text" value="สมชาย" readonly>
+                      </div>
+                      <div class="form-group">
+                        <label>นามสกุล <span class="req">*</span></label>
+                        <input type="text" value="ใจดี" readonly>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>ชื่อนิติบุคคล <span class="req">*</span></label>
+                      <input type="text" value="บริษัท ABC จำกัด" readonly>
+                    </div>
+                    <div class="form-group">
+                      <label>ชื่อตึก <span class="req">*</span></label>
+                      <input type="text" value="อาคาร XYZ ชั้น 12" readonly>
+                    </div>
+                    <div class="form-group">
+                      <label>อีเมล</label>
+                      <div class="input-wrap">
+                        <span class="input-icon">✉️</span>
+                        <input type="email" class="has-icon" value="admin@abta.org" readonly>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>เบอร์โทรศัพท์ <span class="req">*</span></label>
+                      <div class="input-wrap">
+                        <span class="input-icon">📱</span>
+                        <input type="tel" class="has-icon" value="081-234-5678" readonly>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="info-box">
+                    <span class="info-icon">ℹ️</span>
+                    <span>ระบบจะค้นหาด้วย <strong>หลายฟิลด์ร่วมกัน</strong> ไม่ใช้แค่อีเมลหรือเบอร์อย่างเดียว (เพราะข้อมูลเก่าอาจซ้ำกัน)</span>
+                  </div>
+                </div>
+                <div class="liff-footer">
+                  <button class="btn btn-line" style="background:#d97706;">ค้นหาข้อมูลสมาชิก</button>
+                  <button class="btn btn-outline" style="margin-top:.5rem;width:100%;">สมัครสมาชิกใหม่แทน</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="annotation">
+          <h4>Logic การค้นหา</h4>
+          <ul>
+            <li>Match: ชื่อ + นามสกุล + ชื่อนิติบุคคล + ชื่อตึก</li>
+            <li>อีเมล/เบอร์เป็น secondary (อาจซ้ำหลายคน)</li>
+            <li>ไม่พบ → สมัครใหม่ หรือแชทแอดมินถ้าเคยเป็นสมาชิกจริง</li>
+            <li>ไม่ต้องแนบสลิป (ต่างจากสมัครใหม่)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 1c. Legacy Confirm (LIFF) Step 2 ── -->
+    <div class="screen-panel" id="screen-legacy-confirm">
+      <div class="screen-wrapper">
+        <div>
+          <div class="screen-label"><strong>ยืนยันสมาชิกเก่า — ขั้นที่ 2</strong>พบหลายรายการ — เลือกรายการที่ตรงก่อนผูก LINE</div>
+          <div class="phone-frame">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-status-bar"><span>9:41</span><span>5G ▮▮▮▮ 🔋</span></div>
+              <div class="line-header" style="background:#d97706;">
+                <div class="back-btn">‹</div>
+                <div class="info" style="flex:1"><h3>ยืนยันสมาชิกเก่า</h3><p>เลือกรายการที่ตรง</p></div>
+              </div>
+              <div class="liff-body">
+                <div class="liff-hero" style="background: linear-gradient(160deg, oklch(0.52 0.12 65) 0%, oklch(0.42 0.1 55) 100%);">
+                  <div class="step-label">ขั้นตอนที่ 2 จาก 2</div>
+                  <div class="liff-title">เลือกข้อมูลสมาชิก</div>
+                  <div class="liff-sub">พบ 2 รายการที่ตรง — กรุณาเลือกรายการของคุณ</div>
+                  <div class="liff-progress">
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                  </div>
+                </div>
+                <div class="liff-content">
+                  <div class="info-box warn">
+                    <span class="info-icon">🔀</span>
+                    <span>อีเมล <strong>admin@abta.org</strong> ถูกใช้กับสมาชิกหลายคน — ใช้ชื่อนิติบุคคล/ตึกแยกรายการ</span>
+                  </div>
+                  <div class="form-section">
+                    <div class="form-section-title">รายการที่พบ (2)</div>
+                    <div class="match-list">
+                      <label class="match-card selected">
+                        <input type="radio" name="legacy" checked readonly>
+                        <div class="match-body">
+                          <div class="match-title">สมชาย ใจดี</div>
+                          <div class="match-meta">บริษัท ABC จำกัด · อาคาร XYZ ชั้น 12</div>
+                          <div class="match-id">เลขเก่า: ABTA-2018-0042</div>
+                        </div>
+                      </label>
+                      <label class="match-card">
+                        <input type="radio" name="legacy" readonly>
+                        <div class="match-body">
+                          <div class="match-title">สมชาย ใจดี</div>
+                          <div class="match-meta">บริษัท DEF จำกัด · อาคาร PQR ชั้น 8</div>
+                          <div class="match-id">เลขเก่า: ABTA-2019-0118</div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="info-box success">
+                    <span class="info-icon">✓</span>
+                    <span>หลังยืนยัน ระบบจะผูก LINE UID และออกเลขสมาชิกใหม่ <strong>ABTA-2026-0156</strong></span>
+                  </div>
+                </div>
+                <div class="liff-footer">
+                  <button class="btn btn-line" style="background:#d97706;">ยืนยันและผูก LINE</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="annotation">
+          <h4>หลังผูก LINE สำเร็จ</h4>
+          <ul>
+            <li>บันทึก legacyMemberId อ้างอิง</li>
+            <li>ออก memberId รูปแบบใหม่ทันที</li>
+            <li>แจ้ง LINE OA ยืนยัน</li>
+            <li>เข้าใช้เช็คสถานะ/ต่ออายุได้</li>
+            <li>หมดอายุแล้ว → แสดงสถานะหมดอายุ · ต่ออายุตาม Flow ปกติ</li>
+            <li>เลือกผิดรายการ / LINE ซ้ำ → ติดต่อแอดมินผ่านแชท</li>
+            <li>พบ 1 รายการ → ข้ามขั้นเลือก ไปยืนยันเลย</li>
           </ul>
         </div>
       </div>
@@ -1555,7 +1797,7 @@
                 <div class="liff-content">
                   <div class="info-box">
                     <span class="info-icon">ℹ️</span>
-                    <span>ระบบไม่พบข้อมูลเดิม — กรุณากรอกข้อมูลใหม่</span>
+                    <span>ระบบไม่พบ LINE User ID — กรุณาเลือก <strong>ยืนยันสมาชิกเก่า</strong> หรือกรอกข้อมูลสมัครใหม่</span>
                   </div>
                   <div class="form-section">
                     <div class="form-section-title">ข้อมูลส่วนตัว</div>
@@ -1572,6 +1814,10 @@
                       </div>
                     </div>
                     <div class="form-group">
+                      <label>ชื่อนิติบุคคล</label>
+                      <input type="text" value="บริษัท ABC จำกัด" readonly>
+                    </div>
+                    <div class="form-group">
                       <label>เบอร์โทรศัพท์ <span class="req">*</span></label>
                       <div class="input-wrap">
                         <span class="input-icon">📱</span>
@@ -1586,7 +1832,7 @@
                       </div>
                     </div>
                     <div class="form-group">
-                      <label>หน่วยงาน / ตึก</label>
+                      <label>ชื่อตึก / หน่วยงาน</label>
                       <input type="text" value="อาคาร ABC ชั้น 5" readonly>
                     </div>
                   </div>
@@ -1607,7 +1853,7 @@
                   </div>
                   <div class="info-box warn">
                     <span class="info-icon">⚡</span>
-                    <span>หลังส่ง จะได้รับ <strong>Member ID ชั่วคราว</strong> ภายใน 5 นาที — ใบเสร็จชั่วคราวออกหลังนายทะเบียนอนุมัติข้อมูล</span>
+                    <span>หลังส่ง จะได้รับ <strong>Member ID ชั่วคราว</strong> ภายใน 5 นาที — ใช้สิทธิ์ครบทันที · ใบเสร็จชั่วคราวออกหลังนายทะเบียนอนุมัติข้อมูล</span>
                   </div>
                 </div>
                 <div class="liff-footer">
@@ -1621,10 +1867,11 @@
           <h4>Flow หลังกดส่ง</h4>
           <ul>
             <li>บันทึกลงฐานข้อมูล</li>
-            <li>ออก ABTA-2026-T00XX ทันที</li>
+            <li>ออก ABTA-2026-T00XX ทันที — สิทธิ์ครบ (สัมมนา/บัตร/ต่ออายุ)</li>
             <li>แจ้ง LINE OA ยืนยัน (เลขสมาชิก)</li>
-            <li>ส่งเข้าคิว Back Office</li>
-            <li>นายทะเบียนอนุมัติ → ออก RC-T-XXXX</li>
+            <li>ส่งเข้าคิว Back Office ขั้นที่ 1</li>
+            <li>นายทะเบียนอนุมัติ → promote เลขถาวร + ออก RC-T-XXXX → ส่งเหรัญญิก</li>
+            <li>ไม่ผ่านขั้นที่ 1 → แก้ไขผ่าน LIFF วนกลับ (ไม่ส่งเหรัญญิก)</li>
           </ul>
         </div>
       </div>
@@ -1974,10 +2221,10 @@
                 </div>
               </div>
               <div class="action-bar">
-                <button class="btn btn-success btn-sm">✅ อนุมัติ — ใช้เลขเดิม + ออกใบเสร็จชั่วคราว</button>
-                <button class="btn btn-danger btn-sm">❌ ไม่ผ่าน — ออกเลขชั่วคราวใหม่</button>
-                <button class="btn btn-outline btn-sm">ส่งต่อเหรัญญิก →</button>
+                <button class="btn btn-success btn-sm">✅ อนุมัติ — promote เลขถาวร + ออกใบเสร็จชั่วคราว + ส่งเหรัญญิก</button>
+                <button class="btn btn-danger btn-sm">❌ ไม่ผ่าน — แจ้งแก้ไข/ส่งใหม่</button>
               </div>
+              <div class="info-box warn" style="margin-top:1rem;font-size:.8rem;">เมื่อไม่ผ่าน: <strong>ไม่ส่งต่อเหรัญญิก</strong> · ใบเสร็จยังไม่ออก · สมาชิกแก้ไขผ่าน LIFF แล้ววนกลับคิวนายทะเบียน</div>
             </div>
           </div>
         </div>
@@ -2004,7 +2251,7 @@
                 <div class="detail-section">
                   <h4>ข้อมูลการชำระเงิน</h4>
                   <div class="detail-row"><span>ผู้ชำระ</span><strong>สมชาย ใจดี</strong></div>
-                  <div class="detail-row"><span>Member ID</span><strong>ABTA-2026-T0042</strong></div>
+                  <div class="detail-row"><span>Member ID (ถาวร)</span><strong>ABTA-2026-0042</strong></div>
                   <div class="detail-row"><span>ใบเสร็จชั่วคราว</span><strong>RC-T-2026-0088</strong></div>
                   <div class="detail-row"><span>จำนวนเงิน</span><strong>500 บาท</strong></div>
                   <div class="detail-row"><span>วันที่โอน</span><strong>11 ก.ค. 2569</strong></div>
@@ -2015,9 +2262,10 @@
                 </div>
               </div>
               <div class="action-bar">
-                <button class="btn btn-success btn-sm">✅ ยืนยัน — ออกใบเสร็จตัวจริง + เลขถาวร</button>
-                <button class="btn btn-danger btn-sm">❌ ไม่ผ่าน — ออกเลขใบเสร็จใหม่</button>
+                <button class="btn btn-success btn-sm">✅ ยืนยัน — ออกใบเสร็จตัวจริง</button>
+                <button class="btn btn-danger btn-sm">❌ ไม่ผ่าน — ออกเลขใบเสร็จใหม่ + แจ้งส่งสลิปใหม่</button>
               </div>
+              <div class="info-box warn" style="margin-top:1rem;font-size:.8rem;">เมื่อไม่ผ่าน: สมาชิกยังเป็น<strong>สมาชิกสมบูรณ์</strong> (เลขถาวรคงเดิม) · ส่งสลิปใหม่ผ่าน LINE OA → วนกลับคิวเหรัญญิก</div>
             </div>
           </div>
         </div>
@@ -2084,7 +2332,7 @@
     <h2><span class="icon">🏷️</span> สถานะในระบบ (อ้างอิง)</h2>
 
     <div class="status-key-rule">
-      <strong>กฎสำคัญ (อัปเดต 12 ก.ค. 2569):</strong> ใบเสร็จชั่วคราว <strong>ไม่</strong> ออกทันทีหลังสมัคร — ออกเฉพาะหลัง<strong>นายทะเบียน</strong>อนุมัติข้อมูลสมาชิก (ขั้นที่ 1) เท่านั้น · Member ID ชั่วคราวออกทันทีโดย<strong>ระบบ</strong> (ภายใน 5 นาที)
+      <strong>กฎสำคัญ (อัปเดต 13 ก.ค. 2569):</strong> ใบเสร็จชั่วคราว <strong>ไม่</strong> ออกทันทีหลังสมัคร — ออกเฉพาะหลัง<strong>นายทะเบียน</strong>อนุมัติข้อมูล (ขั้นที่ 1) · Member ID ชั่วคราวออกทันทีโดย<strong>ระบบ</strong> (ภายใน 5 นาที) · <strong>สมาชิกชั่วคราวใช้สิทธิ์ครบ</strong>เหมือนสมาชิกจริง (รอตรวจสอบเท่านั้น) · <strong>promote เป็นสมาชิกสมบูรณ์ + เลขถาวร</strong>เมื่อนายทะเบียนอนุมัติ · นายทะเบียนไม่ผ่าน → <strong>ไม่ส่งเหรัญญิก</strong> · เหรัญญิกไม่ผ่าน → ส่งสลิปใหม่ (คงเลขถาวร)
     </div>
 
     <div class="status-overview">
@@ -2093,7 +2341,7 @@
         <div class="status-overview-item member">
           <div class="num">👤</div>
           <div class="lbl">สถานะสมาชิก</div>
-          <div style="font-size:.7rem;color:var(--muted);margin-top:6px;line-height:1.4;">ID ชั่วคราวทันที → ID ถาวรหลังเหรัญญิกอนุมัติ</div>
+          <div style="font-size:.7rem;color:var(--muted);margin-top:6px;line-height:1.4;">ID ชั่วคราวทันที → สิทธิ์ครบ · promote เลขถาวรหลังนายทะเบียนอนุมัติ</div>
         </div>
         <div class="status-overview-item payment">
           <div class="num">💰</div>
@@ -2151,7 +2399,7 @@
           <div class="journey-step-num">2</div>
           <div>
             <div class="journey-phase-title">ออก Member ID ชั่วคราว</div>
-            <div class="journey-phase-sub">ทันทีภายใน 5 นาที · แจ้ง LINE OA</div>
+            <div class="journey-phase-sub">ทันทีภายใน 5 นาที · ใช้สิทธิ์ครบ (สัมมนา/บัตร/ต่ออายุ)</div>
           </div>
           <div class="journey-actor"><span class="actor-badge system">ระบบ</span></div>
           <div class="journey-status"><span class="status-pill member">สมาชิกชั่วคราว</span></div>
@@ -2174,11 +2422,11 @@
         <div class="status-journey-row">
           <div class="journey-step-num">4</div>
           <div>
-            <div class="journey-phase-title">อนุมัติข้อมูล → ออกใบเสร็จชั่วคราว</div>
-            <div class="journey-phase-sub">นายทะเบียนผ่าน → มีเลขใบเสร็จชั่วคราว</div>
+            <div class="journey-phase-title">อนุมัติข้อมูล → สมาชิกสมบูรณ์ + เลขถาวร</div>
+            <div class="journey-phase-sub">นายทะเบียนผ่าน → promote เลขถาวร + ออกใบเสร็จชั่วคราว</div>
           </div>
           <div class="journey-actor"><span class="actor-badge registrar">นายทะเบียน</span></div>
-          <div class="journey-status"><span class="status-pill member">สมาชิกชั่วคราว</span></div>
+          <div class="journey-status"><span class="status-pill member success">สมาชิกสมบูรณ์</span></div>
           <div class="journey-status"><span class="status-pill payment">ออกใบเสร็จชั่วคราวแล้ว</span></div>
           <div class="journey-status">
             <span class="status-pill receipt">ชั่วคราว</span>
@@ -2193,7 +2441,7 @@
             <div class="journey-phase-sub">ขั้นที่ 2 · SLA 7 วันทำการ</div>
           </div>
           <div class="journey-actor"><span class="actor-badge treasurer">เหรัญญิก</span></div>
-          <div class="journey-status"><span class="status-pill member">สมาชิกชั่วคราว</span></div>
+          <div class="journey-status"><span class="status-pill member success">สมาชิกสมบูรณ์</span></div>
           <div class="journey-status"><span class="status-pill payment">รอตรวจสอบสลิป</span></div>
           <div class="journey-status">
             <span class="status-pill receipt">รอตรวจสอบ</span>
@@ -2204,8 +2452,8 @@
         <div class="status-journey-row">
           <div class="journey-step-num">6</div>
           <div>
-            <div class="journey-phase-title">อนุมัติสลิป → ใบเสร็จตัวจริง + ID ถาวร</div>
-            <div class="journey-phase-sub">เหรัญญิกผ่าน → สมาชิกสมบูรณ์</div>
+            <div class="journey-phase-title">อนุมัติสลิป → ใบเสร็จตัวจริง</div>
+            <div class="journey-phase-sub">เหรัญญิกผ่าน → ยืนยันการชำระเงิน + ใบเสร็จตัวจริง (เลขถาวรแล้วตั้งแต่ขั้น 4)</div>
           </div>
           <div class="journey-actor"><span class="actor-badge treasurer">เหรัญญิก</span></div>
           <div class="journey-status"><span class="status-pill member success">สมาชิกสมบูรณ์</span></div>
@@ -2224,11 +2472,19 @@
     <div class="status-exceptions">
       <div class="status-exception-card reject">
         <h4>❌ นายทะเบียนไม่ผ่าน (ขั้นที่ 1)</h4>
-        <p>ข้อมูลสมาชิกไม่ถูกต้อง → ระบบออก <strong>Member ID ใหม่</strong> · ใบเสร็จยังไม่ออก</p>
+        <p>ข้อมูลไม่ถูกต้อง → แจ้ง LINE OA · สมาชิกแก้ไขผ่าน LIFF · ออก <strong>Member ID ชั่วคราวใหม่</strong> · ใบเสร็จยังไม่ออก · <strong>ไม่ส่งเหรัญญิก</strong> · วนกลับขั้นที่ 1</p>
       </div>
       <div class="status-exception-card reject">
         <h4>❌ เหรัญญิกไม่ผ่าน (ขั้นที่ 2)</h4>
-        <p>สลิปไม่ถูกต้อง → สถานะใบเสร็จ <code>rejected</code> · ออก<strong>เลขใบเสร็จใหม่</strong> · สมาชิกส่งสลิปใหม่</p>
+        <p>สลิปไม่ถูกต้อง → ใบเสร็จ <code>rejected</code> · ออก<strong>เลขใบเสร็จใหม่</strong> · คง<strong>เลขถาวร + สมาชิกสมบูรณ์</strong> · ส่งสลิปใหม่ผ่าน LINE OA → วนกลับขั้นที่ 2</p>
+      </div>
+      <div class="status-exception-card edge">
+        <h4>💬 Edge cases — แชทแอดมิน</h4>
+        <p>ผูก LINE ผิดรายการ · legacy/LINE ซ้ำ · ยืนยันตัวตนไม่พบแต่เคยเป็นสมาชิก → ข้อความในระบบ + ติดต่อแอดมินผ่าน LINE กลุ่ม</p>
+      </div>
+      <div class="status-exception-card edge">
+        <h4>🎫 สิทธิ์สมาชิกชั่วคราว</h4>
+        <p>ใช้สิทธิ์<strong>ครบเหมือนสมาชิกสมบูรณ์</strong> — ชั่วคราวหมายถึงรอตรวจสอบเลข/ใบเสร็จ ไม่ใช่จำกัดสิทธิ์ · สมัครสัมมนา member_free ได้ (ถ้ายังไม่หมดอายุ)</p>
       </div>
     </div>
 
@@ -2240,8 +2496,8 @@
           <tbody>
             <tr><td class="status-name">สมัครแล้ว</td><td>กรอกฟอร์มแล้ว รอดำเนินการ</td></tr>
             <tr><td class="status-name">รอตรวจสอบเอกสาร</td><td>ส่งเอกสารแล้ว รอนายทะเบียน</td></tr>
-            <tr><td class="status-name">สมาชิกชั่วคราว</td><td>ได้ Member ID ชั่วคราว ใช้สิทธิ์ได้</td></tr>
-            <tr><td class="status-name">สมาชิกสมบูรณ์</td><td>อนุมัติครบ มีเลขถาวร</td></tr>
+            <tr><td class="status-name">สมาชิกชั่วคราว</td><td>ได้ Member ID ชั่วคราว — <strong>ใช้สิทธิ์ครบ</strong>เหมือนสมาชิกสมบูรณ์ (รอตรวจสอบเท่านั้น)</td></tr>
+            <tr><td class="status-name">สมาชิกสมบูรณ์</td><td>นายทะเบียนอนุมัติแล้ว มีเลขถาวร</td></tr>
             <tr><td class="status-name">ใกล้หมดอายุ</td><td>ระบบแจ้งเตือนอัตโนมัติ</td></tr>
             <tr><td class="status-name">หมดอายุ</td><td>ต้องต่ออายุ</td></tr>
           </tbody>
@@ -2260,7 +2516,8 @@
             <tr><td class="status-name">รอตรวจสอบสลิป</td><td class="actor-cell">เหรัญญิกกำลังตรวจ</td></tr>
             <tr><td class="status-name">ยืนยันการชำระเงินแล้ว</td><td class="actor-cell">เหรัญญิกอนุมัติสลิปแล้ว</td></tr>
             <tr><td class="status-name">ออกใบเสร็จตัวจริงแล้ว</td><td>เปลี่ยนจากชั่วคราวเป็นตัวจริง</td></tr>
-            <tr><td class="status-name">ปฏิเสธ</td><td>สลิปไม่ผ่าน ออกเลขใบเสร็จใหม่</td></tr>
+            <tr><td class="status-name">ปฏิเสธ — สลิปไม่ผ่าน</td><td>ออกเลขใบเสร็จใหม่ · ส่งสลิปใหม่ (คงเลขถาวร)</td></tr>
+            <tr><td class="status-name">ปฏิเสธ — ข้อมูลไม่ผ่าน</td><td>ส่งข้อมูลใหม่ · ยังไม่ออกใบเสร็จ · ไม่ส่งเหรัญญิก</td></tr>
           </tbody>
         </table>
       </div>
@@ -2285,6 +2542,11 @@
       <div class="status-sla-items">
         <div class="status-sla-item">
           <div class="sla-time">≤ 5 นาที</div>
+          <div class="sla-desc">ยืนยันสมาชิกเก่า → ผูก LINE + เลขใหม่</div>
+          <div class="sla-actor"><span class="actor-badge system">ระบบ</span></div>
+        </div>
+        <div class="status-sla-item">
+          <div class="sla-time">≤ 5 นาที</div>
           <div class="sla-desc">สมัคร → Member ID ชั่วคราว</div>
           <div class="sla-actor"><span class="actor-badge system">ระบบ</span></div>
         </div>
@@ -2295,12 +2557,12 @@
         </div>
         <div class="status-sla-item">
           <div class="sla-time">≤ 7 วันทำการ</div>
-          <div class="sla-desc">ตรวจข้อมูล + ออกใบเสร็จชั่วคราว</div>
+          <div class="sla-desc">ตรวจข้อมูล + ออกเลขถาวร + ออกใบเสร็จชั่วคราว</div>
           <div class="sla-actor"><span class="actor-badge registrar">นายทะเบียน</span></div>
         </div>
         <div class="status-sla-item">
           <div class="sla-time">≤ 7 วันทำการ</div>
-          <div class="sla-desc">ตรวจสลิป + ใบเสร็จตัวจริง + ID ถาวร</div>
+          <div class="sla-desc">ตรวจสลิป + ออกใบเสร็จตัวจริง</div>
           <div class="sla-actor"><span class="actor-badge treasurer">เหรัญญิก</span></div>
         </div>
       </div>

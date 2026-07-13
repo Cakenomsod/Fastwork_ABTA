@@ -7,7 +7,7 @@
 | ลำดับ | งาน | หมายเหตุ |
 |------|-----|----------|
 | 1 | ออกแบบฐานข้อมูล + Backend พื้นฐาน | Foundation |
-| 2 | จัดเตรียม LINE OA + Messaging API | ต้องสร้าง Gmail ใหม่ชื่อสมาคม |
+| 2 | จัดเตรียม LINE OA + Messaging API + LINE Login channel (LIFF) | ต้องสร้าง Gmail ใหม่ชื่อสมาคม — LIFF ต้องอยู่บน LINE Login channel ไม่ใช่ Messaging API |
 | 3 | **ระบบเช็คสถานะผ่าน LINE OA** | ⭐ ลำดับแรก — ประมาณ 5–6 วัน |
 | 4 | ระบบสมัครสมาชิก | Flow กรอกข้อมูล+แนบสลิปในขั้นตอนเดียว |
 | 5 | ระบบสมัครสัมมนา | ดึงข้อมูลสมาชิกเดิมอัตโนมัติ |
@@ -21,7 +21,7 @@
 ```
 วัน 0          ได้รับมัดจำงวดแรก (30%)
   │
-  ├─ วัน 1–2     Setup: Firebase, LINE OA, โครงสร้างโปรเจกต์
+  ├─ วัน 1–2     Setup: Firebase, LINE OA + LINE Login (LIFF), โครงสร้างโปรเจกต์
   │
   ├─ วัน 3–8     ⭐ ระบบเช็คสถานะ LINE OA (ลูกค้าขอให้เห็นผลก่อน)
   │
@@ -67,8 +67,8 @@ gantt
 
 - [ ] ชำระมัดจำงวดแรก 30% (2,700 บาท)
 - [ ] สร้าง Gmail ใหม่ชื่อสมาคม (สำหรับ LINE OA)
-- [ ] สมัคร LINE Official Account
-- [ ] ตั้งค่า LINE Messaging API + Webhook URL
+- [ ] สมัคร LINE Official Account + ตั้งค่า Messaging API + Webhook URL
+- [ ] สร้าง LINE Login channel + ลงทะเบียน LIFF app (ดู [07-Tech-Stack.md](./07-Tech-Stack.md))
 - [ ] ข้อมูลบัญชีธนาคารสำหรับรับโอน
 - [ ] ข้อมูลสมาชิกเดิม (ถ้ามี) สำหรับ import
 
