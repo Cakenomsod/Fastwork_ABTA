@@ -48,7 +48,7 @@ Repo → **Settings → Secrets and variables → Actions**
 | `VITE_FIREBASE_API_KEY` | จาก `.env` |
 | `VITE_FIREBASE_AUTH_DOMAIN` | `abta-member.firebaseapp.com` |
 | `VITE_FIREBASE_PROJECT_ID` | `abta-member` |
-| `VITE_FIREBASE_STORAGE_BUCKET` | `abta-member.firebasestorage.app` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `abta-member` (bucket จริง — ไม่ใช่ `.firebasestorage.app`) |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | จาก `.env` |
 | `VITE_FIREBASE_APP_ID` | จาก `.env` |
 | `VITE_FIREBASE_MEASUREMENT_ID` | จาก `.env` |
