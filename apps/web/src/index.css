@@ -1,0 +1,26 @@
+:root {
+  color: #1a1f16;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, #d8e8d0 0%, transparent 55%),
+    radial-gradient(ellipse 70% 45% at 90% 10%, #c5d4e8 0%, transparent 50%),
+    #eef2ea;
+  font-family: "Sarabun", "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}

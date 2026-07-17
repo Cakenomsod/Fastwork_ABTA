@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+apps/functions/.env
 
 # Dependencies
 node_modules/
@@ -9,7 +10,9 @@ node_modules/
 # Build
 dist/
 build/
+lib/
 .firebase/
+*.tsbuildinfo
 
 # OS / IDE
 .DS_Store

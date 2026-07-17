@@ -1,0 +1,25 @@
+{
+  "name": "abta-member",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @abta/web",
+    "dev:web": "npm run dev -w @abta/web",
+    "build": "npm run build -w @abta/web",
+    "build:web": "npm run build -w @abta/web",
+    "build:functions": "npm run build -w @abta/functions",
+    "lint": "npm run lint -w @abta/web",
+    "firebase": "firebase",
+    "deploy": "npm run build && firebase deploy",
+    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "deploy:functions": "npm run build:functions && firebase deploy --only functions"
+  },
+  "devDependencies": {
+    "firebase-tools": "^14.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

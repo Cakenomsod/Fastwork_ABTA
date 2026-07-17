@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Phase 1: client reads locked down — use Admin SDK / Cloud Functions
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

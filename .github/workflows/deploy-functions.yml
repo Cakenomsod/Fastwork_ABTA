@@ -1,0 +1,53 @@
+name: Deploy Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/functions/**"
+      - "firebase.json"
+      - ".github/workflows/deploy-functions.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Write functions env
+        run: |
+          cat > apps/functions/.env << EOF
+          LINE_MESSAGING_CHANNEL_ID=${{ secrets.LINE_MESSAGING_CHANNEL_ID }}
+          LINE_MESSAGING_CHANNEL_SECRET=${{ secrets.LINE_MESSAGING_CHANNEL_SECRET }}
+          LINE_MESSAGING_ACCESS_TOKEN=${{ secrets.LINE_MESSAGING_ACCESS_TOKEN }}
+          LINE_LOGIN_CHANNEL_ID=${{ secrets.LINE_LOGIN_CHANNEL_ID }}
+          LINE_LOGIN_CHANNEL_SECRET=${{ secrets.LINE_LOGIN_CHANNEL_SECRET }}
+          EOF
+
+      - name: Build functions
+        run: npm run build:functions
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ABTA_MEMBER }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy functions
+        run: npx firebase deploy --only functions --project abta-member --non-interactive
