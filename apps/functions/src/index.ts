@@ -10,7 +10,7 @@ setGlobalOptions({
   maxInstances: 10,
 });
 
-/** Health check — GET /api/health via Hosting rewrite */
+/** Health + LINE webhook entrypoint for ABTA Member */
 export const api = onRequest({ cors: true }, async (req, res) => {
   const path = req.path.replace(/^\/api/, "") || "/";
 
