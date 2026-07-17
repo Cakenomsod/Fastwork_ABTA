@@ -22,30 +22,32 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install
         run: npm ci
 
       - name: Write functions env
+        env:
+          LINE_MESSAGING_CHANNEL_ID: ${{ secrets.LINE_MESSAGING_CHANNEL_ID }}
+          LINE_MESSAGING_CHANNEL_SECRET: ${{ secrets.LINE_MESSAGING_CHANNEL_SECRET }}
+          LINE_MESSAGING_ACCESS_TOKEN: ${{ secrets.LINE_MESSAGING_ACCESS_TOKEN }}
+          LINE_LOGIN_CHANNEL_ID: ${{ secrets.LINE_LOGIN_CHANNEL_ID }}
+          LINE_LOGIN_CHANNEL_SECRET: ${{ secrets.LINE_LOGIN_CHANNEL_SECRET }}
         run: |
-          cat > apps/functions/.env << EOF
-          LINE_MESSAGING_CHANNEL_ID=${{ secrets.LINE_MESSAGING_CHANNEL_ID }}
-          LINE_MESSAGING_CHANNEL_SECRET=${{ secrets.LINE_MESSAGING_CHANNEL_SECRET }}
-          LINE_MESSAGING_ACCESS_TOKEN=${{ secrets.LINE_MESSAGING_ACCESS_TOKEN }}
-          LINE_LOGIN_CHANNEL_ID=${{ secrets.LINE_LOGIN_CHANNEL_ID }}
-          LINE_LOGIN_CHANNEL_SECRET=${{ secrets.LINE_LOGIN_CHANNEL_SECRET }}
-          EOF
-
-      - name: Build functions
-        run: npm run build:functions
+          {
+            echo "LINE_MESSAGING_CHANNEL_ID=${LINE_MESSAGING_CHANNEL_ID}"
+            echo "LINE_MESSAGING_CHANNEL_SECRET=${LINE_MESSAGING_CHANNEL_SECRET}"
+            echo "LINE_MESSAGING_ACCESS_TOKEN=${LINE_MESSAGING_ACCESS_TOKEN}"
+            echo "LINE_LOGIN_CHANNEL_ID=${LINE_LOGIN_CHANNEL_ID}"
+            echo "LINE_LOGIN_CHANNEL_SECRET=${LINE_LOGIN_CHANNEL_SECRET}"
+          } > apps/functions/.env
 
       - name: Write Firebase service account
-        run: |
-          cat > "$RUNNER_TEMP/firebase-service-account.json" <<'EOF'
-          ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ABTA_MEMBER }}
-          EOF
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ABTA_MEMBER }}
+        run: printenv FIREBASE_SERVICE_ACCOUNT > "$RUNNER_TEMP/firebase-service-account.json"
 
       - name: Deploy functions
         run: npx firebase deploy --only functions --project abta-member --non-interactive --force
