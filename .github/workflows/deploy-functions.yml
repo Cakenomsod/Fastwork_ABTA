@@ -50,4 +50,4 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy functions
-        run: npx firebase deploy --only functions --project abta-member --non-interactive
+        run: npx firebase deploy --only functions --project abta-member --non-interactive --force
