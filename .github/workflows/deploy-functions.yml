@@ -41,13 +41,13 @@ jobs:
       - name: Build functions
         run: npm run build:functions
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ABTA_MEMBER }}
-
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Write Firebase service account
+        run: |
+          cat > "$RUNNER_TEMP/firebase-service-account.json" <<'EOF'
+          ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ABTA_MEMBER }}
+          EOF
 
       - name: Deploy functions
         run: npx firebase deploy --only functions --project abta-member --non-interactive --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
