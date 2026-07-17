@@ -35,6 +35,7 @@ jobs:
           LINE_MESSAGING_ACCESS_TOKEN: ${{ secrets.LINE_MESSAGING_ACCESS_TOKEN }}
           LINE_LOGIN_CHANNEL_ID: ${{ secrets.LINE_LOGIN_CHANNEL_ID }}
           LINE_LOGIN_CHANNEL_SECRET: ${{ secrets.LINE_LOGIN_CHANNEL_SECRET }}
+          VITE_LIFF_URL: ${{ secrets.VITE_LIFF_URL }}
         run: |
           {
             echo "LINE_MESSAGING_CHANNEL_ID=${LINE_MESSAGING_CHANNEL_ID}"
@@ -42,6 +43,8 @@ jobs:
             echo "LINE_MESSAGING_ACCESS_TOKEN=${LINE_MESSAGING_ACCESS_TOKEN}"
             echo "LINE_LOGIN_CHANNEL_ID=${LINE_LOGIN_CHANNEL_ID}"
             echo "LINE_LOGIN_CHANNEL_SECRET=${LINE_LOGIN_CHANNEL_SECRET}"
+            echo "VITE_LIFF_URL=${VITE_LIFF_URL}"
+            echo "WEB_ORIGIN=https://abta-member.web.app"
           } > apps/functions/.env
 
       - name: Authenticate to Google Cloud

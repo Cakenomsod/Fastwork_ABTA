@@ -1,7 +1,19 @@
 import { firebaseConfig } from "./lib/firebase";
+import StatusPage from "./pages/StatusPage";
 import "./App.css";
 
 function App() {
+  const path = window.location.pathname.replace(/\/+$/, "");
+
+  // Digital member card / receipt / full status all render the status view.
+  if (path === "/status" || path === "/card" || path === "/receipt") {
+    return <StatusPage />;
+  }
+
+  return <Landing />;
+}
+
+function Landing() {
   const liffId = import.meta.env.VITE_LIFF_ID ?? "";
   const projectId = firebaseConfig.projectId;
 

@@ -1,0 +1,344 @@
+.status-shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 50% -10%, #12513a 0%, #0b3a29 45%, #082a1e 100%);
+  color: #12211b;
+}
+
+.status-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 30% at 85% 8%, rgba(201, 162, 75, 0.22), transparent 70%),
+    radial-gradient(45% 35% at 12% 20%, rgba(24, 107, 74, 0.4), transparent 70%);
+  mask-image: radial-gradient(140% 90% at 50% 0%, #000 55%, transparent 100%);
+}
+
+.status-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 27rem;
+  padding: clamp(1.25rem, 5vw, 2rem) 1.25rem 3rem;
+}
+
+.status-content {
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* ---------- Member card ---------- */
+.mcard {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 1.5rem 1.5rem 1.6rem;
+  color: #fff;
+  background: linear-gradient(158deg, #0b3a29 0%, #14503a 52%, #1c6f4c 100%);
+  box-shadow:
+    0 24px 48px -20px rgba(6, 40, 28, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(201, 162, 75, 0.28);
+}
+
+.mcard__sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.08) 46%,
+    transparent 62%
+  );
+  pointer-events: none;
+}
+
+.mcard__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mcard__brand {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #e4ce93;
+}
+
+.mcard__kind {
+  font-size: 0.72rem;
+  color: #bcd8c9;
+  letter-spacing: 0.02em;
+}
+
+.mcard__assoc {
+  margin: 0.3rem 0 0;
+  font-size: 0.72rem;
+  color: #9fc4b2;
+}
+
+.mcard__person {
+  margin-top: 1.4rem;
+}
+
+.mcard__name {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.mcard__entity {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #c7e0d3;
+}
+
+.mcard__idrow {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mcard__label {
+  display: block;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #9fc4b2;
+}
+
+.mcard__id {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #f4e9cc;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.mcard__expiry {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.mcard__expiry-value {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.mcard__expiry-hint {
+  font-style: normal;
+  font-weight: 500;
+  color: #e4ce93;
+}
+
+/* ---------- Status pill ---------- */
+.status-pill {
+  flex-shrink: 0;
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.status--active {
+  background: #157a52;
+}
+.status--temporary {
+  background: #b9822a;
+}
+.status--warning {
+  background: #d97a19;
+}
+.status--danger {
+  background: #c0392b;
+}
+.status--neutral {
+  background: #5b7083;
+}
+
+/* ---------- Detail card ---------- */
+.detail-card {
+  margin-top: 1rem;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 0.35rem 1.15rem;
+  box-shadow: 0 12px 30px -18px rgba(6, 40, 28, 0.55);
+  border: 1px solid rgba(220, 230, 224, 0.9);
+}
+
+.detail-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #eef3ef;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row__label {
+  font-size: 0.85rem;
+  color: #6b7c72;
+  flex-shrink: 0;
+}
+
+.detail-row__value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #12211b;
+  text-align: right;
+}
+
+.detail-row__sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 0.78rem;
+  color: #157a52;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-row--muted .detail-row__value {
+  font-weight: 500;
+  color: #6b7c72;
+}
+
+/* ---------- Actions ---------- */
+.actions {
+  margin-top: 1.1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.btn {
+  display: block;
+  text-align: center;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn--primary {
+  background: linear-gradient(160deg, #157a52, #0f4c36);
+  color: #fff;
+  box-shadow: 0 12px 24px -14px rgba(15, 76, 54, 0.9);
+}
+
+.btn--ghost {
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f4c36;
+  border: 1px solid rgba(201, 162, 75, 0.5);
+}
+
+.foot-note {
+  margin: 1.5rem 0 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #bcd8c9;
+}
+
+/* ---------- Skeleton ---------- */
+.mcard--skeleton {
+  min-height: 220px;
+}
+
+.sk {
+  border-radius: 8px;
+  background: linear-gradient(90deg, #ffffff22 25%, #ffffff44 37%, #ffffff22 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+.detail-card .sk {
+  background: linear-gradient(90deg, #eef3ef 25%, #f7faf8 37%, #eef3ef 63%);
+  background-size: 400% 100%;
+  margin: 0.9rem 0;
+  height: 14px;
+}
+
+.sk--line {
+  height: 16px;
+  margin: 10px 0;
+}
+
+.sk--block {
+  height: 60px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+/* ---------- Error ---------- */
+.status-error {
+  margin-top: 12vh;
+  text-align: center;
+  color: #fff;
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.status-error__badge {
+  display: inline-block;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #0f4c36;
+  background: #e4ce93;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+}
+
+.status-error__title {
+  margin: 1.1rem 0 0.5rem;
+  font-size: 1.35rem;
+  color: #ffffff;
+}
+
+.status-error__detail {
+  margin: 0 auto;
+  max-width: 20rem;
+  font-size: 0.9rem;
+  color: #bcd8c9;
+  line-height: 1.6;
+}

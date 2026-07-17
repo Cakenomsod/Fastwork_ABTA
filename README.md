@@ -31,6 +31,63 @@ npm run dev            # http://localhost:5173
 
 **Webhook (หลัง deploy functions):** `https://abta-member.web.app/api/line/webhook`
 
+## ทดสอบเช็คสถานะ LINE OA ⭐
+
+ระบบ "เช็คสถานะ" ตอบกลับผ่าน LINE Messaging API เป็น **Flex Message** (บัตรสมาชิก + สถานะ + ใบเสร็จ)
+พร้อมหน้าเว็บสถานะแบบเต็มที่ `https://abta-member.web.app/status`
+
+### 1. Seed ข้อมูลสมาชิกตัวอย่าง
+
+```bash
+cd apps/functions
+npm run seed
+```
+
+ใช้ Service Account JSON ที่ repo root โดยอัตโนมัติ (หรือกำหนด `GOOGLE_APPLICATION_CREDENTIALS`)
+สร้างสมาชิกตัวอย่าง 3 ราย:
+
+| Member ID | ชื่อ | สถานะ | ใบเสร็จ |
+|-----------|------|-------|---------|
+| `ABTA-2026-0001` | ธนกร วัฒนสมบัติ | สมาชิกสมบูรณ์ | ตัวจริง |
+| `ABTA-T-2026-0087` | ศิริพร แสงทอง | สมาชิกชั่วคราว | ชั่วคราว |
+| `ABTA-2025-0450` | ประเสริฐ ธำรงกิจ | หมดอายุ | — |
+
+### 2. ผูก LINE userId ของคุณกับสมาชิกทดสอบ
+
+สมาชิกหลัก `ABTA-2026-0001` ผูกกับ `lineUserId` ตัวอย่าง — ให้ใส่ userId จริงของคุณเพื่อทดสอบ:
+
+```bash
+# bash
+DEMO_LINE_USER_ID=Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx npm run seed
+```
+
+```powershell
+# PowerShell
+$env:DEMO_LINE_USER_ID="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; npm run seed
+```
+
+> หา LINE userId ของตัวเองได้จาก log ของ webhook (เพิ่มเพื่อน OA แล้วพิมพ์อะไรก็ได้ → ดู `source.userId` ใน Cloud Functions logs) หรือจาก LIFF `liff.getProfile()`
+
+### 3. ทดสอบบน LINE
+
+1. เพิ่มเพื่อน LINE OA `ABTA สมาชิก`
+2. พิมพ์ **"เช็คสถานะ"** (รองรับ `สถานะ`, `status`, `check status`, `ดูสถานะ` ฯลฯ)
+3. บอทตอบกลับ Flex Message: บัตรสมาชิก + Member ID + สถานะ + วันหมดอายุ (พ.ศ.) + การชำระเงิน + ใบเสร็จ + สัมมนา + ปุ่มเปิดบัตร/ใบเสร็จ/ดูสถานะแบบเต็ม
+4. พิมพ์ **"ช่วยเหลือ"** เพื่อดูเมนูคำสั่ง
+5. ถ้ายังไม่ผูกบัญชี → ตอบ Flex แนะนำให้ลงทะเบียน/ยืนยันสมาชิก
+
+### 4. ทดสอบหน้าเว็บสถานะ (สำหรับปุ่มใน Flex)
+
+```
+https://abta-member.web.app/status?m=<memberId>&t=<publicToken>
+```
+
+`publicToken` ถูกสร้างตอน seed (gating เพื่อไม่ให้เดา Member ID เปิดดู PII) — endpoint API:
+
+```
+GET /api/members/status?m=<memberId>&t=<publicToken>
+```
+
 ## GitHub Actions
 
 Workflows:
