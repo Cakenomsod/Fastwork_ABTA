@@ -67,6 +67,19 @@ function decodeSlip(base64: string): Buffer {
   return Buffer.from(cleaned, "base64");
 }
 
+function optionalTrim(value: string | undefined): string | undefined {
+  const t = value?.trim();
+  return t ? t : undefined;
+}
+
+function omitUndefined<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out as T;
+}
+
 export async function registerNewMember(input: RegisterInput): Promise<RegisterResult> {
   const firstName = input.firstName.trim();
   const lastName = input.lastName.trim();
@@ -128,31 +141,39 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
   const slipPath = `slips/${memberId}/${Date.now()}.${ext}`;
   const bucket = getStorage().bucket();
   const file = bucket.file(slipPath);
-  await file.save(slipBuf, {
-    contentType,
-    metadata: { cacheControl: "private, max-age=0" },
-  });
+  try {
+    await file.save(slipBuf, {
+      contentType,
+      metadata: { cacheControl: "private, max-age=0" },
+      resumable: false,
+    });
+  } catch (err) {
+    console.error("slip upload failed", err);
+    return { ok: false, error: "slip_upload_failed", status: 500 };
+  }
 
-  // Signed URL for staff/back-office later; members see status via public page.
-  const [slipUrl] = await file.getSignedUrl({
-    action: "read",
-    expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-  });
+  // Store object path (not a signed URL) — avoids requiring iam.serviceAccounts.signBlob
+  // on the Functions runtime SA. Back Office can mint signed URLs later when needed.
+  const slipUrl = `gs://${bucket.name}/${slipPath}`;
 
   const paymentId = `pay_${memberId}_${Date.now()}`;
   const ts = Timestamp.fromDate(now);
   const expiryTs = Timestamp.fromDate(expiry);
 
-  const member: MemberDoc = {
+  const buildingName = optionalTrim(input.buildingName);
+  const legalEntityName = optionalTrim(input.legalEntityName);
+  const email = optionalTrim(input.email);
+
+  const member = omitUndefined({
     memberId,
     tempMemberId: memberId,
     firstName,
     lastName,
-    legalEntityName: input.legalEntityName?.trim() || undefined,
-    buildingName: input.buildingName?.trim() || undefined,
-    organization: input.buildingName?.trim() || undefined,
+    legalEntityName,
+    buildingName,
+    organization: buildingName,
     phone,
-    email: input.email?.trim() || undefined,
+    email,
     lineUserId,
     lineLinkedAt: ts,
     linkType: "new_registration",
@@ -164,9 +185,9 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
     publicToken: token,
     createdAt: ts,
     updatedAt: ts,
-  };
+  }) as MemberDoc;
 
-  const payment: PaymentDoc = {
+  const payment = omitUndefined({
     paymentId,
     memberId,
     receiptStatus: "none",
@@ -175,7 +196,7 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
     status: "data_review",
     createdAt: ts,
     updatedAt: ts,
-  };
+  }) as PaymentDoc;
 
   const db = getFirestore();
   const batch = db.batch();

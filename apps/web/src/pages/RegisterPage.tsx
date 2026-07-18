@@ -50,6 +50,11 @@ function errorCopy(code: string): string {
       return "กรุณากรอกชื่อ นามสกุล และเบอร์โทรศัพท์";
     case "slip_required":
       return "กรุณาแนบสลิปโอนเงิน";
+    case "slip_upload_failed":
+      return "อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่ หรือเลือกรูปขนาดเล็กลง";
+    case "server_error":
+    case "server_misconfigured":
+      return "ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งภายหลัง";
     default:
       return "ไม่สามารถส่งใบสมัครได้ กรุณาลองใหม่อีกครั้งภายหลัง";
   }

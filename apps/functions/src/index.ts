@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 import { onRequest } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { handleLineWebhook } from "./line/webhook";
@@ -10,6 +11,9 @@ import { toPublicStatus } from "./members/status-view";
 initializeApp({
   storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "abta-member",
 });
+
+// Optional form fields may be omitted — Firestore rejects explicit `undefined`.
+getFirestore().settings({ ignoreUndefinedProperties: true });
 
 setGlobalOptions({
   region: "asia-southeast1",
@@ -80,32 +84,37 @@ async function handleMemberStatus(req: Request, res: Response): Promise<void> {
 }
 
 async function handleMemberRegister(req: Request, res: Response): Promise<void> {
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  const result = await registerNewMember({
-    idToken: String(body.idToken ?? ""),
-    firstName: String(body.firstName ?? ""),
-    lastName: String(body.lastName ?? ""),
-    phone: String(body.phone ?? ""),
-    email: body.email != null ? String(body.email) : undefined,
-    legalEntityName:
-      body.legalEntityName != null ? String(body.legalEntityName) : undefined,
-    buildingName: body.buildingName != null ? String(body.buildingName) : undefined,
-    slipContentType: String(body.slipContentType ?? ""),
-    slipBase64: String(body.slipBase64 ?? ""),
-  });
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const result = await registerNewMember({
+      idToken: String(body.idToken ?? ""),
+      firstName: String(body.firstName ?? ""),
+      lastName: String(body.lastName ?? ""),
+      phone: String(body.phone ?? ""),
+      email: body.email != null ? String(body.email) : undefined,
+      legalEntityName:
+        body.legalEntityName != null ? String(body.legalEntityName) : undefined,
+      buildingName: body.buildingName != null ? String(body.buildingName) : undefined,
+      slipContentType: String(body.slipContentType ?? ""),
+      slipBase64: String(body.slipBase64 ?? ""),
+    });
 
-  if (!result.ok) {
-    res.status(result.status).json({ ok: false, error: result.error });
-    return;
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+
+    res.status(201).json({
+      ok: true,
+      memberId: result.memberId,
+      publicToken: result.publicToken,
+      statusUrl: result.statusUrl,
+      memberCardUrl: result.memberCardUrl,
+      feeThb: result.feeThb,
+      expiryDate: result.expiryDate,
+    });
+  } catch (err) {
+    console.error("register handler error", err);
+    res.status(500).json({ ok: false, error: "server_error" });
   }
-
-  res.status(201).json({
-    ok: true,
-    memberId: result.memberId,
-    publicToken: result.publicToken,
-    statusUrl: result.statusUrl,
-    memberCardUrl: result.memberCardUrl,
-    feeThb: result.feeThb,
-    expiryDate: result.expiryDate,
-  });
 }
