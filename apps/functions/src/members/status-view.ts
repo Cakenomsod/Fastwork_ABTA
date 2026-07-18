@@ -32,6 +32,9 @@ export interface StatusView {
   memberCardUrl?: string;
   receiptUrl?: string;
   updatedAtLabel?: string;
+  dataReviewStatus?: MemberDoc["dataReviewStatus"];
+  rejectReason?: string;
+  canResubmit?: boolean;
 }
 
 const TH_MONTHS = [
@@ -75,14 +78,17 @@ export function buildStatusView(member: MemberDoc, payment?: PaymentDoc): Status
   const expiry = toDate(member.expiryDate);
   const expiryDaysLeft = expiry ? daysBetween(new Date(), expiry) : undefined;
   const updatedAt = toDate(member.updatedAt);
+  const canResubmit = member.dataReviewStatus === "rejected";
 
   return {
     memberId: member.memberId,
     fullName: `${member.firstName ?? ""} ${member.lastName ?? ""}`.trim(),
     legalEntityName: member.legalEntityName || member.organization,
     statusKey: member.status,
-    statusLabel: MEMBER_STATUS_LABEL[member.status] ?? member.status,
-    statusTone: memberStatusTone(member.status),
+    statusLabel: canResubmit
+      ? "ข้อมูลไม่ผ่าน — รอแก้ไข"
+      : MEMBER_STATUS_LABEL[member.status] ?? member.status,
+    statusTone: canResubmit ? "danger" : memberStatusTone(member.status),
     expiryLabel: formatThaiDate(expiry),
     expiryDaysLeft,
     paymentLabel: payment
@@ -95,6 +101,9 @@ export function buildStatusView(member: MemberDoc, payment?: PaymentDoc): Status
     memberCardUrl: member.memberCardUrl,
     receiptUrl: payment?.receiptUrl,
     updatedAtLabel: formatThaiDate(updatedAt),
+    dataReviewStatus: member.dataReviewStatus,
+    rejectReason: member.rejectReason,
+    canResubmit,
   };
 }
 
@@ -117,6 +126,9 @@ export function toPublicStatus(view: StatusView) {
     memberCardUrl: view.memberCardUrl,
     receiptUrl: view.receiptUrl,
     updatedAtLabel: view.updatedAtLabel,
+    dataReviewStatus: view.dataReviewStatus,
+    rejectReason: view.rejectReason,
+    canResubmit: view.canResubmit === true,
   };
 }
 

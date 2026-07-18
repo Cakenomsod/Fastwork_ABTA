@@ -107,6 +107,11 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.reg-row > .reg-field {
+  min-width: 0;
 }
 
 .reg-field {
@@ -116,6 +121,7 @@
   margin-bottom: 0.75rem;
   font-size: 0.86rem;
   color: #3d5248;
+  min-width: 0;
 }
 
 .reg-field .req {
@@ -125,6 +131,8 @@
 
 .reg-field input {
   appearance: none;
+  width: 100%;
+  min-width: 0;
   border: 1px solid #c9d7cf;
   border-radius: 12px;
   padding: 0.7rem 0.85rem;
@@ -132,6 +140,7 @@
   font-size: 1rem;
   color: #12211b;
   background: #fff;
+  overflow-wrap: anywhere;
 }
 
 .reg-field input:focus {
@@ -336,8 +345,51 @@
   color: rgba(238, 243, 239, 0.8);
 }
 
-@media (max-width: 360px) {
+@media (max-width: 480px) {
   .reg-row {
     grid-template-columns: 1fr;
+  }
+}
+
+.reg-phone-digits {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.28rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.reg-field .reg-phone-digit {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  max-width: 2.4rem;
+  aspect-ratio: 1 / 1.15;
+  padding: 0;
+  text-align: center;
+  font-size: clamp(0.85rem, 3.6vw, 1.05rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-radius: 10px;
+  caret-color: #0f4c36;
+}
+
+.reg-field .reg-phone-digit--locked {
+  background: #eef3ef;
+  color: #0f4c36;
+  font-weight: 800;
+  cursor: default;
+}
+
+@media (max-width: 340px) {
+  .reg-phone-digits {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .reg-field .reg-phone-digit {
+    flex: 0 0 calc((100% - 2.25rem) / 5);
+    width: auto;
+    max-width: none;
   }
 }

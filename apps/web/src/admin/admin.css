@@ -485,6 +485,34 @@
   border-color: var(--bo-green-mid);
 }
 
+.bo-field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--bo-muted);
+}
+
+.bo-ids-editor {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--bo-line);
+}
+
+.bo-ids-editor h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--bo-green);
+}
+
+.bo-ok {
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: var(--bo-success-soft);
+  color: var(--bo-success);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .bo-check-row {
   display: flex;
   flex-wrap: wrap;

@@ -125,6 +125,38 @@ export async function searchAdminMembers(q: string): Promise<QueueItem[]> {
   return data.items;
 }
 
+/** Correct member / receipt numbers (does not bump counters). */
+export async function updateMemberIds(input: {
+  memberId: string;
+  newMemberId?: string;
+  newReceiptNumber?: string;
+}): Promise<{ memberId: string; receiptNumber?: string; member: MemberDetail }> {
+  return adminFetch<{
+    memberId: string;
+    receiptNumber?: string;
+    member: MemberDetail;
+  }>("/admin/members/ids", {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function canEditMemberNumber(me: AdminMe): boolean {
+  return (
+    me.isSuperAdmin ||
+    me.roles.includes("admin") ||
+    me.roles.includes("registrar")
+  );
+}
+
+export function canEditReceiptNumber(me: AdminMe): boolean {
+  return (
+    me.isSuperAdmin ||
+    me.roles.includes("admin") ||
+    me.roles.includes("treasurer")
+  );
+}
+
 export async function approveDataReview(memberId: string) {
   return adminFetch<{ memberId: string; receiptNumber?: string }>(
     "/admin/reviews/data/approve",

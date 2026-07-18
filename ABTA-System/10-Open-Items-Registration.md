@@ -87,7 +87,7 @@
 | ฐานข้อมูลสมาชิกเก่า (legacy bind) | ⬜ ยังเป็น stub CTA |
 | ยืนยันข้อความไทยบนฟอร์ม / Flex หลังสมัคร | ⬜ ปรับตามลูกค้าได้ |
 | Firebase Auth Google provider | ⬜ ดูขั้นตอนใน [09-Platform-Accounts.md](./09-Platform-Accounts.md) |
-| สมาชิกส่งใหม่หลังถูกปฏิเสธ (LIFF) | ⬜ Phase ถัดไป — ตอนนี้แจ้ง LINE + เหตุผลแล้ว |
+| สมาชิกส่งใหม่หลังถูกปฏิเสธ (LIFF) | ✅ หลัง data reject เปิด `/register` (prefill) → อัปเดต doc เดิม · `dataReviewStatus: pending` |
 
 ---
 

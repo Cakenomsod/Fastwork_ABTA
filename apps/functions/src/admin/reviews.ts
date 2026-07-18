@@ -3,7 +3,7 @@
  */
 
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
-import { WEB_ORIGIN } from "../config";
+import { LIFF_URL, WEB_ORIGIN, isConfiguredLiffUrl } from "../config";
 import { pushMessages } from "../line/client";
 import {
   dataReviewApprovedText,
@@ -360,10 +360,11 @@ export async function rejectDataReview(
     return { ok: false, error: "not_pending", status: 409 };
   }
 
-  // Keep memberId for now — a fresh temp ID is allocated when the member resubmits.
+  // Keep temporary memberId — member edits & resubmits on the same record.
   const now = Timestamp.now();
   const token = member.publicToken ?? "";
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
+  const editUrl = isConfiguredLiffUrl() ? LIFF_URL : `${WEB_ORIGIN}/register`;
 
   const payment = await findLatestPayment(member.memberId);
   const db = getFirestore();
@@ -403,6 +404,7 @@ export async function rejectDataReview(
           fullName: `${member.firstName} ${member.lastName}`.trim(),
           memberId: member.memberId,
           reason: trimmed,
+          editUrl,
           statusUrl,
         }),
       ]);

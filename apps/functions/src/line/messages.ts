@@ -382,6 +382,7 @@ export function dataReviewRejectedText(opts: {
   fullName: string;
   memberId: string;
   reason: string;
+  editUrl: string;
   statusUrl: string;
 }): LineMessage {
   return textMessage(
@@ -392,7 +393,8 @@ export function dataReviewRejectedText(opts: {
       "",
       `เหตุผล: ${opts.reason}`,
       "",
-      "กรุณาแก้ไขข้อมูลแล้วส่งใหม่ผ่านฟอร์มสมัครใน LINE",
+      "กรุณาแก้ไขข้อมูลแล้วส่งใหม่",
+      `แก้ไขและส่งใหม่: ${opts.editUrl}`,
       `ดูสถานะ: ${opts.statusUrl}`,
     ].join("\n"),
   );

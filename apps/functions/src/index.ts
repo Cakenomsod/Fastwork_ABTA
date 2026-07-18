@@ -12,6 +12,7 @@ import {
   handleAdminStaffDelete,
   handleAdminStaffList,
   handleAdminStaffUpsert,
+  handleAdminUpdateMemberIds,
   handleApproveData,
   handleApproveSlip,
   handlePendingDataReviews,
@@ -20,7 +21,7 @@ import {
   handleRejectSlip,
 } from "./admin/handlers";
 import { handleLineWebhook } from "./line/webhook";
-import { registerNewMember } from "./members/register";
+import { getRegisterDraft, registerNewMember } from "./members/register";
 import { getStatusViewByMemberId } from "./members/repository";
 import { toPublicStatus } from "./members/status-view";
 
@@ -69,6 +70,11 @@ export const api = onRequest(
       return;
     }
 
+    if (path === "/members/register/draft" && req.method === "POST") {
+      await handleRegisterDraft(req, res);
+      return;
+    }
+
     // ── Admin Back Office (Firebase Auth ID token + staff allowlist) ──
     if (path === "/admin/me" && req.method === "GET") {
       await handleAdminMe(req, res);
@@ -108,6 +114,13 @@ export const api = onRequest(
     }
     if (path === "/admin/members/search" && req.method === "GET") {
       await handleAdminMemberSearch(req, res);
+      return;
+    }
+    if (
+      path === "/admin/members/ids" &&
+      (req.method === "PATCH" || req.method === "PUT")
+    ) {
+      await handleAdminUpdateMemberIds(req, res);
       return;
     }
     if (path === "/admin/reviews/data/approve" && req.method === "POST") {
@@ -181,7 +194,7 @@ async function handleMemberRegister(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    res.status(201).json({
+    res.status(result.resubmitted ? 200 : 201).json({
       ok: true,
       memberId: result.memberId,
       publicToken: result.publicToken,
@@ -189,9 +202,43 @@ async function handleMemberRegister(req: Request, res: Response): Promise<void> 
       memberCardUrl: result.memberCardUrl,
       feeThb: result.feeThb,
       expiryDate: result.expiryDate,
+      resubmitted: result.resubmitted === true,
     });
   } catch (err) {
     console.error("register handler error", err);
+    res.status(500).json({ ok: false, error: "server_error" });
+  }
+}
+
+async function handleRegisterDraft(req: Request, res: Response): Promise<void> {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const result = await getRegisterDraft(String(body.idToken ?? ""));
+
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+
+    if (result.mode === "new") {
+      res.status(200).json({ ok: true, mode: "new" });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      mode: "resubmit",
+      memberId: result.memberId,
+      rejectReason: result.rejectReason,
+      firstName: result.firstName,
+      lastName: result.lastName,
+      phone: result.phone,
+      email: result.email,
+      legalEntityName: result.legalEntityName,
+      buildingName: result.buildingName,
+    });
+  } catch (err) {
+    console.error("register draft handler error", err);
     res.status(500).json({ ok: false, error: "server_error" });
   }
 }

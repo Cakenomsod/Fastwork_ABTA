@@ -21,12 +21,17 @@ import {
   searchMembers,
   slipObjectRef,
 } from "./reviews";
+import { updateMemberIds } from "./update-ids";
 import {
   deleteStaffUser,
   listStaffUsers,
   upsertStaffUser,
 } from "../staff/repository";
-import { isValidStaffRole, type StaffRole } from "../staff/types";
+import {
+  hasAnyRole,
+  isValidStaffRole,
+  type StaffRole,
+} from "../staff/types";
 
 function jsonError(res: Response, status: number, error: string): void {
   res.status(status).json({ ok: false, error });
@@ -298,6 +303,74 @@ export async function handleAdminMemberSearch(
   const q = String(req.query.q ?? "").trim();
   const items = await searchMembers(q);
   res.status(200).json({ ok: true, items });
+}
+
+/** PATCH member / receipt numbers (admin correction). */
+export async function handleAdminUpdateMemberIds(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const memberId = String(body.memberId ?? "").trim();
+  const newMemberId =
+    body.newMemberId != null ? String(body.newMemberId).trim() : undefined;
+  const newReceiptNumber =
+    body.newReceiptNumber != null
+      ? String(body.newReceiptNumber).trim()
+      : undefined;
+
+  if (!memberId) {
+    jsonError(res, 400, "member_id_required");
+    return;
+  }
+
+  const allowMemberId = hasAnyRole(auth.session.staff, [
+    "admin",
+    "registrar",
+  ]);
+  const allowReceiptNumber = hasAnyRole(auth.session.staff, [
+    "admin",
+    "treasurer",
+  ]);
+
+  if (
+    (newMemberId && !allowMemberId) ||
+    (newReceiptNumber && !allowReceiptNumber)
+  ) {
+    jsonError(res, 403, "forbidden_role");
+    return;
+  }
+  if (!allowMemberId && !allowReceiptNumber) {
+    jsonError(res, 403, "forbidden_role");
+    return;
+  }
+
+  const result = await updateMemberIds({
+    memberId,
+    newMemberId,
+    newReceiptNumber,
+    actorEmail: auth.session.email,
+    allowMemberId,
+    allowReceiptNumber,
+  });
+
+  if (!result.ok) {
+    jsonError(res, result.status, result.error);
+    return;
+  }
+
+  res.status(200).json({
+    ok: true,
+    memberId: result.memberId,
+    receiptNumber: result.receiptNumber,
+    member: result.member,
+  });
 }
 
 export async function handleApproveData(

@@ -199,11 +199,15 @@ export default function AdminApp() {
     staff: "จัดการเจ้าหน้าที่",
   };
 
-  let page: ReactNode = <DashboardPage onCounts={setCounts} />;
+  let page: ReactNode = <DashboardPage me={me} onCounts={setCounts} />;
   if (route === "data" && canSeeData) {
-    page = <DataReviewPage onChanged={() => refreshCounts(setCounts)} />;
+    page = (
+      <DataReviewPage me={me} onChanged={() => refreshCounts(setCounts)} />
+    );
   } else if (route === "slips" && canSeeSlips) {
-    page = <SlipReviewPage onChanged={() => refreshCounts(setCounts)} />;
+    page = (
+      <SlipReviewPage me={me} onChanged={() => refreshCounts(setCounts)} />
+    );
   } else if (route === "staff" && me.canManageStaff) {
     page = <StaffPage />;
   } else if (route !== "dashboard") {

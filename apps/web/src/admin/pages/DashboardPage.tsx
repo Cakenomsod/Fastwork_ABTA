@@ -1,16 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   fetchDashboard,
+  fetchMemberDetail,
+  searchAdminMembers,
+  type AdminMe,
   type DashboardData,
+  type MemberDetail,
   type QueueItem,
 } from "../../lib/admin-api";
+import MemberIdsEditor from "../MemberIdsEditor";
 
 export default function DashboardPage(props: {
+  me: AdminMe;
   onCounts?: (c: { data: number; slips: number }) => void;
 }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [query, setQuery] = useState("");
+  const [searchHits, setSearchHits] = useState<QueueItem[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MemberDetail | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,10 +47,50 @@ export default function DashboardPage(props: {
     };
   }, []);
 
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
+      return;
+    }
+    let cancelled = false;
+    fetchMemberDetail(selectedId)
+      .then((d) => {
+        if (!cancelled) setDetail(d);
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  async function onSearch(e: FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) {
+      setSearchHits([]);
+      return;
+    }
+    setSearching(true);
+    setError(null);
+    try {
+      const items = await searchAdminMembers(q);
+      setSearchHits(items);
+      if (items.length === 1) {
+        setSelectedId(items[0].memberId);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "search_failed");
+    } finally {
+      setSearching(false);
+    }
+  }
+
   if (loading) {
     return <div className="bo-empty">กำลังโหลด Dashboard…</div>;
   }
-  if (error) {
+  if (error && !data) {
     return <div className="bo-error">{error}</div>;
   }
   if (!data) return null;
@@ -62,6 +114,139 @@ export default function DashboardPage(props: {
           <div className="num">{data.activeMembers}</div>
           <div className="lbl">สมาชิกสมบูรณ์</div>
         </div>
+      </div>
+
+      <div className="bo-split" style={{ marginBottom: "1.25rem" }}>
+        <div className="bo-panel">
+          <div className="bo-panel-head">
+            <h2>ค้นหาสมาชิก</h2>
+          </div>
+          <form
+            className="bo-form-grid"
+            style={{ padding: "0.85rem 1rem" }}
+            onSubmit={(e) => void onSearch(e)}
+          >
+            <div className="bo-field">
+              <label htmlFor="bo-member-search">ชื่อ / เลขสมาชิก / โทร / อีเมล</label>
+              <input
+                id="bo-member-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="เช่น ABTA-2026-0001 หรือ สมชาย"
+              />
+            </div>
+            <button
+              type="submit"
+              className="bo-btn bo-btn-primary"
+              disabled={searching}
+            >
+              {searching ? "กำลังค้นหา…" : "ค้นหา"}
+            </button>
+          </form>
+          {error ? (
+            <div className="bo-error" style={{ margin: "0 1rem 0.75rem" }}>
+              {error}
+            </div>
+          ) : null}
+          {searchHits.length > 0 ? (
+            <div className="bo-table-wrap">
+              <table className="bo-table">
+                <thead>
+                  <tr>
+                    <th>ชื่อ</th>
+                    <th>เลขสมาชิก</th>
+                    <th>ใบเสร็จ</th>
+                    <th>สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchHits.map((row) => (
+                    <tr
+                      key={row.memberId}
+                      className={selectedId === row.memberId ? "selected" : ""}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setSelectedId(row.memberId)}
+                    >
+                      <td>{row.fullName}</td>
+                      <td>
+                        <code>{row.memberId}</code>
+                      </td>
+                      <td>{row.receiptNumber || "—"}</td>
+                      <td>
+                        <StatusBadge
+                          status={row.status}
+                          dataReview={row.dataReviewStatus}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+
+        <aside className="bo-detail">
+          {!detail ? (
+            <div className="bo-empty" style={{ padding: "1.5rem 0" }}>
+              <strong>รายละเอียดสมาชิก</strong>
+              ค้นหาแล้วคลิกแถวเพื่อแก้ไขเลขสมาชิก / ใบเสร็จ
+            </div>
+          ) : (
+            <>
+              <h3>{detail.fullName}</h3>
+              <div className="bo-detail-row">
+                <span>เลขสมาชิก</span>
+                <strong>{detail.memberId}</strong>
+              </div>
+              <div className="bo-detail-row">
+                <span>เลขใบเสร็จ</span>
+                <strong>{detail.receiptNumber || "—"}</strong>
+              </div>
+              <div className="bo-detail-row">
+                <span>สถานะ</span>
+                <strong>
+                  <StatusBadge
+                    status={detail.status}
+                    dataReview={detail.dataReviewStatus}
+                  />
+                </strong>
+              </div>
+              <div className="bo-detail-row">
+                <span>โทร</span>
+                <strong>{detail.phone || "—"}</strong>
+              </div>
+              <div className="bo-detail-row">
+                <span>อีเมล</span>
+                <strong>{detail.email || "—"}</strong>
+              </div>
+
+              <MemberIdsEditor
+                detail={detail}
+                me={props.me}
+                onSaved={(m) => {
+                  const prevId = detail.memberId;
+                  setDetail(m);
+                  setSelectedId(m.memberId);
+                  setSearchHits((prev) =>
+                    prev.map((row) =>
+                      row.memberId === prevId || row.memberId === m.memberId
+                        ? {
+                            ...row,
+                            memberId: m.memberId,
+                            tempMemberId: m.tempMemberId,
+                            receiptNumber: m.receiptNumber,
+                            receiptStatus: m.receiptStatus,
+                            status: m.status,
+                          }
+                        : row,
+                    ),
+                  );
+                }}
+              />
+            </>
+          )}
+        </aside>
       </div>
 
       <div className="bo-panel">
@@ -90,13 +275,20 @@ export default function DashboardPage(props: {
               </thead>
               <tbody>
                 {data.recent.map((row: QueueItem) => (
-                  <tr key={row.memberId}>
+                  <tr
+                    key={row.memberId}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setSelectedId(row.memberId)}
+                  >
                     <td>{row.fullName}</td>
                     <td>
                       <code>{row.memberId}</code>
                     </td>
                     <td>
-                      <StatusBadge status={row.status} dataReview={row.dataReviewStatus} />
+                      <StatusBadge
+                        status={row.status}
+                        dataReview={row.dataReviewStatus}
+                      />
                     </td>
                     <td>{row.receiptNumber || row.paymentStatus || "—"}</td>
                     <td>{formatDate(row.createdAt)}</td>

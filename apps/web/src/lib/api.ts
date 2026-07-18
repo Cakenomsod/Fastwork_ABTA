@@ -29,6 +29,9 @@ export interface PublicStatus {
   memberCardUrl?: string;
   receiptUrl?: string;
   updatedAtLabel?: string;
+  dataReviewStatus?: string;
+  rejectReason?: string;
+  canResubmit?: boolean;
 }
 
 export async function fetchMemberStatus(
@@ -66,6 +69,50 @@ export interface RegisterSuccess {
   memberCardUrl: string;
   feeThb: number;
   expiryDate: string;
+  resubmitted?: boolean;
+}
+
+export type RegisterDraft =
+  | { mode: "new" }
+  | {
+      mode: "resubmit";
+      memberId: string;
+      rejectReason?: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      email?: string;
+      legalEntityName?: string;
+      buildingName?: string;
+    };
+
+export async function fetchRegisterDraft(idToken: string): Promise<RegisterDraft> {
+  const res = await fetch(`${apiBase()}/api/members/register/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    const err = new Error(data?.error ?? `request_failed_${res.status}`);
+    (err as Error & { code?: string }).code = data?.error ?? String(res.status);
+    throw err;
+  }
+  if (data.mode === "resubmit") {
+    return {
+      mode: "resubmit",
+      memberId: String(data.memberId ?? ""),
+      rejectReason: data.rejectReason != null ? String(data.rejectReason) : undefined,
+      firstName: String(data.firstName ?? ""),
+      lastName: String(data.lastName ?? ""),
+      phone: String(data.phone ?? ""),
+      email: data.email != null ? String(data.email) : undefined,
+      legalEntityName:
+        data.legalEntityName != null ? String(data.legalEntityName) : undefined,
+      buildingName: data.buildingName != null ? String(data.buildingName) : undefined,
+    };
+  }
+  return { mode: "new" };
 }
 
 export async function submitRegistration(
@@ -89,5 +136,6 @@ export async function submitRegistration(
     memberCardUrl: data.memberCardUrl,
     feeThb: data.feeThb,
     expiryDate: data.expiryDate,
+    resubmitted: data.resubmitted === true,
   };
 }

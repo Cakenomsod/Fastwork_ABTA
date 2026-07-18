@@ -56,6 +56,9 @@ export interface MemberDoc {
   dataReviewStatus?: DataReviewStatus;
   seminarStatus?: SeminarStatus;
   seminarTitle?: string;
+  /** Set when registrar rejects data review; cleared on resubmit. */
+  rejectReason?: string;
+  rejectedBy?: string;
   /** Short random token gating the public web status page. */
   publicToken?: string;
   createdAt?: Timestamp;

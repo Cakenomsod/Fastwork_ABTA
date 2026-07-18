@@ -134,7 +134,20 @@ function StatusCard({ data }: { data: PublicStatus }) {
         )}
       </section>
 
-      {(data.memberCardUrl || data.receiptUrl) && (
+      {data.canResubmit && (
+        <section className="actions">
+          {data.rejectReason && (
+            <p className="foot-note" style={{ marginBottom: "0.75rem" }}>
+              เหตุผลที่ไม่ผ่าน: {data.rejectReason}
+            </p>
+          )}
+          <a className="btn btn--primary" href="/register">
+            แก้ไขข้อมูลแล้วส่งใหม่
+          </a>
+        </section>
+      )}
+
+      {!data.canResubmit && (data.memberCardUrl || data.receiptUrl) && (
         <section className="actions">
           {data.memberCardUrl && (
             <a className="btn btn--primary" href={data.memberCardUrl}>

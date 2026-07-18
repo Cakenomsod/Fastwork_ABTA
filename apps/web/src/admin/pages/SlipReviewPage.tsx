@@ -4,12 +4,17 @@ import {
   fetchMemberDetail,
   fetchPendingSlipReviews,
   rejectSlipReview,
+  type AdminMe,
   type MemberDetail,
   type QueueItem,
 } from "../../lib/admin-api";
+import MemberIdsEditor from "../MemberIdsEditor";
 import SlipImage from "../SlipImage";
 
-export default function SlipReviewPage(props: { onChanged?: () => void }) {
+export default function SlipReviewPage(props: {
+  me: AdminMe;
+  onChanged?: () => void;
+}) {
   const [items, setItems] = useState<QueueItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MemberDetail | null>(null);
@@ -195,6 +200,19 @@ export default function SlipReviewPage(props: { onChanged?: () => void }) {
               <span>สถานะใบเสร็จ</span>
               <strong>{detail.receiptStatus || "—"}</strong>
             </div>
+
+            <MemberIdsEditor
+              detail={detail}
+              me={props.me}
+              onSaved={(m) => {
+                setDetail(m);
+                if (m.memberId !== selectedId) {
+                  setSelectedId(m.memberId);
+                }
+                void reload();
+                props.onChanged?.();
+              }}
+            />
 
             <div className="bo-slip" style={{ minHeight: 240 }}>
               <SlipImage slipViewUrl={detail.slipViewUrl} emptyHint="ไม่พบรูปสลิป" />
