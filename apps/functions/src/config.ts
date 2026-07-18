@@ -13,6 +13,9 @@ export const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "https://abta-member.web.app
 export const LIFF_URL =
   process.env.VITE_LIFF_URL ?? process.env.LIFF_URL ?? "https://liff.line.me";
 
+/** Membership fee (THB) — default from mockup until customer confirms. */
+export const MEMBERSHIP_FEE_THB = Number(process.env.MEMBERSHIP_FEE_THB ?? "500") || 500;
+
 export const BRAND = {
   short: "ABTA",
   nameTh: "สมาคมการค้าผู้ประกอบการธุรกิจห้องเช่า",
@@ -36,4 +39,13 @@ export function getMessagingSecret(): string | undefined {
 
 export function getMessagingAccessToken(): string | undefined {
   return process.env.LINE_MESSAGING_ACCESS_TOKEN;
+}
+
+export function getLoginChannelId(): string | undefined {
+  return process.env.LINE_LOGIN_CHANNEL_ID;
+}
+
+/** True when LIFF_URL looks like a real LIFF deep link (not the bare placeholder). */
+export function isConfiguredLiffUrl(url: string = LIFF_URL): boolean {
+  return /^https:\/\/liff\.line\.me\/\d+-\w+/i.test(url);
 }

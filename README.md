@@ -88,6 +88,29 @@ https://abta-member.web.app/status?m=<memberId>&t=<publicToken>
 GET /api/members/status?m=<memberId>&t=<publicToken>
 ```
 
+## สมัครสมาชิกใหม่ (LIFF)
+
+| รายการ | ค่า |
+|--------|-----|
+| หน้าฟอร์ม | `https://abta-member.web.app/register` |
+| LIFF Endpoint (ตั้งใน LINE Console) | ชี้ URL ด้านบน |
+| API | `POST /api/members/register` (ต้องมี LINE Login ID token) |
+
+รายการค้างจากลูกค้า (บัญชีธนาคาร, ค่าธรรมเนียม, staff IDs): [ABTA-System/10-Open-Items-Registration.md](./ABTA-System/10-Open-Items-Registration.md)
+
+### ทดสอบสมัคร
+
+1. ตั้ง LIFF Endpoint = `/register` แล้วเปิดจาก `VITE_LIFF_URL` ใน LINE
+2. กรอกฟอร์ม + แนบสลิป JPG/PNG ≤ 5MB → ส่ง
+3. ตรวจข้อความยืนยันใน OA + Firestore `members` / `payments`
+4. บัญชีที่ผูกแล้วจะสมัครซ้ำไม่ได้ → แนะนำให้เช็คสถานะ
+
+```bash
+# local UI
+npm run dev
+# เปิด http://localhost:5173/register (ส่งจริงต้องมี ID token จาก LIFF)
+```
+
 ## GitHub Actions
 
 Workflows:

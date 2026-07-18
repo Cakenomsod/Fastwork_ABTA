@@ -1,13 +1,18 @@
 import { firebaseConfig } from "./lib/firebase";
+import RegisterPage from "./pages/RegisterPage";
 import StatusPage from "./pages/StatusPage";
 import "./App.css";
 
 function App() {
-  const path = window.location.pathname.replace(/\/+$/, "");
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
 
   // Digital member card / receipt / full status all render the status view.
   if (path === "/status" || path === "/card" || path === "/receipt") {
     return <StatusPage />;
+  }
+
+  if (path === "/register") {
+    return <RegisterPage />;
   }
 
   return <Landing />;
@@ -34,6 +39,9 @@ function Landing() {
           <dd>{liffId || "ยังไม่ตั้งค่า VITE_LIFF_ID"}</dd>
         </div>
       </dl>
+      <p className="lead" style={{ marginTop: "1.5rem" }}>
+        <a href="/register">ไปหน้าสมัครสมาชิก</a>
+      </p>
     </main>
   );
 }

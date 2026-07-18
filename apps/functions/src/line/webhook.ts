@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import * as crypto from "crypto";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessagingSecret } from "../config";
 import { getStatusViewByLineUserId } from "../members/repository";
 import { replyMessages, type LineMessage } from "./client";
@@ -10,6 +11,7 @@ import {
   greetingMessage,
   helpMessage,
   notLinkedFlex,
+  registerInviteFlex,
 } from "./messages";
 
 interface LineEvent {
@@ -69,6 +71,7 @@ async function handleEvent(event: LineEvent): Promise<void> {
   const text = event.message.text ?? "";
   const intent = detectIntent(text);
   const userId = event.source?.userId;
+  console.log("line event", { type: event.type, intent, userId, text: text.slice(0, 80) });
 
   try {
     switch (intent) {
@@ -77,6 +80,9 @@ async function handleEvent(event: LineEvent): Promise<void> {
         await replyMessages(replyToken, messages);
         return;
       }
+      case "register":
+        await replyMessages(replyToken, [registerInviteFlex()]);
+        return;
       case "help":
         await replyMessages(replyToken, [helpMessage()]);
         return;
@@ -84,7 +90,6 @@ async function handleEvent(event: LineEvent): Promise<void> {
         await replyMessages(replyToken, [greetingMessage()]);
         return;
       default:
-        // Light-touch: nudge toward the status command instead of spamming.
         await replyMessages(replyToken, [helpMessage()]);
         return;
     }
@@ -100,9 +105,29 @@ async function buildStatusReply(
   if (!userId) return [notLinkedFlex()];
 
   const result = await getStatusViewByLineUserId(userId);
-  if (!result) return [notLinkedFlex()];
+  if (!result) {
+    await rememberUnlinkedUser(userId).catch((err) => {
+      console.error("failed to record line sighting", err);
+    });
+    return [notLinkedFlex(userId)];
+  }
 
   return [buildStatusFlex(result.view, result.publicToken)];
+}
+
+/** Keeps recent unbound LINE userIds so we can bind demo/test accounts quickly. */
+async function rememberUnlinkedUser(lineUserId: string): Promise<void> {
+  await getFirestore()
+    .collection("line_sightings")
+    .doc(lineUserId)
+    .set(
+      {
+        lineUserId,
+        lastSeenAt: FieldValue.serverTimestamp(),
+        lastIntent: "status",
+      },
+      { merge: true },
+    );
 }
 
 function verifyLineSignature(
