@@ -82,10 +82,12 @@
 
 | รายการ | สถานะ |
 |--------|--------|
-| นโยบายใบเสร็จ / เลขที่ใบเสร็จชั่วคราว | ⬜ ตาม Back Office ขั้นที่ 1 |
-| รายชื่อนายทะเบียน / เหรัญญิกใน Back Office | ⬜ ยังไม่มี BO UI |
+| นโยบายใบเสร็จ / เลขที่ใบเสร็จชั่วคราว | ✅ ออกอัตโนมัติ `RC-T-YYYY-####` / `RC-YYYY-####` ตอนอนุมัติ |
+| รายชื่อนายทะเบียน / เหรัญญิกใน Back Office | ✅ มี `/admin` + หน้าจัดการเจ้าหน้าที่ — ต้องเปิด Google Sign-In ใน Console |
 | ฐานข้อมูลสมาชิกเก่า (legacy bind) | ⬜ ยังเป็น stub CTA |
 | ยืนยันข้อความไทยบนฟอร์ม / Flex หลังสมัคร | ⬜ ปรับตามลูกค้าได้ |
+| Firebase Auth Google provider | ⬜ ดูขั้นตอนใน [09-Platform-Accounts.md](./09-Platform-Accounts.md) |
+| สมาชิกส่งใหม่หลังถูกปฏิเสธ (LIFF) | ⬜ Phase ถัดไป — ตอนนี้แจ้ง LINE + เหตุผลแล้ว |
 
 ---
 
@@ -107,6 +109,7 @@ npx firebase deploy --only functions,hosting
 2. เปิด LIFF จาก LINE → กรอกฟอร์ม + สลิปทดสอบ
 3. ตรวจ Firestore `members` / `payments` + Storage `slips/`
 4. ตรวจข้อความยืนยันในแชท OA
+5. เปิด Google Sign-In ใน Firebase Auth → ทดสอบ `https://abta-member.web.app/admin` ด้วย `phetklaowork01@gmail.com`
 
 ---
 

@@ -358,6 +358,86 @@ export function staffNewRegistrationText(opts: {
   );
 }
 
+export function dataReviewApprovedText(opts: {
+  fullName: string;
+  permanentMemberId: string;
+  receiptNumber: string;
+  statusUrl: string;
+}): LineMessage {
+  return textMessage(
+    [
+      "✅ นายทะเบียนอนุมัติข้อมูลแล้ว",
+      `คุณ${opts.fullName}`,
+      "",
+      `เลขสมาชิกถาวร: ${opts.permanentMemberId}`,
+      `ใบเสร็จชั่วคราว: ${opts.receiptNumber}`,
+      "สถานะ: สมาชิกสมบูรณ์ · รอเหรัญญิกตรวจสลิป",
+      "",
+      `ดูสถานะ: ${opts.statusUrl}`,
+    ].join("\n"),
+  );
+}
+
+export function dataReviewRejectedText(opts: {
+  fullName: string;
+  memberId: string;
+  reason: string;
+  statusUrl: string;
+}): LineMessage {
+  return textMessage(
+    [
+      "❌ ข้อมูลสมาชิกยังไม่ผ่านการตรวจสอบ",
+      `คุณ${opts.fullName}`,
+      `เลขสมาชิก: ${opts.memberId}`,
+      "",
+      `เหตุผล: ${opts.reason}`,
+      "",
+      "กรุณาแก้ไขข้อมูลแล้วส่งใหม่ผ่านฟอร์มสมัครใน LINE",
+      `ดูสถานะ: ${opts.statusUrl}`,
+    ].join("\n"),
+  );
+}
+
+export function slipReviewApprovedText(opts: {
+  fullName: string;
+  memberId: string;
+  receiptNumber: string;
+  statusUrl: string;
+}): LineMessage {
+  return textMessage(
+    [
+      "✅ เหรัญญิกยืนยันการชำระเงินแล้ว",
+      `คุณ${opts.fullName}`,
+      `เลขสมาชิก: ${opts.memberId}`,
+      `ใบเสร็จตัวจริง: ${opts.receiptNumber}`,
+      "",
+      `ดูสถานะ / ใบเสร็จ: ${opts.statusUrl}`,
+    ].join("\n"),
+  );
+}
+
+export function slipReviewRejectedText(opts: {
+  fullName: string;
+  memberId: string;
+  reason: string;
+  nextReceiptNumber: string;
+  statusUrl: string;
+}): LineMessage {
+  return textMessage(
+    [
+      "❌ สลิปยังไม่ผ่านการตรวจสอบ",
+      `คุณ${opts.fullName}`,
+      `เลขสมาชิก: ${opts.memberId} (ยังเป็นสมาชิกสมบูรณ์)`,
+      "",
+      `เหตุผล: ${opts.reason}`,
+      `เลขใบเสร็จใหม่ (รอส่งสลิป): ${opts.nextReceiptNumber}`,
+      "",
+      "กรุณาส่งสลิปใหม่ผ่าน LINE OA",
+      `ดูสถานะ: ${opts.statusUrl}`,
+    ].join("\n"),
+  );
+}
+
 export function errorMessage(): LineMessage {
   return textMessage(
     "ขออภัยครับ ระบบเกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่อีกครั้งภายหลัง หากยังพบปัญหาโปรดติดต่อเจ้าหน้าที่สมาคมครับ",

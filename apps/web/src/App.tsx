@@ -1,4 +1,5 @@
 import { firebaseConfig } from "./lib/firebase";
+import AdminApp from "./admin/AdminApp";
 import RegisterPage from "./pages/RegisterPage";
 import StatusPage from "./pages/StatusPage";
 import "./App.css";
@@ -13,6 +14,10 @@ function App() {
 
   if (path === "/register") {
     return <RegisterPage />;
+  }
+
+  if (path === "/admin" || path.startsWith("/admin/")) {
+    return <AdminApp />;
   }
 
   return <Landing />;
@@ -41,6 +46,8 @@ function Landing() {
       </dl>
       <p className="lead" style={{ marginTop: "1.5rem" }}>
         <a href="/register">ไปหน้าสมัครสมาชิก</a>
+        {" · "}
+        <a href="/admin">Back Office</a>
       </p>
     </main>
   );

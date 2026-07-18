@@ -3,6 +3,22 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { onRequest } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
+import {
+  handleAdminDashboard,
+  handleAdminMe,
+  handleAdminMemberDetail,
+  handleAdminMemberSearch,
+  handleAdminMemberSlip,
+  handleAdminStaffDelete,
+  handleAdminStaffList,
+  handleAdminStaffUpsert,
+  handleApproveData,
+  handleApproveSlip,
+  handlePendingDataReviews,
+  handlePendingSlipReviews,
+  handleRejectData,
+  handleRejectSlip,
+} from "./admin/handlers";
 import { handleLineWebhook } from "./line/webhook";
 import { registerNewMember } from "./members/register";
 import { getStatusViewByMemberId } from "./members/repository";
@@ -20,10 +36,13 @@ setGlobalOptions({
   maxInstances: 10,
 });
 
-/** Health + LINE webhook + public status entrypoint for ABTA Member */
+/** Health + LINE webhook + public status + admin BO entrypoint for ABTA Member */
 export const api = onRequest(
   { cors: true, memory: "512MiB", timeoutSeconds: 120 },
   async (req, res) => {
+    // API responses must never be CDN-cached (Hosting previously cached 404s for 10m).
+    res.set("Cache-Control", "no-store, max-age=0");
+
     const path = req.path.replace(/^\/api/, "") || "/";
 
     if (path === "/health" || path === "/") {
@@ -47,6 +66,64 @@ export const api = onRequest(
 
     if (path === "/members/register" && req.method === "POST") {
       await handleMemberRegister(req, res);
+      return;
+    }
+
+    // ── Admin Back Office (Firebase Auth ID token + staff allowlist) ──
+    if (path === "/admin/me" && req.method === "GET") {
+      await handleAdminMe(req, res);
+      return;
+    }
+    if (path === "/admin/dashboard" && req.method === "GET") {
+      await handleAdminDashboard(req, res);
+      return;
+    }
+    if (path === "/admin/staff" && req.method === "GET") {
+      await handleAdminStaffList(req, res);
+      return;
+    }
+    if (path === "/admin/staff" && (req.method === "POST" || req.method === "PUT")) {
+      await handleAdminStaffUpsert(req, res);
+      return;
+    }
+    if (path === "/admin/staff" && req.method === "DELETE") {
+      await handleAdminStaffDelete(req, res);
+      return;
+    }
+    if (path === "/admin/reviews/data" && req.method === "GET") {
+      await handlePendingDataReviews(req, res);
+      return;
+    }
+    if (path === "/admin/reviews/slips" && req.method === "GET") {
+      await handlePendingSlipReviews(req, res);
+      return;
+    }
+    if (path === "/admin/members/detail" && req.method === "GET") {
+      await handleAdminMemberDetail(req, res);
+      return;
+    }
+    if (path === "/admin/members/slip" && req.method === "GET") {
+      await handleAdminMemberSlip(req, res);
+      return;
+    }
+    if (path === "/admin/members/search" && req.method === "GET") {
+      await handleAdminMemberSearch(req, res);
+      return;
+    }
+    if (path === "/admin/reviews/data/approve" && req.method === "POST") {
+      await handleApproveData(req, res);
+      return;
+    }
+    if (path === "/admin/reviews/data/reject" && req.method === "POST") {
+      await handleRejectData(req, res);
+      return;
+    }
+    if (path === "/admin/reviews/slips/approve" && req.method === "POST") {
+      await handleApproveSlip(req, res);
+      return;
+    }
+    if (path === "/admin/reviews/slips/reject" && req.method === "POST") {
+      await handleRejectSlip(req, res);
       return;
     }
 

@@ -123,9 +123,23 @@
 | Firebase Hosting                   | `abta-member.web.app`           | —                          | รวม                       | LIFF + Back Office   | ✅ (URL ตาม project) |
 | Firebase Storage                   | สลิป / เอกสาร                   | —                          | รวม                       | อัปโหลดสลิป          | ⬜ เปิดใช้ใน Console |
 | Cloud Functions                    | webhook + API                   | —                          | **Blaze — บัญชีเดียวกัน** | LINE Webhook         | ⬜ ทีหลัง            |
-| Firebase Auth (ถ้าใช้ Back Office) | Email/Password หรือตามที่ออกแบบ | —                          | รวม                       | Back Office login    | ⬜ ทีหลัง            |
+| Firebase Auth (Back Office) | **Google Sign-In only** | — | รวม | `/admin` login | ⬜ เปิด Google provider ใน Console |
 | Web config ใน `.env`               | apiKey, projectId, appId, …     | —                          | —                         | Frontend             | ✅ มีแล้ว            |
 
+
+**Firebase Auth — Google Sign-In (Back Office) — ต้องทำใน Console**
+
+1. เปิด [Firebase Console](https://console.firebase.google.com/) → โปรเจกต์ `abta-member`
+2. **Authentication** → **Sign-in method** → เปิด **Google** → บันทึก (ใช้ support email ของโปรเจกต์)
+3. **Authentication** → **Settings** → **Authorized domains** ให้มีอย่างน้อย:
+   - `abta-member.web.app`
+   - `abta-member.firebaseapp.com`
+   - `localhost` (สำหรับ dev)
+4. เข้า BO ที่ `https://abta-member.web.app/admin` ด้วย Google บัญชี `phetklaowork01@gmail.com`  
+   → ระบบ bootstrap เป็น super-admin อัตโนมัติ (คอลเลกชัน `staffUsers`)
+5. จากหน้า **จัดการเจ้าหน้าที่** เพิ่มอีเมลเจ้าหน้าที่อื่น + เลือกบทบาท (แอดมิน / นายทะเบียน / เหรัญญิก — เลือกได้หลายอัน)
+
+> **นโยบายสิทธิ์:** ผู้ที่มีบทบาท `admin` หรือ `isSuperAdmin` จัดการเจ้าหน้าที่ได้ · Firestore ยัง deny client R/W ทั้งหมด — BO เรียก Cloud Functions + Admin SDK เท่านั้น
 
 **ตอนส่งมอบ:**
 
