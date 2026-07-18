@@ -5,8 +5,9 @@
  *   cd apps/functions
  *   npm run seed
  *
- * Bind your own LINE userId to the primary demo member so you can test:
- *   DEMO_LINE_USER_ID=Uxxxxxxxxxxxxxxxx npm run seed        (bash)
+ * Bind your own LINE userId(s) so you can test:
+ *   DEMO_LINE_USER_ID=Uxxxx npm run seed
+ *   DEMO_LINE_USER_ID=Uxxxx DEMO_LINE_USER_ID_2=Uyyyy npm run seed
  *   $env:DEMO_LINE_USER_ID="Uxxxx"; npm run seed            (PowerShell)
  *
  * Credentials: uses GOOGLE_APPLICATION_CREDENTIALS if set, otherwise the
@@ -54,6 +55,8 @@ async function main() {
 
   const demoLineUserId =
     process.env.DEMO_LINE_USER_ID || "Udemo00000000000000000000000000001";
+  const demoLineUserId2 =
+    process.env.DEMO_LINE_USER_ID_2 || "Udemo00000000000000000000000000002";
 
   const now = Timestamp.now();
   const origin = "https://abta-member.web.app";
@@ -101,7 +104,7 @@ async function main() {
     buildingName: "สิริพรพลาซ่า",
     phone: "0898765432",
     email: "siriporn@example.com",
-    lineUserId: "Udemo00000000000000000000000000002",
+    lineUserId: demoLineUserId2,
     lineLinkedAt: now,
     linkType: "new_registration",
     status: "temporary",
@@ -196,10 +199,13 @@ async function main() {
     );
   }
   console.log(
-    `\n👉 Primary test member ABTA-2026-0001 is bound to lineUserId="${demoLineUserId}"`,
+    `\n👉 ABTA-2026-0001 bound to lineUserId="${demoLineUserId}"`,
   );
   console.log(
-    "   Re-run with DEMO_LINE_USER_ID=<your LINE userId> to test on your own account.\n",
+    `👉 ABTA-T-2026-0087 bound to lineUserId="${demoLineUserId2}"`,
+  );
+  console.log(
+    "   Re-run with DEMO_LINE_USER_ID / DEMO_LINE_USER_ID_2 to rebind.\n",
   );
 }
 
