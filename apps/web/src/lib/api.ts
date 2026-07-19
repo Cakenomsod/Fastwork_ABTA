@@ -22,6 +22,10 @@ export interface PublicStatus {
   expiryLabel?: string;
   expiryDaysLeft?: number;
   paymentLabel: string;
+  /** Membership fee amount on the public receipt (THB). */
+  amountThb?: number;
+  /** Thai-formatted payment / receipt date when known. */
+  paymentDateLabel?: string;
   receiptStatusKey: string;
   receiptLabel: string;
   receiptNumber?: string;

@@ -1,5 +1,6 @@
 import { firebaseConfig } from "./lib/firebase";
 import AdminApp from "./admin/AdminApp";
+import ReceiptPage from "./pages/ReceiptPage";
 import RegisterPage from "./pages/RegisterPage";
 import StatusPage from "./pages/StatusPage";
 import "./App.css";
@@ -7,9 +8,13 @@ import "./App.css";
 function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
 
-  // Digital member card / receipt / full status all render the status view.
-  if (path === "/status" || path === "/card" || path === "/receipt") {
+  // Digital member card + full status share the status view; receipt is its own printable page.
+  if (path === "/status" || path === "/card") {
     return <StatusPage />;
+  }
+
+  if (path === "/receipt") {
+    return <ReceiptPage />;
   }
 
   if (path === "/register") {

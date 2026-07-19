@@ -440,6 +440,40 @@ export function slipReviewRejectedText(opts: {
   );
 }
 
+export function memberIdsUpdatedText(opts: {
+  fullName: string;
+  memberIdChange?: { from: string; to: string };
+  receiptNumberChange?: { from: string; to: string };
+  statusUrl: string;
+  cardUrl?: string;
+  receiptUrl?: string;
+}): LineMessage {
+  const lines = [
+    "✏️ มีการแก้ไขข้อมูลสมาชิกของคุณ",
+    `คุณ${opts.fullName}`,
+    "",
+  ];
+  if (opts.memberIdChange) {
+    lines.push(
+      `เลขสมาชิก: ${opts.memberIdChange.from} → ${opts.memberIdChange.to}`,
+    );
+  }
+  if (opts.receiptNumberChange) {
+    lines.push(
+      `เลขใบเสร็จ: ${opts.receiptNumberChange.from} → ${opts.receiptNumberChange.to}`,
+    );
+  }
+  lines.push("", "สามารถเช็คข้อมูลได้ที่:");
+  lines.push(`ดูสถานะ: ${opts.statusUrl}`);
+  if (opts.cardUrl) {
+    lines.push(`บัตรสมาชิก: ${opts.cardUrl}`);
+  }
+  if (opts.receiptUrl) {
+    lines.push(`ใบเสร็จ: ${opts.receiptUrl}`);
+  }
+  return textMessage(lines.join("\n"));
+}
+
 export function errorMessage(): LineMessage {
   return textMessage(
     "ขออภัยครับ ระบบเกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่อีกครั้งภายหลัง หากยังพบปัญหาโปรดติดต่อเจ้าหน้าที่สมาคมครับ",

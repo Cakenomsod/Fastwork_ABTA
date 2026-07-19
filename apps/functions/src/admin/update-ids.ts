@@ -5,6 +5,8 @@
 
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
 import { WEB_ORIGIN } from "../config";
+import { pushMessages } from "../line/client";
+import { memberIdsUpdatedText } from "../line/messages";
 import {
   MEMBERS_COLLECTION,
   PAYMENTS_COLLECTION,
@@ -265,6 +267,34 @@ export async function updateMemberIds(opts: {
   const detail = await getAdminMemberDetail(effectiveMemberId);
   if (!detail) {
     return { ok: false, error: "not_found", status: 404 };
+  }
+
+  if (member.lineUserId && (memberIdChanged || receiptChanged)) {
+    const token = member.publicToken ?? "";
+    const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(effectiveMemberId)}&t=${token}`;
+    const cardUrl = `${WEB_ORIGIN}/card?m=${encodeURIComponent(effectiveMemberId)}&t=${token}`;
+    const receiptUrl = `${WEB_ORIGIN}/receipt?m=${encodeURIComponent(effectiveMemberId)}&t=${token}`;
+    try {
+      await pushMessages(member.lineUserId, [
+        memberIdsUpdatedText({
+          fullName: `${member.firstName} ${member.lastName}`.trim(),
+          memberIdChange: memberIdChanged
+            ? { from: member.memberId, to: nextMemberId! }
+            : undefined,
+          receiptNumberChange: receiptChanged
+            ? {
+                from: payment?.receiptNumber ?? "—",
+                to: nextReceipt!,
+              }
+            : undefined,
+          statusUrl,
+          cardUrl: memberIdChanged ? cardUrl : undefined,
+          receiptUrl: receiptChanged ? receiptUrl : undefined,
+        }),
+      ]);
+    } catch (err) {
+      console.error("LINE notify member ids update failed", err);
+    }
   }
 
   return {

@@ -4,6 +4,7 @@
  */
 
 import { Timestamp } from "firebase-admin/firestore";
+import { MEMBERSHIP_FEE_THB } from "../config";
 import {
   MEMBER_STATUS_LABEL,
   PAYMENT_STATUS_LABEL,
@@ -25,6 +26,10 @@ export interface StatusView {
   expiryLabel?: string;
   expiryDaysLeft?: number;
   paymentLabel: string;
+  /** Membership fee amount shown on the public receipt (THB). */
+  amountThb?: number;
+  /** Thai-formatted payment / receipt date when known. */
+  paymentDateLabel?: string;
   receiptStatusKey: PaymentDoc["receiptStatus"];
   receiptLabel: string;
   receiptNumber?: string;
@@ -79,6 +84,11 @@ export function buildStatusView(member: MemberDoc, payment?: PaymentDoc): Status
   const expiryDaysLeft = expiry ? daysBetween(new Date(), expiry) : undefined;
   const updatedAt = toDate(member.updatedAt);
   const canResubmit = member.dataReviewStatus === "rejected";
+  const paymentDate =
+    toDate(payment?.verifiedAt) ?? toDate(payment?.updatedAt) ?? toDate(payment?.createdAt);
+  const amountThb = payment
+    ? (typeof payment.amount === "number" ? payment.amount : MEMBERSHIP_FEE_THB)
+    : undefined;
 
   return {
     memberId: member.memberId,
@@ -94,6 +104,8 @@ export function buildStatusView(member: MemberDoc, payment?: PaymentDoc): Status
     paymentLabel: payment
       ? PAYMENT_STATUS_LABEL[payment.status] ?? payment.status
       : "รอชำระเงิน",
+    amountThb,
+    paymentDateLabel: formatThaiDate(paymentDate),
     receiptStatusKey: payment?.receiptStatus ?? "none",
     receiptLabel: RECEIPT_STATUS_LABEL[payment?.receiptStatus ?? "none"],
     receiptNumber: payment?.receiptNumber,
@@ -119,6 +131,8 @@ export function toPublicStatus(view: StatusView) {
     expiryLabel: view.expiryLabel,
     expiryDaysLeft: view.expiryDaysLeft,
     paymentLabel: view.paymentLabel,
+    amountThb: view.amountThb,
+    paymentDateLabel: view.paymentDateLabel,
     receiptStatusKey: view.receiptStatusKey,
     receiptLabel: view.receiptLabel,
     receiptNumber: view.receiptNumber,

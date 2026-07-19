@@ -77,6 +77,15 @@ export default function StatusPage() {
   );
 }
 
+function receiptHref(memberId: string, receiptUrl?: string): string {
+  if (receiptUrl) return receiptUrl;
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("t") ?? params.get("token") ?? "";
+  const q = new URLSearchParams({ m: memberId });
+  if (token) q.set("t", token);
+  return `/receipt?${q.toString()}`;
+}
+
 function StatusCard({ data }: { data: PublicStatus }) {
   const expiryHint =
     data.expiryDaysLeft === undefined
@@ -84,6 +93,7 @@ function StatusCard({ data }: { data: PublicStatus }) {
       : data.expiryDaysLeft < 0
         ? "หมดอายุแล้ว"
         : `อีก ${data.expiryDaysLeft} วัน`;
+  const openReceipt = receiptHref(data.memberId, data.receiptUrl);
 
   return (
     <div className="status-content">
@@ -147,18 +157,16 @@ function StatusCard({ data }: { data: PublicStatus }) {
         </section>
       )}
 
-      {!data.canResubmit && (data.memberCardUrl || data.receiptUrl) && (
+      {!data.canResubmit && (
         <section className="actions">
           {data.memberCardUrl && (
             <a className="btn btn--primary" href={data.memberCardUrl}>
               เปิดบัตรสมาชิก
             </a>
           )}
-          {data.receiptUrl && (
-            <a className="btn btn--ghost" href={data.receiptUrl}>
-              เปิดใบเสร็จ
-            </a>
-          )}
+          <a className="btn btn--ghost" href={openReceipt}>
+            เปิดใบเสร็จ
+          </a>
         </section>
       )}
 

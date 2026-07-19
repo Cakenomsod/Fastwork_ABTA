@@ -1,0 +1,459 @@
+/* Screen + print styles for the formal member receipt. */
+
+.rcpt-shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  background:
+    radial-gradient(120% 80% at 50% -10%, #12513a 0%, #0b3a29 45%, #082a1e 100%);
+  color: #12211b;
+}
+
+.rcpt-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 30% at 85% 8%, rgba(201, 162, 75, 0.18), transparent 70%),
+    radial-gradient(45% 35% at 12% 20%, rgba(24, 107, 74, 0.35), transparent 70%);
+}
+
+.rcpt-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 44rem;
+  padding: clamp(1rem, 4vw, 1.75rem) 1rem 2.5rem;
+}
+
+.rcpt-content {
+  animation: rcpt-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rcpt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.rcpt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.rcpt-toolbar__link {
+  color: #e4ce93;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.rcpt-toolbar__link:hover {
+  text-decoration: underline;
+}
+
+.rcpt-print-btn {
+  appearance: none;
+  border: 1px solid rgba(228, 206, 147, 0.55);
+  background: #c9a24b;
+  color: #0b3a29;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.rcpt-print-btn:hover {
+  filter: brightness(1.05);
+}
+
+.rcpt-sheet {
+  background: #fff;
+  color: #12211b;
+  border: 1px solid rgba(201, 162, 75, 0.35);
+  border-radius: 4px;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  box-shadow: 0 18px 40px -24px rgba(6, 40, 28, 0.65);
+}
+
+.rcpt-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #0b3a29;
+}
+
+.rcpt-brand {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.rcpt-brand__mark {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 6px;
+  background: #0b3a29;
+  color: #e4ce93;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+}
+
+.rcpt-brand__title {
+  margin: 0;
+  font-size: clamp(1.25rem, 3.5vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #0b3a29;
+}
+
+.rcpt-brand__assoc {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+  color: #4a5c53;
+  line-height: 1.35;
+}
+
+.rcpt-meta {
+  text-align: right;
+  margin-left: auto;
+}
+
+.rcpt-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  margin-bottom: 0.55rem;
+}
+
+.rcpt-badge--official {
+  color: #0b3a29;
+  background: #e7f3ec;
+}
+
+.rcpt-badge--temp {
+  color: #8a6a1a;
+  background: #f8f1dc;
+}
+
+.rcpt-badge--pending {
+  color: #6b5a1e;
+  background: #f5f0e4;
+}
+
+.rcpt-badge--rejected {
+  color: #8b2e2e;
+  background: #f8e8e8;
+}
+
+.rcpt-badge--none {
+  color: #5a6b63;
+  background: #eef2ef;
+}
+
+.rcpt-meta__list {
+  margin: 0;
+}
+
+.rcpt-meta__list > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.65rem;
+  font-size: 0.88rem;
+}
+
+.rcpt-meta__list dt {
+  color: #6b7c72;
+  font-weight: 500;
+}
+
+.rcpt-meta__list dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rcpt-intro {
+  margin: 1.1rem 0 0;
+  font-size: 0.95rem;
+  color: #3a4a43;
+}
+
+.rcpt-section-title {
+  margin: 1.35rem 0 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0b3a29;
+}
+
+.rcpt-fields {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.rcpt-fields > div {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr;
+  gap: 0.35rem 0.75rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid #e6ece8;
+  font-size: 0.95rem;
+}
+
+.rcpt-fields dt {
+  color: #6b7c72;
+  font-weight: 500;
+}
+
+.rcpt-fields dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.rcpt-mono {
+  font-family: "DM Sans", "Sarabun", sans-serif;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.rcpt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.rcpt-table th,
+.rcpt-table td {
+  padding: 0.65rem 0.5rem;
+  border-bottom: 1px solid #dce6e0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.rcpt-table thead th {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #4a5c53;
+  background: #f4f7f5;
+  border-bottom: 1px solid #c9d5ce;
+}
+
+.rcpt-table__num {
+  text-align: right !important;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  width: 7.5rem;
+}
+
+.rcpt-table__note {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  color: #6b7c72;
+  font-weight: 400;
+}
+
+.rcpt-table tfoot th,
+.rcpt-table tfoot td {
+  border-bottom: none;
+  padding-top: 0.85rem;
+  font-size: 1.05rem;
+}
+
+.rcpt-table__total {
+  font-weight: 800;
+  color: #0b3a29;
+}
+
+.rcpt-status-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-top: 1.35rem;
+  padding: 0.85rem 0.9rem;
+  background: #f7faf8;
+  border: 1px solid #e0e8e3;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.rcpt-status-row p {
+  margin: 0.2rem 0 0;
+  font-weight: 600;
+}
+
+.rcpt-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7c72;
+  font-weight: 500;
+}
+
+.rcpt-notice {
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #6b5a1e;
+  background: #fbf6e8;
+  border-left: 3px solid #c9a24b;
+}
+
+.rcpt-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 2.25rem;
+}
+
+.rcpt-sign {
+  text-align: center;
+  font-size: 0.82rem;
+  color: #6b7c72;
+}
+
+.rcpt-sign__line {
+  height: 3.25rem;
+  margin-bottom: 0.45rem;
+  border-bottom: 1px solid #9aada2;
+}
+
+.rcpt-fineprint {
+  margin: 1.5rem 0 0;
+  font-size: 0.75rem;
+  color: #8a9a92;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.rcpt-sheet--skeleton .rcpt-sk {
+  display: block;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #e8eee9, #f4f7f5, #e8eee9);
+  background-size: 200% 100%;
+  animation: rcpt-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes rcpt-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.rcpt-error {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.rcpt-error__badge {
+  display: inline-block;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #0b3a29;
+  margin-bottom: 0.75rem;
+}
+
+.rcpt-error__title {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #12211b;
+}
+
+.rcpt-error__detail {
+  margin: 0.5rem 0 0;
+  color: #5a6b63;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 520px) {
+  .rcpt-fields > div {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .rcpt-status-row {
+    grid-template-columns: 1fr;
+  }
+
+  .rcpt-meta {
+    text-align: left;
+    width: 100%;
+  }
+}
+
+/* ---------- Print / Save as PDF (A4) ---------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 16mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .rcpt-shell {
+    background: #fff !important;
+    min-height: 0;
+  }
+
+  .rcpt-atmosphere,
+  .no-print {
+    display: none !important;
+  }
+
+  .rcpt-wrap {
+    max-width: none;
+    padding: 0;
+  }
+
+  .rcpt-content {
+    animation: none;
+  }
+
+  .rcpt-sheet {
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .rcpt-print-btn,
+  .rcpt-toolbar {
+    display: none !important;
+  }
+}
