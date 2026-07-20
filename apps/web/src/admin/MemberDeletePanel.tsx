@@ -54,12 +54,6 @@ export function MemberDeletePanel(props: MemberDeletePanelProps) {
 
   return (
     <section className="bo-danger-zone">
-      <h4>โซนอันตราย</h4>
-      <p className="bo-danger-zone-desc">
-        ลบสมาชิก <strong>{props.detail.fullName}</strong> (
-        <code>{props.detail.memberId}</code>) ออกจากระบบถาวร
-        รวมถึงรายการชำระและ registry ที่เกี่ยวข้อง — ไม่สามารถกู้คืนได้
-      </p>
       {error ? <div className="bo-error bo-danger-zone-error">{error}</div> : null}
       <div className="bo-danger-zone-actions">
         <button
@@ -75,7 +69,7 @@ export function MemberDeletePanel(props: MemberDeletePanelProps) {
       <ConfirmDialog
         open={confirmOpen}
         title="ยืนยันลบสมาชิก"
-        description={`การลบจะถาวรและไม่สามารถกู้คืนได้\n\nสมาชิก: ${props.detail.fullName}\nเลข: ${props.detail.memberId}`}
+        description={`สมาชิก: ${props.detail.fullName}\nเลข: ${props.detail.memberId}`}
         confirmLabel="ลบถาวร"
         variant="danger"
         requireTypedConfirm={props.detail.memberId}

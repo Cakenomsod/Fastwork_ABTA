@@ -16,6 +16,8 @@ export interface AdminMe {
 export interface QueueItem {
   memberId: string;
   tempMemberId?: string;
+  firstName?: string;
+  lastName?: string;
   fullName: string;
   phone?: string;
   email?: string;
@@ -26,6 +28,8 @@ export interface QueueItem {
   dataReviewStatus?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** Treasurer confirmation / official receipt time. */
+  verifiedAt?: string;
   paymentId?: string;
   amount?: number;
   receiptNumber?: string;
@@ -34,9 +38,61 @@ export interface QueueItem {
   hasSlip: boolean;
 }
 
+/** Display-status filter (matches admin StatusBadge labels). */
+export type MemberListStatusFilter =
+  | "pending_data"
+  | "pending_slip"
+  | "temporary"
+  | "active";
+
+export type MemberIdTFilter = "with_t" | "without_t";
+
+export type MemberListSort =
+  | "member_asc"
+  | "member_desc"
+  | "t_first"
+  | "no_t_first"
+  | "confirmed_desc"
+  | "updated_desc";
+
+export interface MemberListQuery {
+  q?: string;
+  status?: MemberListStatusFilter | "";
+  memberIdT?: MemberIdTFilter | "";
+  sort?: MemberListSort | "";
+  limit?: number;
+}
+
+export const MEMBER_STATUS_FILTER_OPTIONS: {
+  value: "" | MemberListStatusFilter;
+  label: string;
+}[] = [
+  { value: "", label: "ทุกสถานะ" },
+  { value: "pending_data", label: "รอตรวจข้อมูล" },
+  { value: "pending_slip", label: "รอตรวจสลิป" },
+  { value: "temporary", label: "สมาชิกชั่วคราว" },
+  { value: "active", label: "สมาชิกสมบูรณ์" },
+];
+
+export const MEMBER_ID_T_FILTER_OPTIONS: {
+  value: "" | MemberIdTFilter;
+  label: string;
+}[] = [
+  { value: "", label: "เลขสมาชิกทั้งหมด" },
+  { value: "with_t", label: "มี T (ชั่วคราว)" },
+  { value: "without_t", label: "ไม่มี T" },
+];
+
+export const MEMBER_SORT_OPTIONS: { value: MemberListSort; label: string }[] = [
+  { value: "updated_desc", label: "อัปเดตล่าสุด" },
+  { value: "confirmed_desc", label: "ยืนยันล่าสุด" },
+  { value: "member_asc", label: "เลขสมาชิก น้อยสุด" },
+  { value: "member_desc", label: "เลขสมาชิก มากสุด" },
+  { value: "t_first", label: "T ขึ้นก่อน แล้วค่อยเลข" },
+  { value: "no_t_first", label: "ไม่มี T ขึ้นก่อน แล้วค่อยเลข" },
+];
+
 export interface MemberDetail extends QueueItem {
-  firstName?: string;
-  lastName?: string;
   legacyMemberId?: string;
   organization?: string;
   lineUserId?: string;
@@ -45,6 +101,27 @@ export interface MemberDetail extends QueueItem {
   slipViewUrl?: string;
   memberCardUrl?: string;
   rejectReason?: string;
+}
+
+/** Prefer API first/last; fall back to splitting fullName for older payloads. */
+export function memberNameParts(row: {
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+}): { firstName: string; lastName: string } {
+  const first = row.firstName?.trim();
+  const last = row.lastName?.trim();
+  if (first || last) {
+    return { firstName: first || "—", lastName: last || "—" };
+  }
+  const full = row.fullName?.trim() ?? "";
+  if (!full) return { firstName: "—", lastName: "—" };
+  const i = full.indexOf(" ");
+  if (i === -1) return { firstName: full, lastName: "—" };
+  return {
+    firstName: full.slice(0, i),
+    lastName: full.slice(i + 1).trim() || "—",
+  };
 }
 
 export interface LegacyPaymentRow {
@@ -129,8 +206,18 @@ export async function fetchMemberDetail(memberId: string): Promise<MemberDetail>
   return data.member;
 }
 
-export async function searchAdminMembers(q: string): Promise<QueueItem[]> {
-  const params = new URLSearchParams({ q });
+export async function searchAdminMembers(
+  query: string | MemberListQuery,
+): Promise<QueueItem[]> {
+  const opts: MemberListQuery =
+    typeof query === "string" ? { q: query } : query;
+  const params = new URLSearchParams();
+  const q = opts.q?.trim() ?? "";
+  if (q) params.set("q", q);
+  if (opts.status) params.set("status", opts.status);
+  if (opts.memberIdT) params.set("memberIdT", opts.memberIdT);
+  if (opts.sort) params.set("sort", opts.sort);
+  if (opts.limit != null) params.set("limit", String(opts.limit));
   const data = await adminFetch<{ items: QueueItem[] }>(
     `/admin/members/search?${params}`,
   );

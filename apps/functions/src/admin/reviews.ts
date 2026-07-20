@@ -27,6 +27,8 @@ import {
 export interface QueueMemberItem {
   memberId: string;
   tempMemberId?: string;
+  firstName: string;
+  lastName: string;
   fullName: string;
   phone?: string;
   email?: string;
@@ -37,6 +39,8 @@ export interface QueueMemberItem {
   dataReviewStatus?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** When treasurer confirmed payment / issued official receipt. */
+  verifiedAt?: string;
   paymentId?: string;
   amount?: number;
   receiptNumber?: string;
@@ -45,9 +49,32 @@ export interface QueueMemberItem {
   hasSlip: boolean;
 }
 
+/** Display-status filter aligned with admin StatusBadge labels. */
+export type MemberListStatusFilter =
+  | "pending_data"
+  | "pending_slip"
+  | "temporary"
+  | "active";
+
+export type MemberIdTFilter = "with_t" | "without_t";
+
+export type MemberListSort =
+  | "member_asc"
+  | "member_desc"
+  | "t_first"
+  | "no_t_first"
+  | "confirmed_desc"
+  | "updated_desc";
+
+export interface ListMembersOpts {
+  q?: string;
+  status?: MemberListStatusFilter | "";
+  memberIdT?: MemberIdTFilter | "";
+  sort?: MemberListSort;
+  limit?: number;
+}
+
 export interface MemberDetail extends QueueMemberItem {
-  firstName?: string;
-  lastName?: string;
   legacyMemberId?: string;
   organization?: string;
   lineUserId?: string;
@@ -67,10 +94,14 @@ function isoFromTs(ts?: Timestamp | { toDate?: () => Date }): string | undefined
 }
 
 function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
+  const firstName = member.firstName ?? "";
+  const lastName = member.lastName ?? "";
   return {
     memberId: member.memberId,
     tempMemberId: member.tempMemberId,
-    fullName: `${member.firstName} ${member.lastName}`.trim(),
+    firstName,
+    lastName,
+    fullName: `${firstName} ${lastName}`.trim(),
     phone: member.phone,
     email: member.email,
     legalEntityName: member.legalEntityName,
@@ -80,6 +111,7 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
     dataReviewStatus: member.dataReviewStatus,
     createdAt: isoFromTs(member.createdAt),
     updatedAt: isoFromTs(member.updatedAt),
+    verifiedAt: isoFromTs(payment?.verifiedAt),
     paymentId: payment?.paymentId,
     amount: payment?.amount,
     receiptNumber: payment?.receiptNumber,
@@ -87,6 +119,110 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
     paymentStatus: payment?.status,
     hasSlip: Boolean(payment?.slipUrl),
   };
+}
+
+/** Temp IDs use ABTA-T-{YYYY}-{####} (letter T in the id). */
+export function memberIdHasT(memberId: string): boolean {
+  return /T/i.test(memberId);
+}
+
+function isAwaitingSlipReview(item: {
+  dataReviewStatus?: string;
+  paymentStatus?: string;
+  receiptStatus?: string;
+}): boolean {
+  if (item.dataReviewStatus === "pending" || item.dataReviewStatus === "rejected") {
+    return false;
+  }
+  if (item.paymentStatus === "slip_review") return true;
+  if (
+    item.receiptStatus === "temp" ||
+    item.receiptStatus === "pending_review" ||
+    item.receiptStatus === "rejected"
+  ) {
+    return item.dataReviewStatus === "approved";
+  }
+  return false;
+}
+
+/** Display category used by admin badges / status filter. */
+export function memberDisplayStatus(
+  item: Pick<
+    QueueMemberItem,
+    "status" | "dataReviewStatus" | "paymentStatus" | "receiptStatus"
+  >,
+): MemberListStatusFilter | "other" {
+  if (item.dataReviewStatus === "pending") return "pending_data";
+  if (isAwaitingSlipReview(item)) return "pending_slip";
+  if (item.status === "active") return "active";
+  if (item.status === "temporary") return "temporary";
+  return "other";
+}
+
+function memberIdSortParts(memberId: string): {
+  hasT: boolean;
+  year: number;
+  seq: number;
+  raw: string;
+} {
+  const nums = memberId.match(/\d+/g)?.map(Number) ?? [];
+  const year = nums.find((n) => n >= 2000 && n <= 2100) ?? 0;
+  const seq = nums.length > 0 ? (nums[nums.length - 1] ?? 0) : 0;
+  return { hasT: memberIdHasT(memberId), year, seq, raw: memberId };
+}
+
+function compareMemberId(a: string, b: string): number {
+  const pa = memberIdSortParts(a);
+  const pb = memberIdSortParts(b);
+  if (pa.year !== pb.year) return pa.year - pb.year;
+  if (pa.seq !== pb.seq) return pa.seq - pb.seq;
+  return pa.raw.localeCompare(pb.raw, "en");
+}
+
+function sortMemberItems(
+  items: QueueMemberItem[],
+  sort: MemberListSort,
+): QueueMemberItem[] {
+  const sorted = [...items];
+  sorted.sort((a, b) => {
+    switch (sort) {
+      case "member_asc":
+        return compareMemberId(a.memberId, b.memberId);
+      case "member_desc":
+        return compareMemberId(b.memberId, a.memberId);
+      case "t_first": {
+        const ta = memberIdHasT(a.memberId) ? 0 : 1;
+        const tb = memberIdHasT(b.memberId) ? 0 : 1;
+        if (ta !== tb) return ta - tb;
+        return compareMemberId(a.memberId, b.memberId);
+      }
+      case "no_t_first": {
+        const ta = memberIdHasT(a.memberId) ? 1 : 0;
+        const tb = memberIdHasT(b.memberId) ? 1 : 0;
+        if (ta !== tb) return ta - tb;
+        return compareMemberId(a.memberId, b.memberId);
+      }
+      case "confirmed_desc": {
+        const va = a.verifiedAt ?? "";
+        const vb = b.verifiedAt ?? "";
+        if (va !== vb) return vb.localeCompare(va);
+        return (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "");
+      }
+      case "updated_desc":
+      default:
+        return (b.updatedAt ?? b.createdAt ?? "").localeCompare(
+          a.updatedAt ?? a.createdAt ?? "",
+        );
+    }
+  });
+  return sorted;
+}
+
+function matchesStatusFilter(
+  item: QueueMemberItem,
+  status: MemberListStatusFilter,
+): boolean {
+  return memberDisplayStatus(item) === status;
 }
 
 /** Resolve gs:// or path slip storage into bucket + object path. */
@@ -176,8 +312,6 @@ export async function getAdminMemberDetail(
       : undefined;
   return {
     ...base,
-    firstName: member.firstName,
-    lastName: member.lastName,
     legacyMemberId: member.legacyMemberId,
     organization: member.organization,
     lineUserId: member.lineUserId,
@@ -237,35 +371,64 @@ export async function getDashboardStats(): Promise<{
   };
 }
 
-export async function searchMembers(query: string): Promise<QueueMemberItem[]> {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
+/**
+ * List / search members with optional status + T-in-id filters and sort.
+ * Scans the members collection (same as prior search) then filters in memory.
+ */
+export async function listMembers(
+  opts: ListMembersOpts = {},
+): Promise<QueueMemberItem[]> {
+  const q = (opts.q ?? "").trim().toLowerCase();
+  const status = opts.status || undefined;
+  const memberIdT = opts.memberIdT || undefined;
+  const sort: MemberListSort = opts.sort ?? "updated_desc";
+  const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
+
+  // Empty search with no filters/sort: return nothing (dashboard uses recent).
+  // Empty search WITH filters or explicit sort: browse mode over all members.
+  if (!q && !status && !memberIdT && !opts.sort) {
+    return [];
+  }
 
   const snap = await getFirestore().collection(MEMBERS_COLLECTION).get();
   const results: QueueMemberItem[] = [];
 
   for (const doc of snap.docs) {
     const m = doc.data() as MemberDoc;
-    const hay = [
-      m.memberId,
-      m.tempMemberId,
-      m.legacyMemberId,
-      m.firstName,
-      m.lastName,
-      m.email,
-      m.phone,
-      m.legalEntityName,
-      m.buildingName,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    if (!hay.includes(q)) continue;
+    if (q) {
+      const hay = [
+        m.memberId,
+        m.tempMemberId,
+        m.legacyMemberId,
+        m.firstName,
+        m.lastName,
+        m.email,
+        m.phone,
+        m.legalEntityName,
+        m.buildingName,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!hay.includes(q)) continue;
+    }
+    if (memberIdT === "with_t" && !memberIdHasT(m.memberId)) continue;
+    if (memberIdT === "without_t" && memberIdHasT(m.memberId)) continue;
+
     const payment = await findLatestPayment(m.memberId);
-    results.push(toQueueItem(m, payment));
-    if (results.length >= 30) break;
+    const item = toQueueItem(m, payment);
+    if (status && !matchesStatusFilter(item, status)) continue;
+    results.push(item);
   }
-  return results;
+
+  return sortMemberItems(results, sort).slice(0, limit);
+}
+
+/** @deprecated Prefer listMembers — kept for call sites that only pass a query. */
+export async function searchMembers(query: string): Promise<QueueMemberItem[]> {
+  const q = query.trim();
+  if (!q) return [];
+  return listMembers({ q, sort: "updated_desc", limit: 30 });
 }
 
 type ActionResult =

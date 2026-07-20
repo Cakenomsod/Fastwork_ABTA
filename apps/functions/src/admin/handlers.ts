@@ -14,12 +14,15 @@ import {
   approveSlipReview,
   getAdminMemberDetail,
   getDashboardStats,
+  listMembers,
   listPendingDataReviews,
   listPendingSlipReviews,
   rejectDataReview,
   rejectSlipReview,
-  searchMembers,
   slipObjectRef,
+  type MemberIdTFilter,
+  type MemberListSort,
+  type MemberListStatusFilter,
 } from "./reviews";
 import { checkMemberIds, updateMemberIds } from "./update-ids";
 import {
@@ -296,6 +299,22 @@ export async function handleAdminMemberSlip(
   }
 }
 
+const STATUS_FILTERS = new Set<MemberListStatusFilter>([
+  "pending_data",
+  "pending_slip",
+  "temporary",
+  "active",
+]);
+const MEMBER_ID_T_FILTERS = new Set<MemberIdTFilter>(["with_t", "without_t"]);
+const MEMBER_SORTS = new Set<MemberListSort>([
+  "member_asc",
+  "member_desc",
+  "t_first",
+  "no_t_first",
+  "confirmed_desc",
+  "updated_desc",
+]);
+
 export async function handleAdminMemberSearch(
   req: Request,
   res: Response,
@@ -306,7 +325,34 @@ export async function handleAdminMemberSearch(
     return;
   }
   const q = String(req.query.q ?? "").trim();
-  const items = await searchMembers(q);
+  const statusRaw = String(req.query.status ?? "").trim();
+  const memberIdTRaw = String(req.query.memberIdT ?? "").trim();
+  const sortRaw = String(req.query.sort ?? "").trim();
+  const limitRaw = Number(req.query.limit ?? 30);
+
+  const status = STATUS_FILTERS.has(statusRaw as MemberListStatusFilter)
+    ? (statusRaw as MemberListStatusFilter)
+    : undefined;
+  const memberIdT = MEMBER_ID_T_FILTERS.has(memberIdTRaw as MemberIdTFilter)
+    ? (memberIdTRaw as MemberIdTFilter)
+    : undefined;
+  const sort = MEMBER_SORTS.has(sortRaw as MemberListSort)
+    ? (sortRaw as MemberListSort)
+    : undefined;
+
+  // Require at least a query or a filter/sort so we don't dump the full DB by accident.
+  if (!q && !status && !memberIdT && !sort) {
+    res.status(200).json({ ok: true, items: [] });
+    return;
+  }
+
+  const items = await listMembers({
+    q,
+    status,
+    memberIdT,
+    sort: sort ?? (q ? "updated_desc" : undefined),
+    limit: Number.isFinite(limitRaw) ? limitRaw : 30,
+  });
   res.status(200).json({ ok: true, items });
 }
 
