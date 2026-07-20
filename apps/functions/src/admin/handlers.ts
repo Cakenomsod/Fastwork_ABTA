@@ -416,7 +416,7 @@ export async function handleAdminUpdateMemberProfile(
     jsonError(res, auth.status, auth.error);
     return;
   }
-  const gate = requireRoles(auth.session, ["admin", "registrar"]);
+  const gate = requireRoles(auth.session, ["admin"]);
   if (!gate.ok) {
     jsonError(res, gate.status, gate.error);
     return;

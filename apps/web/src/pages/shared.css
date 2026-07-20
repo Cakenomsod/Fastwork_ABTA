@@ -1,0 +1,23 @@
+/* Shared tokens for member-facing pages (register, status, receipt) */
+:root {
+  --page-green-deep: #0b3a29;
+  --page-green-mid: #186b4a;
+  --page-green-primary: #0f4c36;
+  --page-green-highlight: #12513a;
+  --page-green-darker: #082a1e;
+  --page-green-card-mid: #14503a;
+  --page-green-card-light: #1c6f4c;
+  --page-green-active: #157a52;
+  --page-gold: #c9a24b;
+  --page-gold-soft: #e4ce93;
+  --page-muted: #4a5c52;
+  --page-ink: #12211b;
+  --page-bg: #eef2ea;
+  --page-bg-soft: #eef3ef;
+  --page-form-surface: #f7faf7;
+  --page-line: #dce6e0;
+  --page-field-muted: #3d5248;
+  --page-green-text-soft: #bcd8c9;
+  --page-green-text-muted: #9fc4b2;
+  --page-white: #fff;
+}

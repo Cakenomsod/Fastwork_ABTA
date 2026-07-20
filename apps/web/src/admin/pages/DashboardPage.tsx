@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   fetchDashboard,
   fetchMemberDetail,
@@ -8,7 +8,7 @@ import {
   type MemberDetail,
   type QueueItem,
 } from "../../lib/admin-api";
-import MemberDetailExtras from "../MemberDetailExtras";
+import MemberDetailDrawer from "../MemberDetailDrawer";
 
 export default function DashboardPage(props: {
   me: AdminMe;
@@ -23,19 +23,22 @@ export default function DashboardPage(props: {
   const [searching, setSearching] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MemberDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const reloadDashboard = useCallback(async () => {
+    const d = await fetchDashboard();
+    setData(d);
+    props.onCounts?.({
+      data: d.pendingDataReviews,
+      slips: d.pendingSlipReviews,
+    });
+    return d;
+  }, [props.onCounts]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchDashboard()
-      .then((d) => {
-        if (cancelled) return;
-        setData(d);
-        props.onCounts?.({
-          data: d.pendingDataReviews,
-          slips: d.pendingSlipReviews,
-        });
-      })
+    reloadDashboard()
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
       })
@@ -45,25 +48,83 @@ export default function DashboardPage(props: {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadDashboard]);
 
   useEffect(() => {
     if (!selectedId) {
       setDetail(null);
+      setDetailLoading(false);
       return;
     }
     let cancelled = false;
+    setDetailLoading(true);
     fetchMemberDetail(selectedId)
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [selectedId]);
+
+  function openMember(memberId: string) {
+    setSelectedId(memberId);
+    setError(null);
+  }
+
+  function closeDrawer() {
+    setSelectedId(null);
+    setDetail(null);
+  }
+
+  function patchSearchHits(prevId: string, member: MemberDetail) {
+    setSearchHits((prev) =>
+      prev.map((row) =>
+        row.memberId === prevId || row.memberId === member.memberId
+          ? {
+              ...row,
+              memberId: member.memberId,
+              tempMemberId: member.tempMemberId,
+              receiptNumber: member.receiptNumber,
+              receiptStatus: member.receiptStatus,
+              status: member.status,
+              fullName: member.fullName,
+              updatedAt: member.updatedAt ?? row.updatedAt,
+            }
+          : row,
+      ),
+    );
+  }
+
+  async function onMemberSaved(member: MemberDetail) {
+    const prevId = selectedId ?? member.memberId;
+    setDetail(member);
+    if (member.memberId !== selectedId) {
+      setSelectedId(member.memberId);
+    }
+    patchSearchHits(prevId, member);
+    try {
+      await reloadDashboard();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "reload_failed");
+    }
+  }
+
+  async function onMemberDeleted(memberId: string) {
+    closeDrawer();
+    setSearchHits((prev) => prev.filter((row) => row.memberId !== memberId));
+    try {
+      await reloadDashboard();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "reload_failed");
+    }
+  }
 
   async function onSearch(e: FormEvent) {
     e.preventDefault();
@@ -78,7 +139,7 @@ export default function DashboardPage(props: {
       const items = await searchAdminMembers(q);
       setSearchHits(items);
       if (items.length === 1) {
-        setSelectedId(items[0].memberId);
+        openMember(items[0].memberId);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "search_failed");
@@ -116,168 +177,82 @@ export default function DashboardPage(props: {
         </div>
       </div>
 
-      <div className="bo-split" style={{ marginBottom: "1.25rem" }}>
-        <div className="bo-panel">
-          <div className="bo-panel-head">
-            <h2>ค้นหาสมาชิก</h2>
-          </div>
-          <form
-            className="bo-form-grid"
-            style={{ padding: "0.85rem 1rem" }}
-            onSubmit={(e) => void onSearch(e)}
-          >
-            <div className="bo-field">
-              <label htmlFor="bo-member-search">ชื่อ / เลขสมาชิก / โทร / อีเมล</label>
-              <input
-                id="bo-member-search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="เช่น ABTA-2026-0001 หรือ สมชาย"
-              />
-            </div>
-            <button
-              type="submit"
-              className="bo-btn bo-btn-primary"
-              disabled={searching}
-            >
-              {searching ? "กำลังค้นหา…" : "ค้นหา"}
-            </button>
-          </form>
-          {error ? (
-            <div className="bo-error" style={{ margin: "0 1rem 0.75rem" }}>
-              {error}
-            </div>
-          ) : null}
-          {searchHits.length > 0 ? (
-            <div className="bo-table-wrap">
-              <table className="bo-table">
-                <thead>
-                  <tr>
-                    <th>ชื่อ</th>
-                    <th>เลขสมาชิก</th>
-                    <th>ใบเสร็จ</th>
-                    <th>สถานะ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {searchHits.map((row) => (
-                    <tr
-                      key={row.memberId}
-                      className={selectedId === row.memberId ? "selected" : ""}
-                      style={{ cursor: "pointer" }}
-                      onClick={() => setSelectedId(row.memberId)}
-                    >
-                      <td>{row.fullName}</td>
-                      <td>
-                        <code>{row.memberId}</code>
-                      </td>
-                      <td>{row.receiptNumber || "—"}</td>
-                      <td>
-                        <StatusBadge
-                          status={row.status}
-                          dataReview={row.dataReviewStatus}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
+      <div className="bo-panel" style={{ marginBottom: "1.25rem" }}>
+        <div className="bo-panel-head">
+          <h2>ค้นหาสมาชิก</h2>
+          <span style={{ fontSize: "0.8rem", color: "var(--bo-muted)" }}>
+            คลิกแถวเพื่อเปิดรายละเอียด
+          </span>
         </div>
-
-        <aside className="bo-detail">
-          {!detail ? (
-            <div className="bo-empty" style={{ padding: "1.5rem 0" }}>
-              <strong>รายละเอียดสมาชิก</strong>
-              ค้นหาแล้วคลิกแถวเพื่อแก้ไขเลขสมาชิก / ใบเสร็จ
-            </div>
-          ) : (
-            <>
-              <h3>{detail.fullName}</h3>
-              <div className="bo-detail-row">
-                <span>เลขสมาชิก</span>
-                <strong>{detail.memberId}</strong>
-              </div>
-              <div className="bo-detail-row">
-                <span>เลขใบเสร็จ</span>
-                <strong>{detail.receiptNumber || "—"}</strong>
-              </div>
-              <div className="bo-detail-row">
-                <span>สถานะ</span>
-                <strong>
-                  <StatusBadge
-                    status={detail.status}
-                    dataReview={detail.dataReviewStatus}
-                  />
-                </strong>
-              </div>
-              <div className="bo-detail-row">
-                <span>โทร</span>
-                <strong>{detail.phone || "—"}</strong>
-              </div>
-              <div className="bo-detail-row">
-                <span>อีเมล</span>
-                <strong>{detail.email || "—"}</strong>
-              </div>
-              {detail.legacyMemberId ? (
-                <div className="bo-detail-row">
-                  <span>เลขสมาชิกเก่า</span>
-                  <strong>
-                    <code>{detail.legacyMemberId}</code>
-                  </strong>
-                </div>
-              ) : null}
-              {detail.linkType === "legacy_bind" ? (
-                <div className="bo-detail-row">
-                  <span>ประเภท</span>
-                  <strong>
-                    <span className="bo-badge temp">ผูกสมาชิกเก่า</span>
-                  </strong>
-                </div>
-              ) : null}
-
-              <MemberDetailExtras
-                detail={detail}
-                me={props.me}
-                onSaved={(m) => {
-                  const prevId = detail.memberId;
-                  setDetail(m);
-                  setSelectedId(m.memberId);
-                  setSearchHits((prev) =>
-                    prev.map((row) =>
-                      row.memberId === prevId || row.memberId === m.memberId
-                        ? {
-                            ...row,
-                            memberId: m.memberId,
-                            tempMemberId: m.tempMemberId,
-                            receiptNumber: m.receiptNumber,
-                            receiptStatus: m.receiptStatus,
-                            status: m.status,
-                            fullName: m.fullName,
-                          }
-                        : row,
-                    ),
-                  );
-                }}
-                onDeleted={() => {
-                  setDetail(null);
-                  setSelectedId(null);
-                  setSearchHits((prev) =>
-                    prev.filter((row) => row.memberId !== detail.memberId),
-                  );
-                }}
-              />
-            </>
-          )}
-        </aside>
+        <form
+          className="bo-form-grid"
+          style={{ padding: "0.85rem 1rem" }}
+          onSubmit={(e) => void onSearch(e)}
+        >
+          <div className="bo-field">
+            <label htmlFor="bo-member-search">ชื่อ / เลขสมาชิก / โทร / อีเมล</label>
+            <input
+              id="bo-member-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="เช่น ABTA-2026-0001 หรือ สมชาย"
+            />
+          </div>
+          <button
+            type="submit"
+            className="bo-btn bo-btn-primary"
+            disabled={searching}
+          >
+            {searching ? "กำลังค้นหา…" : "ค้นหา"}
+          </button>
+        </form>
+        {error ? (
+          <div className="bo-error" style={{ margin: "0 1rem 0.75rem" }}>
+            {error}
+          </div>
+        ) : null}
+        {searchHits.length > 0 ? (
+          <div className="bo-table-wrap">
+            <table className="bo-table">
+              <thead>
+                <tr>
+                  <th>ชื่อ</th>
+                  <th>เลขสมาชิก</th>
+                  <th>ใบเสร็จ</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {searchHits.map((row) => (
+                  <tr
+                    key={row.memberId}
+                    className={`bo-row-clickable${selectedId === row.memberId ? " selected" : ""}`}
+                    onClick={() => openMember(row.memberId)}
+                  >
+                    <td>{row.fullName}</td>
+                    <td>
+                      <code>{row.memberId}</code>
+                    </td>
+                    <td>{row.receiptNumber || "—"}</td>
+                    <td>
+                      <StatusBadge
+                        status={row.status}
+                        dataReview={row.dataReviewStatus}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </div>
 
       <div className="bo-panel">
         <div className="bo-panel-head">
           <h2>รายการล่าสุด</h2>
           <span style={{ fontSize: "0.8rem", color: "var(--bo-muted)" }}>
-            ชั่วคราว {data.temporaryMembers} ราย
+            ชั่วคราว {data.temporaryMembers} ราย · คลิกแถวเพื่อเปิดรายละเอียด
           </span>
         </div>
         <div className="bo-table-wrap">
@@ -301,8 +276,8 @@ export default function DashboardPage(props: {
                 {data.recent.map((row: QueueItem) => (
                   <tr
                     key={row.memberId}
-                    style={{ cursor: "pointer" }}
-                    onClick={() => setSelectedId(row.memberId)}
+                    className={`bo-row-clickable${selectedId === row.memberId ? " selected" : ""}`}
+                    onClick={() => openMember(row.memberId)}
                   >
                     <td>{row.fullName}</td>
                     <td>
@@ -315,7 +290,7 @@ export default function DashboardPage(props: {
                       />
                     </td>
                     <td>{row.receiptNumber || row.paymentStatus || "—"}</td>
-                    <td>{formatDate(row.createdAt)}</td>
+                    <td>{formatDate(row.updatedAt ?? row.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -323,6 +298,16 @@ export default function DashboardPage(props: {
           )}
         </div>
       </div>
+
+      <MemberDetailDrawer
+        open={selectedId !== null}
+        loading={detailLoading}
+        detail={detail}
+        me={props.me}
+        onClose={closeDrawer}
+        onSaved={(m) => void onMemberSaved(m)}
+        onDeleted={(id) => void onMemberDeleted(id)}
+      />
     </>
   );
 }

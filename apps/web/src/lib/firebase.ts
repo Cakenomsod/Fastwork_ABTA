@@ -1,10 +1,16 @@
 import { initializeApp, getApps } from "firebase/app";
 import {
-  getAuth,
   GoogleAuthProvider,
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  getAuth,
+  getRedirectResult,
+  initializeAuth,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   onAuthStateChanged,
+  type Auth,
   type User,
 } from "firebase/auth";
 
@@ -19,15 +25,69 @@ const firebaseConfig = {
 };
 
 const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
-const auth = getAuth(app);
+
+function createAuth(): Auth {
+  try {
+    return initializeAuth(app, {
+      persistence: browserLocalPersistence,
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
+  } catch (err) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      err.code === "auth/already-initialized"
+    ) {
+      return getAuth(app);
+    }
+    throw err;
+  }
+}
+
+const auth = createAuth();
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
 export { firebaseConfig, app, auth, googleProvider };
 
+function isPopupBlockedError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    err.code === "auth/popup-blocked"
+  );
+}
+
+const redirectBootstrapPromise = (async (): Promise<User | null> => {
+  try {
+    const result = await getRedirectResult(auth);
+    return result?.user ?? null;
+  } catch (err) {
+    console.error("Google redirect sign-in failed:", err);
+    return null;
+  }
+})();
+
+export async function initAuth(
+  onUser: (user: User | null) => void,
+): Promise<() => void> {
+  await redirectBootstrapPromise;
+  return watchAuth(onUser);
+}
+
 export async function signInWithGoogle(): Promise<User> {
-  const result = await signInWithPopup(auth, googleProvider);
-  return result.user;
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (err) {
+    if (isPopupBlockedError(err)) {
+      await signInWithRedirect(auth, googleProvider);
+      return new Promise<User>(() => {});
+    }
+    throw err;
+  }
 }
 
 export async function signOutAdmin(): Promise<void> {

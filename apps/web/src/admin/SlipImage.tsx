@@ -4,7 +4,7 @@ import { getIdToken } from "../lib/firebase";
 
 /**
  * Loads an admin slip via authenticated fetch (Bearer token).
- * Plain <img src> cannot send Authorization headers.
+ * Plain img elements cannot send Authorization headers.
  */
 export default function SlipImage(props: {
   slipViewUrl?: string;
@@ -58,32 +58,47 @@ export default function SlipImage(props: {
   }, [props.slipViewUrl]);
 
   if (!props.slipViewUrl) {
-    return (
-      <span style={{ color: "var(--bo-muted)", fontSize: "0.85rem" }}>
-        {props.emptyHint || "ยังไม่มีสลิป"}
-      </span>
-    );
+    return <SlipEmpty text={props.emptyHint || "ยังไม่มีสลิป"} />;
   }
 
   if (error) {
-    return (
-      <span style={{ color: "var(--bo-muted)", fontSize: "0.85rem" }}>
-        ไม่สามารถแสดงสลิปได้
-      </span>
-    );
+    return <SlipEmpty text="ไม่สามารถแสดงสลิปได้" />;
   }
 
   if (!src) {
-    return (
-      <span style={{ color: "var(--bo-muted)", fontSize: "0.85rem" }}>
-        กำลังโหลดสลิป…
-      </span>
-    );
+    return <SlipEmpty text="กำลังโหลดสลิป…" />;
   }
 
   return (
-    <a href={src} target="_blank" rel="noreferrer">
-      <img src={src} alt={props.alt || "สลิปโอนเงิน"} />
-    </a>
+    <figure className="bo-slip-frame">
+      <a href={src} target="_blank" rel="noreferrer">
+        <img src={src} alt={props.alt || "สลิปโอนเงิน"} />
+      </a>
+      <figcaption>คลิกที่รูปเพื่อเปิดขนาดเต็ม</figcaption>
+    </figure>
+  );
+}
+
+function SlipEmpty(props: { text: string }) {
+  return (
+    <div className="bo-slip-empty">
+      <span className="bo-slip-empty-icon" aria-hidden="true">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="m21 15-5-5L5 21" />
+        </svg>
+      </span>
+      <span>{props.text}</span>
+    </div>
   );
 }

@@ -25,6 +25,7 @@ export interface QueueItem {
   status: string;
   dataReviewStatus?: string;
   createdAt?: string;
+  updatedAt?: string;
   paymentId?: string;
   amount?: number;
   receiptNumber?: string;
@@ -194,11 +195,7 @@ export function canEditReceiptNumber(me: AdminMe): boolean {
 }
 
 export function canEditMemberProfile(me: AdminMe): boolean {
-  return (
-    me.isSuperAdmin ||
-    me.roles.includes("admin") ||
-    me.roles.includes("registrar")
-  );
+  return me.isSuperAdmin || me.roles.includes("admin");
 }
 
 export function canDeleteMember(me: AdminMe): boolean {

@@ -53,22 +53,24 @@ export function MemberDeletePanel(props: MemberDeletePanelProps) {
   if (!canDelete) return null;
 
   return (
-    <div className="bo-danger-zone">
+    <section className="bo-danger-zone">
       <h4>โซนอันตราย</h4>
-      <p className="bo-field-hint">
+      <p className="bo-danger-zone-desc">
         ลบสมาชิก <strong>{props.detail.fullName}</strong> (
         <code>{props.detail.memberId}</code>) ออกจากระบบถาวร
         รวมถึงรายการชำระและ registry ที่เกี่ยวข้อง — ไม่สามารถกู้คืนได้
       </p>
-      {error ? <div className="bo-error">{error}</div> : null}
-      <button
-        type="button"
-        className="bo-btn bo-btn-danger"
-        disabled={busy}
-        onClick={() => setConfirmOpen(true)}
-      >
-        ลบสมาชิก
-      </button>
+      {error ? <div className="bo-error bo-danger-zone-error">{error}</div> : null}
+      <div className="bo-danger-zone-actions">
+        <button
+          type="button"
+          className="bo-btn bo-btn-danger"
+          disabled={busy}
+          onClick={() => setConfirmOpen(true)}
+        >
+          ลบสมาชิก
+        </button>
+      </div>
 
       <ConfirmDialog
         open={confirmOpen}
@@ -83,7 +85,7 @@ export function MemberDeletePanel(props: MemberDeletePanelProps) {
           if (!busy) setConfirmOpen(false);
         }}
       />
-    </div>
+    </section>
   );
 }
 

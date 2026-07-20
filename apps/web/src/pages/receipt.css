@@ -1,3 +1,5 @@
+@import "./shared.css";
+
 /* Screen + print styles for the formal member receipt. */
 
 .rcpt-shell {
@@ -7,8 +9,8 @@
   display: flex;
   justify-content: center;
   background:
-    radial-gradient(120% 80% at 50% -10%, #12513a 0%, #0b3a29 45%, #082a1e 100%);
-  color: #12211b;
+    radial-gradient(120% 80% at 50% -10%, var(--page-green-highlight) 0%, var(--page-green-deep) 45%, var(--page-green-darker) 100%);
+  color: var(--page-ink);
 }
 
 .rcpt-atmosphere {
@@ -48,7 +50,7 @@
 }
 
 .rcpt-toolbar__link {
-  color: #e4ce93;
+  color: var(--page-gold-soft);
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
@@ -61,8 +63,8 @@
 .rcpt-print-btn {
   appearance: none;
   border: 1px solid rgba(228, 206, 147, 0.55);
-  background: #c9a24b;
-  color: #0b3a29;
+  background: var(--page-gold);
+  color: var(--page-green-deep);
   font: inherit;
   font-weight: 700;
   font-size: 0.92rem;
@@ -77,11 +79,11 @@
 
 .rcpt-sheet {
   background: #fff;
-  color: #12211b;
+  color: var(--page-ink);
   border: 1px solid rgba(201, 162, 75, 0.35);
   border-radius: 4px;
   padding: clamp(1.25rem, 4vw, 2rem);
-  box-shadow: 0 18px 40px -24px rgba(6, 40, 28, 0.65);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.2);
 }
 
 .rcpt-head {
@@ -90,7 +92,7 @@
   justify-content: space-between;
   gap: 1.25rem;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #0b3a29;
+  border-bottom: 2px solid var(--page-green-deep);
 }
 
 .rcpt-brand {
@@ -108,8 +110,8 @@
   width: 3rem;
   height: 3rem;
   border-radius: 6px;
-  background: #0b3a29;
-  color: #e4ce93;
+  background: var(--page-green-deep);
+  color: var(--page-gold-soft);
   font-weight: 800;
   letter-spacing: 0.06em;
   font-size: 0.78rem;
@@ -120,13 +122,13 @@
   font-size: clamp(1.25rem, 3.5vw, 1.55rem);
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: #0b3a29;
+  color: var(--page-green-deep);
 }
 
 .rcpt-brand__assoc {
   margin: 0.2rem 0 0;
   font-size: 0.88rem;
-  color: #4a5c53;
+  color: var(--page-muted);
   line-height: 1.35;
 }
 
@@ -147,7 +149,7 @@
 }
 
 .rcpt-badge--official {
-  color: #0b3a29;
+  color: var(--page-green-deep);
   background: #e7f3ec;
 }
 
@@ -168,7 +170,7 @@
 
 .rcpt-badge--none {
   color: #5a6b63;
-  background: #eef2ef;
+  background: var(--page-bg);
 }
 
 .rcpt-meta__list {
@@ -183,7 +185,7 @@
 }
 
 .rcpt-meta__list dt {
-  color: #6b7c72;
+  color: var(--abta-muted);
   font-weight: 500;
 }
 
@@ -205,7 +207,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #0b3a29;
+  color: var(--page-green-deep);
 }
 
 .rcpt-fields {
@@ -224,7 +226,7 @@
 }
 
 .rcpt-fields dt {
-  color: #6b7c72;
+  color: var(--abta-muted);
   font-weight: 500;
 }
 
@@ -256,7 +258,7 @@
 .rcpt-table thead th {
   font-size: 0.78rem;
   font-weight: 700;
-  color: #4a5c53;
+  color: var(--page-muted);
   background: #f4f7f5;
   border-bottom: 1px solid #c9d5ce;
 }
@@ -272,7 +274,7 @@
   display: block;
   margin-top: 0.15rem;
   font-size: 0.82rem;
-  color: #6b7c72;
+  color: var(--abta-muted);
   font-weight: 400;
 }
 
@@ -285,7 +287,7 @@
 
 .rcpt-table__total {
   font-weight: 800;
-  color: #0b3a29;
+  color: var(--page-green-deep);
 }
 
 .rcpt-status-row {
@@ -308,7 +310,7 @@
 .rcpt-label {
   display: block;
   font-size: 0.75rem;
-  color: #6b7c72;
+  color: var(--abta-muted);
   font-weight: 500;
 }
 
@@ -319,7 +321,8 @@
   line-height: 1.45;
   color: #6b5a1e;
   background: #fbf6e8;
-  border-left: 3px solid #c9a24b;
+  border: 1px solid #e8dcb0;
+  border-radius: 10px;
 }
 
 .rcpt-foot {
@@ -332,7 +335,7 @@
 .rcpt-sign {
   text-align: center;
   font-size: 0.82rem;
-  color: #6b7c72;
+  color: var(--abta-muted);
 }
 
 .rcpt-sign__line {
@@ -379,14 +382,14 @@
   display: inline-block;
   font-weight: 800;
   letter-spacing: 0.12em;
-  color: #0b3a29;
+  color: var(--page-green-deep);
   margin-bottom: 0.75rem;
 }
 
 .rcpt-error__title {
   margin: 0;
   font-size: 1.2rem;
-  color: #12211b;
+  color: var(--page-ink);
 }
 
 .rcpt-error__detail {

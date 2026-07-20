@@ -16,13 +16,29 @@ h1 {
   margin: 0 0 0.5rem;
   font-size: 1.15rem;
   font-weight: 600;
-  color: #2c3d34;
+  color: var(--abta-ink);
 }
 
 .lead {
   margin: 0 0 2rem;
-  color: #4a5c52;
+  color: var(--abta-muted);
   font-size: 0.95rem;
+}
+
+.lead a {
+  color: #0f4c36;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.lead a:hover {
+  text-decoration: underline;
+}
+
+.lead a:focus-visible {
+  outline: 2px solid #0f4c36;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .meta {
@@ -40,7 +56,7 @@ h1 {
 
 .meta dt {
   margin: 0;
-  color: #6b7c72;
+  color: var(--abta-muted);
 }
 
 .meta dd {

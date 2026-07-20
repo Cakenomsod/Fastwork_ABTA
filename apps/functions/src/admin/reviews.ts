@@ -36,6 +36,7 @@ export interface QueueMemberItem {
   status: string;
   dataReviewStatus?: string;
   createdAt?: string;
+  updatedAt?: string;
   paymentId?: string;
   amount?: number;
   receiptNumber?: string;
@@ -78,6 +79,7 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
     status: member.status,
     dataReviewStatus: member.dataReviewStatus,
     createdAt: isoFromTs(member.createdAt),
+    updatedAt: isoFromTs(member.updatedAt),
     paymentId: payment?.paymentId,
     amount: payment?.amount,
     receiptNumber: payment?.receiptNumber,

@@ -1,9 +1,12 @@
 :root {
-  color: #1a1f16;
+  --abta-ink: #1a1f16;
+  --abta-muted: #4a5c52;
+  --abta-bg: #eef2ea;
+  color: var(--abta-ink);
   background:
     radial-gradient(ellipse 80% 50% at 20% 0%, #d8e8d0 0%, transparent 55%),
     radial-gradient(ellipse 70% 45% at 90% 10%, #c5d4e8 0%, transparent 50%),
-    #eef2ea;
+    var(--abta-bg);
   font-family: "Sarabun", "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;

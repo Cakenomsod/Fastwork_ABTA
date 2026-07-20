@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   fetchAdminMe,
   fetchDashboard,
@@ -8,15 +15,15 @@ import {
   ROLE_LABEL,
 } from "../lib/admin-api";
 import {
+  initAuth,
   signInWithGoogle,
   signOutAdmin,
-  watchAuth,
 } from "../lib/firebase";
 import type { User } from "firebase/auth";
-import DashboardPage from "./pages/DashboardPage";
-import DataReviewPage from "./pages/DataReviewPage";
-import SlipReviewPage from "./pages/SlipReviewPage";
-import StaffPage from "./pages/StaffPage";
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const DataReviewPage = lazy(() => import("./pages/DataReviewPage"));
+const SlipReviewPage = lazy(() => import("./pages/SlipReviewPage"));
+const StaffPage = lazy(() => import("./pages/StaffPage"));
 import "./admin.css";
 
 type AdminRoute = "dashboard" | "data" | "slips" | "staff";
@@ -51,7 +58,23 @@ export default function AdminApp() {
   const [counts, setCounts] = useState({ data: 0, slips: 0 });
 
   useEffect(() => {
-    return watchAuth((u) => setUser(u));
+    let cancelled = false;
+    let unsubscribe = () => {};
+
+    void initAuth((u) => {
+      if (!cancelled) setUser(u);
+    }).then((unsub) => {
+      if (cancelled) {
+        unsub();
+        return;
+      }
+      unsubscribe = unsub;
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -146,6 +169,10 @@ export default function AdminApp() {
     return <LoginScreen />;
   }
 
+  async function handleSignOut() {
+    await signOutAdmin();
+  }
+
   if (loadingMe) {
     return (
       <div className="bo-root">
@@ -164,8 +191,8 @@ export default function AdminApp() {
   if (authError === "not_authorized" || (!me && !authError)) {
     return (
       <UnauthorizedScreen
-        email={user.email ?? ""}
-        onSignOut={() => void signOutAdmin()}
+        email={me?.email ?? user?.email ?? ""}
+        onSignOut={() => void handleSignOut()}
       />
     );
   }
@@ -182,7 +209,7 @@ export default function AdminApp() {
             <button
               type="button"
               className="bo-btn bo-btn-ghost"
-              onClick={() => void signOutAdmin()}
+              onClick={() => void handleSignOut()}
             >
               ออกจากระบบ
             </button>
@@ -276,13 +303,23 @@ export default function AdminApp() {
               <button
                 type="button"
                 className="bo-btn bo-btn-ghost bo-btn-sm"
-                onClick={() => void signOutAdmin()}
+                onClick={() => void handleSignOut()}
               >
                 ออกจากระบบ
               </button>
             </div>
           </header>
-          <div className="bo-content">{page}</div>
+          <div className="bo-content">
+            <Suspense
+              fallback={
+                <div className="bo-panel">
+                  <div className="bo-empty">กำลังโหลด…</div>
+                </div>
+              }
+            >
+              {page}
+            </Suspense>
+          </div>
         </div>
       </div>
     </div>
