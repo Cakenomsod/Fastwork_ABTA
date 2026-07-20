@@ -21,7 +21,12 @@ import {
   searchMembers,
   slipObjectRef,
 } from "./reviews";
-import { updateMemberIds } from "./update-ids";
+import { checkMemberIds, updateMemberIds } from "./update-ids";
+import {
+  deleteMemberRecord,
+  updateMemberProfile,
+} from "./member-profile";
+import { findLegacyPaymentsByMemberId } from "../legacy/repository";
 import {
   deleteStaffUser,
   listStaffUsers,
@@ -370,6 +375,152 @@ export async function handleAdminUpdateMemberIds(
     memberId: result.memberId,
     receiptNumber: result.receiptNumber,
     member: result.member,
+  });
+}
+
+/** GET pre-check uniqueness + next suggested sequential IDs. */
+export async function handleAdminCheckMemberIds(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+
+  const memberId = String(req.query.memberId ?? "").trim() || undefined;
+  const receiptNumber =
+    String(req.query.receiptNumber ?? "").trim() || undefined;
+  const exceptMemberId =
+    String(req.query.exceptMemberId ?? "").trim() || undefined;
+  const exceptPaymentId =
+    String(req.query.exceptPaymentId ?? "").trim() || undefined;
+
+  const result = await checkMemberIds({
+    memberId,
+    receiptNumber,
+    exceptMemberId,
+    exceptPaymentId,
+  });
+  res.status(200).json(result);
+}
+
+/** PATCH member profile (name, contact, expiry). */
+export async function handleAdminUpdateMemberProfile(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const memberId = String(body.memberId ?? "").trim();
+  if (!memberId) {
+    jsonError(res, 400, "member_id_required");
+    return;
+  }
+
+  const result = await updateMemberProfile({
+    memberId,
+    patch: {
+      firstName:
+        body.firstName != null ? String(body.firstName) : undefined,
+      lastName: body.lastName != null ? String(body.lastName) : undefined,
+      phone: body.phone != null ? String(body.phone) : undefined,
+      email: body.email != null ? String(body.email) : undefined,
+      legalEntityName:
+        body.legalEntityName != null
+          ? String(body.legalEntityName)
+          : undefined,
+      buildingName:
+        body.buildingName != null ? String(body.buildingName) : undefined,
+      organization:
+        body.organization != null ? String(body.organization) : undefined,
+      expiryDate:
+        body.expiryDate != null ? String(body.expiryDate) : undefined,
+    },
+    actorEmail: auth.session.email,
+  });
+
+  if (!result.ok) {
+    jsonError(res, result.status, result.error);
+    return;
+  }
+  res.status(200).json({ ok: true, member: result.member });
+}
+
+/** DELETE member — requires typed confirmMemberId. */
+export async function handleAdminDeleteMember(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const memberId = String(body.memberId ?? "").trim();
+  const confirmMemberId = String(body.confirmMemberId ?? "").trim();
+  if (!memberId) {
+    jsonError(res, 400, "member_id_required");
+    return;
+  }
+
+  const result = await deleteMemberRecord({
+    memberId,
+    confirmMemberId,
+    actorEmail: auth.session.email,
+  });
+  if (!result.ok) {
+    jsonError(res, result.status, result.error);
+    return;
+  }
+  res.status(200).json({ ok: true, memberId: result.memberId });
+}
+
+/** GET legacy payment history for admin detail panel. */
+export async function handleAdminLegacyPayments(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const legacyMemberId = String(req.query.legacyMemberId ?? "").trim();
+  if (!legacyMemberId) {
+    jsonError(res, 400, "legacy_member_id_required");
+    return;
+  }
+
+  const rows = await findLegacyPaymentsByMemberId(legacyMemberId);
+  res.status(200).json({
+    ok: true,
+    items: rows.map((r) => ({
+      receiptNumber: r.receiptNumber,
+      amount: r.amount,
+      item: r.item,
+      itemType: r.itemType,
+      expiryDate: r.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
+      transferredAt: r.transferredAt?.toDate?.()?.toISOString?.(),
+    })),
   });
 }
 

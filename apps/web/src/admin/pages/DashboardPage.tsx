@@ -8,7 +8,7 @@ import {
   type MemberDetail,
   type QueueItem,
 } from "../../lib/admin-api";
-import MemberIdsEditor from "../MemberIdsEditor";
+import MemberDetailExtras from "../MemberDetailExtras";
 
 export default function DashboardPage(props: {
   me: AdminMe;
@@ -220,8 +220,24 @@ export default function DashboardPage(props: {
                 <span>อีเมล</span>
                 <strong>{detail.email || "—"}</strong>
               </div>
+              {detail.legacyMemberId ? (
+                <div className="bo-detail-row">
+                  <span>เลขสมาชิกเก่า</span>
+                  <strong>
+                    <code>{detail.legacyMemberId}</code>
+                  </strong>
+                </div>
+              ) : null}
+              {detail.linkType === "legacy_bind" ? (
+                <div className="bo-detail-row">
+                  <span>ประเภท</span>
+                  <strong>
+                    <span className="bo-badge temp">ผูกสมาชิกเก่า</span>
+                  </strong>
+                </div>
+              ) : null}
 
-              <MemberIdsEditor
+              <MemberDetailExtras
                 detail={detail}
                 me={props.me}
                 onSaved={(m) => {
@@ -238,9 +254,17 @@ export default function DashboardPage(props: {
                             receiptNumber: m.receiptNumber,
                             receiptStatus: m.receiptStatus,
                             status: m.status,
+                            fullName: m.fullName,
                           }
                         : row,
                     ),
+                  );
+                }}
+                onDeleted={() => {
+                  setDetail(null);
+                  setSelectedId(null);
+                  setSearchHits((prev) =>
+                    prev.filter((row) => row.memberId !== detail.memberId),
                   );
                 }}
               />

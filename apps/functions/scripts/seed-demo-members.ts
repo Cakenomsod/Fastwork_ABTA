@@ -19,6 +19,11 @@ import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { cert, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import {
+  ensureCounterAtLeastInTx,
+  parseMemberId,
+  parseReceiptNumber,
+} from "../src/members/id-registry";
 
 const PROJECT_ID = "abta-member";
 const REPO_ROOT = resolve(__dirname, "../../..");
@@ -47,6 +52,99 @@ function token(): string {
 
 function daysFromNow(days: number): Timestamp {
   return Timestamp.fromDate(new Date(Date.now() + days * 86_400_000));
+}
+
+async function bumpCountersFromSeededIds(
+  memberIds: string[],
+  receiptNumbers: string[],
+): Promise<void> {
+  const db = getFirestore();
+  const maxByCounter = new Map<string, { year: number; seq: number }>();
+
+  const track = (docId: string, year: number, seq: number) => {
+    const cur = maxByCounter.get(docId);
+    if (!cur || seq > cur.seq) maxByCounter.set(docId, { year, seq });
+  };
+
+  for (const memberId of memberIds) {
+    const parsed = parseMemberId(memberId);
+    if (!parsed) continue;
+    const docId =
+      parsed.kind === "temp"
+        ? `tempMembers-${parsed.year}`
+        : `members-${parsed.year}`;
+    track(docId, parsed.year, parsed.seq);
+  }
+  for (const receiptNumber of receiptNumbers) {
+    const parsed = parseReceiptNumber(receiptNumber);
+    if (!parsed) continue;
+    const docId =
+      parsed.kind === "temp"
+        ? `tempReceipts-${parsed.year}`
+        : `receipts-${parsed.year}`;
+    track(docId, parsed.year, parsed.seq);
+  }
+
+  if (maxByCounter.size === 0) return;
+
+  await db.runTransaction(async (tx) => {
+    for (const [docId, { year, seq }] of maxByCounter) {
+      await ensureCounterAtLeastInTx(tx, docId, year, seq);
+    }
+  });
+
+  console.log("✓ Bumped counters from seeded IDs:");
+  for (const [docId, { seq }] of maxByCounter) {
+    console.log(`  • counters/${docId}  seq≥${seq}`);
+  }
+}
+
+async function writeIdRegistryFromSeeded(
+  members: { memberId: string }[],
+  payments: { paymentId: string; receiptNumber: string }[],
+  now: Timestamp,
+): Promise<void> {
+  const db = getFirestore();
+  const batch = db.batch();
+  let count = 0;
+
+  for (const m of members) {
+    const parsed = parseMemberId(m.memberId);
+    if (!parsed) continue;
+    batch.set(
+      db.collection("idRegistry").doc(`members_${m.memberId}`),
+      {
+        memberId: m.memberId,
+        kind: parsed.kind,
+        source: "seed",
+        createdAt: now,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+    count += 1;
+  }
+  for (const p of payments) {
+    const parsed = parseReceiptNumber(p.receiptNumber);
+    if (!parsed) continue;
+    batch.set(
+      db.collection("idRegistry").doc(`receipts_${p.receiptNumber}`),
+      {
+        receiptNumber: p.receiptNumber,
+        paymentId: p.paymentId,
+        kind: parsed.kind,
+        source: "seed",
+        createdAt: now,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+    count += 1;
+  }
+
+  if (count === 0) return;
+  await batch.commit();
+  console.log(`✓ Wrote ${count} idRegistry doc(s)`);
 }
 
 async function main() {
@@ -186,11 +284,18 @@ async function main() {
     createdAt: now,
     updatedAt: now,
   };
-  for (const p of [p1, p2, p3]) {
+  const payments = [p1, p2, p3];
+  for (const p of payments) {
     batch.set(db.collection("payments").doc(p.paymentId), p, { merge: true });
   }
 
   await batch.commit();
+
+  await writeIdRegistryFromSeeded(members, payments, now);
+  await bumpCountersFromSeededIds(
+    members.map((m) => m.memberId),
+    payments.map((p) => p.receiptNumber),
+  );
 
   console.log("\n✓ Seeded demo members + payments:\n");
   for (const m of members) {

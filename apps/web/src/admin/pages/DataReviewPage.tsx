@@ -8,7 +8,7 @@ import {
   type MemberDetail,
   type QueueItem,
 } from "../../lib/admin-api";
-import MemberIdsEditor from "../MemberIdsEditor";
+import MemberDetailExtras from "../MemberDetailExtras";
 import SlipImage from "../SlipImage";
 
 export default function DataReviewPage(props: {
@@ -207,7 +207,7 @@ export default function DataReviewPage(props: {
               <strong>{linkTypeLabel(detail.linkType)}</strong>
             </div>
 
-            <MemberIdsEditor
+            <MemberDetailExtras
               detail={detail}
               me={props.me}
               onSaved={(m) => {
@@ -215,6 +215,12 @@ export default function DataReviewPage(props: {
                 if (m.memberId !== selectedId) {
                   setSelectedId(m.memberId);
                 }
+                void reload();
+                props.onChanged?.();
+              }}
+              onDeleted={() => {
+                setDetail(null);
+                setSelectedId(null);
                 void reload();
                 props.onChanged?.();
               }}

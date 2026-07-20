@@ -440,6 +440,24 @@ export function slipReviewRejectedText(opts: {
   );
 }
 
+export function legacyBindSuccessText(opts: {
+  fullName: string;
+  memberId: string;
+  legacyMemberId: string;
+  statusUrl: string;
+}): LineMessage {
+  return textMessage(
+    [
+      "✅ ยืนยันสมาชิกเก่าสำเร็จ",
+      `คุณ${opts.fullName}`,
+      `เลขสมาชิกใหม่: ${opts.memberId}`,
+      `เลขอ้างอิงเดิม: ${opts.legacyMemberId}`,
+      "",
+      `เช็คสถานะ: ${opts.statusUrl}`,
+    ].join("\n"),
+  );
+}
+
 export function memberIdsUpdatedText(opts: {
   fullName: string;
   memberIdChange?: { from: string; to: string };

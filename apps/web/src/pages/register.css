@@ -393,3 +393,339 @@
     max-width: none;
   }
 }
+
+/* ── Mode tabs (new vs legacy) ── */
+
+.reg-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1.15rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.reg-mode-tab {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: rgba(238, 243, 239, 0.75);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.reg-mode-tab--active {
+  background: #f7faf7;
+  color: #0f4c36;
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.35);
+}
+
+.reg-mode-tab--legacy.reg-mode-tab--active {
+  background: linear-gradient(160deg, #7a4e12, #c9a24b);
+  color: #fff;
+}
+
+/* ── Legacy flow (amber accent) ── */
+
+.reg-shell--legacy .reg-atmosphere {
+  background:
+    radial-gradient(42% 32% at 88% 6%, rgba(201, 162, 75, 0.35), transparent 72%),
+    radial-gradient(45% 35% at 12% 20%, rgba(24, 107, 74, 0.35), transparent 70%);
+}
+
+.reg-kicker--legacy {
+  color: #f0d998;
+}
+
+.reg-hero--legacy h1 {
+  color: #fff;
+}
+
+.reg-form--legacy {
+  border-color: rgba(201, 162, 75, 0.35);
+}
+
+.reg-section__title--legacy {
+  color: #7a4e12;
+}
+
+.reg-btn--legacy {
+  background: linear-gradient(160deg, #7a4e12, #c9a24b);
+  color: #fff;
+  box-shadow: 0 10px 24px -12px rgba(122, 78, 18, 0.75);
+}
+
+.reg-btn--ghost-light {
+  margin-top: 0.5rem;
+  color: rgba(238, 243, 239, 0.88);
+  border-color: rgba(238, 243, 239, 0.35);
+}
+
+.reg-field-hint {
+  font-size: 0.78rem;
+  color: #6b7c72;
+}
+
+.reg-legacy-info {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(201, 162, 75, 0.12);
+  border: 1px solid rgba(201, 162, 75, 0.28);
+  color: #5c4a1e;
+  font-size: 0.84rem;
+}
+
+/* Step indicator */
+
+.reg-steps {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin: 0 0 1.1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.reg-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  position: relative;
+}
+
+.reg-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 0.95rem;
+  left: calc(50% + 1rem);
+  width: calc(100% - 2rem);
+  height: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  z-index: 0;
+}
+
+.reg-step--done:not(:last-child)::after {
+  background: rgba(201, 162, 75, 0.55);
+}
+
+.reg-step__num {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+}
+
+.reg-step--active .reg-step__num {
+  color: #7a4e12;
+  background: #f0d998;
+  border-color: #c9a24b;
+}
+
+.reg-step--done .reg-step__num {
+  color: #fff;
+  background: #c9a24b;
+  border-color: #c9a24b;
+}
+
+.reg-step__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(238, 243, 239, 0.55);
+  line-height: 1.25;
+}
+
+.reg-step--active .reg-step__label {
+  color: #f0d998;
+}
+
+/* Match cards */
+
+.reg-legacy-list {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.reg-legacy-match {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.85rem 0.9rem;
+  border-radius: 14px;
+  border: 1.5px solid #e0d4b8;
+  background: #fff;
+  cursor: default;
+}
+
+label.reg-legacy-match {
+  cursor: pointer;
+}
+
+.reg-legacy-match--selected {
+  border-color: #c9a24b;
+  background: #fffbf2;
+  box-shadow: 0 0 0 2px rgba(201, 162, 75, 0.18);
+}
+
+.reg-legacy-match__radio {
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+  accent-color: #c9a24b;
+}
+
+.reg-legacy-match__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.reg-legacy-match__name {
+  margin: 0;
+  font-weight: 800;
+  color: #12211b;
+  font-size: 0.98rem;
+}
+
+.reg-legacy-match__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.84rem;
+  color: #5a6b61;
+}
+
+.reg-legacy-match__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.reg-legacy-match__id {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #7a4e12;
+  background: rgba(201, 162, 75, 0.16);
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+}
+
+.reg-legacy-match__status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reg-legacy-match__status--active {
+  color: #0f4c36;
+  background: #e3f0ea;
+}
+
+.reg-legacy-match__status--expired {
+  color: #8a3b2c;
+  background: #fdecea;
+}
+
+.reg-legacy-match__status--pending,
+.reg-legacy-match__status--non_active {
+  color: #6b5420;
+  background: #f5ecd4;
+}
+
+.reg-legacy-match__type {
+  font-size: 0.72rem;
+  color: #6b7c72;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: #eef3ef;
+}
+
+.reg-legacy-match__expiry {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  color: #6b7c72;
+}
+
+.reg-legacy-empty {
+  text-align: center;
+}
+
+.reg-legacy-empty p {
+  margin: 0 0 1rem;
+  color: #3d5248;
+  font-size: 0.9rem;
+}
+
+.reg-legacy-actions {
+  margin-top: 1rem;
+}
+
+/* Confirm step */
+
+.reg-confirm__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #7a4e12;
+}
+
+.reg-confirm__lead {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+  color: #5a6b61;
+}
+
+.reg-confirm__warn {
+  margin: 1rem 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(201, 162, 75, 0.12);
+  border: 1px solid rgba(201, 162, 75, 0.28);
+  color: #5c4a1e;
+  font-size: 0.84rem;
+}
+
+.reg-confirm__actions {
+  margin-top: 0.5rem;
+}
+
+.reg-success--legacy .reg-success__id {
+  color: #f0d998;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

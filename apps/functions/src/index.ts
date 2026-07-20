@@ -9,10 +9,14 @@ import {
   handleAdminMemberDetail,
   handleAdminMemberSearch,
   handleAdminMemberSlip,
+  handleAdminCheckMemberIds,
+  handleAdminDeleteMember,
+  handleAdminLegacyPayments,
   handleAdminStaffDelete,
   handleAdminStaffList,
   handleAdminStaffUpsert,
   handleAdminUpdateMemberIds,
+  handleAdminUpdateMemberProfile,
   handleApproveData,
   handleApproveSlip,
   handlePendingDataReviews,
@@ -21,6 +25,7 @@ import {
   handleRejectSlip,
 } from "./admin/handlers";
 import { handleLineWebhook } from "./line/webhook";
+import { bindLegacyMember, searchLegacyMembers } from "./members/legacy-bind";
 import { getRegisterDraft, registerNewMember } from "./members/register";
 import { getStatusViewByMemberId } from "./members/repository";
 import { toPublicStatus } from "./members/status-view";
@@ -75,6 +80,15 @@ export const api = onRequest(
       return;
     }
 
+    if (path === "/members/legacy/search" && req.method === "POST") {
+      await handleLegacySearch(req, res);
+      return;
+    }
+    if (path === "/members/legacy/bind" && req.method === "POST") {
+      await handleLegacyBind(req, res);
+      return;
+    }
+
     // ── Admin Back Office (Firebase Auth ID token + staff allowlist) ──
     if (path === "/admin/me" && req.method === "GET") {
       await handleAdminMe(req, res);
@@ -121,6 +135,25 @@ export const api = onRequest(
       (req.method === "PATCH" || req.method === "PUT")
     ) {
       await handleAdminUpdateMemberIds(req, res);
+      return;
+    }
+    if (path === "/admin/members/ids/check" && req.method === "GET") {
+      await handleAdminCheckMemberIds(req, res);
+      return;
+    }
+    if (
+      path === "/admin/members/profile" &&
+      (req.method === "PATCH" || req.method === "PUT")
+    ) {
+      await handleAdminUpdateMemberProfile(req, res);
+      return;
+    }
+    if (path === "/admin/members" && req.method === "DELETE") {
+      await handleAdminDeleteMember(req, res);
+      return;
+    }
+    if (path === "/admin/members/legacy-payments" && req.method === "GET") {
+      await handleAdminLegacyPayments(req, res);
       return;
     }
     if (path === "/admin/reviews/data/approve" && req.method === "POST") {
@@ -239,6 +272,55 @@ async function handleRegisterDraft(req: Request, res: Response): Promise<void> {
     });
   } catch (err) {
     console.error("register draft handler error", err);
+    res.status(500).json({ ok: false, error: "server_error" });
+  }
+}
+
+async function handleLegacySearch(req: Request, res: Response): Promise<void> {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const result = await searchLegacyMembers({
+      idToken: String(body.idToken ?? ""),
+      firstName: String(body.firstName ?? ""),
+      lastName: String(body.lastName ?? ""),
+      legalEntityName:
+        body.legalEntityName != null ? String(body.legalEntityName) : undefined,
+      buildingName:
+        body.buildingName != null ? String(body.buildingName) : undefined,
+    });
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+    res.status(200).json({ ok: true, matches: result.matches });
+  } catch (err) {
+    console.error("legacy search handler error", err);
+    res.status(500).json({ ok: false, error: "server_error" });
+  }
+}
+
+async function handleLegacyBind(req: Request, res: Response): Promise<void> {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const result = await bindLegacyMember({
+      idToken: String(body.idToken ?? ""),
+      legacyMemberId: String(body.legacyMemberId ?? ""),
+    });
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+    res.status(201).json({
+      ok: true,
+      memberId: result.memberId,
+      legacyMemberId: result.legacyMemberId,
+      publicToken: result.publicToken,
+      statusUrl: result.statusUrl,
+      memberCardUrl: result.memberCardUrl,
+      status: result.status,
+    });
+  } catch (err) {
+    console.error("legacy bind handler error", err);
     res.status(500).json({ ok: false, error: "server_error" });
   }
 }

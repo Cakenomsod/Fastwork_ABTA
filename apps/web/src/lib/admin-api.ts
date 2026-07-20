@@ -34,6 +34,9 @@ export interface QueueItem {
 }
 
 export interface MemberDetail extends QueueItem {
+  firstName?: string;
+  lastName?: string;
+  legacyMemberId?: string;
   organization?: string;
   lineUserId?: string;
   expiryDate?: string;
@@ -41,6 +44,14 @@ export interface MemberDetail extends QueueItem {
   slipViewUrl?: string;
   memberCardUrl?: string;
   rejectReason?: string;
+}
+
+export interface LegacyPaymentRow {
+  receiptNumber?: string;
+  amount?: number;
+  item?: string;
+  expiryDate?: string;
+  transferredAt?: string;
 }
 
 export interface StaffRow {
@@ -125,7 +136,7 @@ export async function searchAdminMembers(q: string): Promise<QueueItem[]> {
   return data.items;
 }
 
-/** Correct member / receipt numbers (does not bump counters). */
+/** Correct member / receipt numbers (transactional + counter bump). */
 export async function updateMemberIds(input: {
   memberId: string;
   newMemberId?: string;
@@ -139,6 +150,31 @@ export async function updateMemberIds(input: {
     method: "PATCH",
     body: JSON.stringify(input),
   });
+}
+
+export async function checkMemberIds(input: {
+  memberId?: string;
+  receiptNumber?: string;
+  exceptMemberId?: string;
+  exceptPaymentId?: string;
+}): Promise<{
+  memberId?: { value: string; validFormat: boolean; available: boolean };
+  receiptNumber?: { value: string; validFormat: boolean; available: boolean };
+  suggest: {
+    nextTempMemberId: string;
+    nextPermanentMemberId: string;
+    nextTempReceiptNumber: string;
+    nextOfficialReceiptNumber: string;
+  };
+}> {
+  const params = new URLSearchParams();
+  if (input.memberId) params.set("memberId", input.memberId);
+  if (input.receiptNumber) params.set("receiptNumber", input.receiptNumber);
+  if (input.exceptMemberId) params.set("exceptMemberId", input.exceptMemberId);
+  if (input.exceptPaymentId) {
+    params.set("exceptPaymentId", input.exceptPaymentId);
+  }
+  return adminFetch(`/admin/members/ids/check?${params}`);
 }
 
 export function canEditMemberNumber(me: AdminMe): boolean {
@@ -155,6 +191,62 @@ export function canEditReceiptNumber(me: AdminMe): boolean {
     me.roles.includes("admin") ||
     me.roles.includes("treasurer")
   );
+}
+
+export function canEditMemberProfile(me: AdminMe): boolean {
+  return (
+    me.isSuperAdmin ||
+    me.roles.includes("admin") ||
+    me.roles.includes("registrar")
+  );
+}
+
+export function canDeleteMember(me: AdminMe): boolean {
+  return me.isSuperAdmin || me.roles.includes("admin");
+}
+
+/** PATCH member profile fields (not ID renumbering). */
+export async function updateMemberProfile(input: {
+  memberId: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  legalEntityName?: string;
+  buildingName?: string;
+  organization?: string;
+  expiryDate?: string;
+}): Promise<MemberDetail> {
+  const { memberId, ...patch } = input;
+  const data = await adminFetch<{ member: MemberDetail }>(
+    "/admin/members/profile",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ memberId, ...patch }),
+    },
+  );
+  return data.member;
+}
+
+/** Permanently delete member + related payments/registry. */
+export async function deleteMember(input: {
+  memberId: string;
+  confirmMemberId: string;
+}): Promise<{ memberId: string }> {
+  return adminFetch<{ memberId: string }>("/admin/members", {
+    method: "DELETE",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchLegacyPayments(
+  legacyMemberId: string,
+): Promise<LegacyPaymentRow[]> {
+  const params = new URLSearchParams({ legacyMemberId });
+  const data = await adminFetch<{ items: LegacyPaymentRow[] }>(
+    `/admin/members/legacy-payments?${params}`,
+  );
+  return data.items;
 }
 
 export async function approveDataReview(memberId: string) {

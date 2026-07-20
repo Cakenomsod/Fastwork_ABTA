@@ -423,8 +423,14 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
   }) as PaymentDoc;
 
   const db = getFirestore();
+  const memberRef = db.collection(MEMBERS_COLLECTION).doc(memberId);
+  const idClash = await memberRef.get();
+  if (idClash.exists) {
+    return { ok: false, error: "member_id_taken", status: 409 };
+  }
+
   const batch = db.batch();
-  batch.set(db.collection(MEMBERS_COLLECTION).doc(memberId), member);
+  batch.create(memberRef, member);
   batch.set(db.collection(PAYMENTS_COLLECTION).doc(paymentId), payment);
   await batch.commit();
 

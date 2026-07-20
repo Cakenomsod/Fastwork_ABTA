@@ -45,6 +45,9 @@ export interface QueueMemberItem {
 }
 
 export interface MemberDetail extends QueueMemberItem {
+  firstName?: string;
+  lastName?: string;
+  legacyMemberId?: string;
   organization?: string;
   lineUserId?: string;
   expiryDate?: string;
@@ -171,6 +174,9 @@ export async function getAdminMemberDetail(
       : undefined;
   return {
     ...base,
+    firstName: member.firstName,
+    lastName: member.lastName,
+    legacyMemberId: member.legacyMemberId,
     organization: member.organization,
     lineUserId: member.lineUserId,
     expiryDate: isoFromTs(member.expiryDate),
@@ -241,6 +247,7 @@ export async function searchMembers(query: string): Promise<QueueMemberItem[]> {
     const hay = [
       m.memberId,
       m.tempMemberId,
+      m.legacyMemberId,
       m.firstName,
       m.lastName,
       m.email,
@@ -277,7 +284,10 @@ export async function approveDataReview(
   if (!payment) return { ok: false, error: "payment_not_found", status: 404 };
 
   const permanentId = await allocatePermanentMemberId();
-  const receiptNumber = await allocateTempReceiptNumber();
+  const receiptNumber = await allocateTempReceiptNumber(
+    new Date(),
+    payment.paymentId,
+  );
   const now = Timestamp.now();
   const token = member.publicToken ?? "";
   const memberCardUrl = `${WEB_ORIGIN}/card?m=${encodeURIComponent(permanentId)}&t=${token}`;
@@ -285,9 +295,13 @@ export async function approveDataReview(
   const receiptUrl = `${WEB_ORIGIN}/receipt?m=${encodeURIComponent(permanentId)}&t=${token}`;
 
   const db = getFirestore();
-  const batch = db.batch();
   const oldRef = db.collection(MEMBERS_COLLECTION).doc(member.memberId);
   const newRef = db.collection(MEMBERS_COLLECTION).doc(permanentId);
+
+  const existingTarget = await newRef.get();
+  if (existingTarget.exists && oldRef.path !== newRef.path) {
+    return { ok: false, error: "member_id_taken", status: 409 };
+  }
 
   const updatedMember: MemberDoc = {
     ...member,
@@ -301,6 +315,7 @@ export async function approveDataReview(
   // Clear reject reason if present
   delete (updatedMember as MemberDoc & { rejectReason?: string }).rejectReason;
 
+  const batch = db.batch();
   batch.set(newRef, updatedMember);
   if (oldRef.path !== newRef.path) {
     batch.delete(oldRef);
@@ -435,32 +450,42 @@ export async function approveSlipReview(
     return { ok: false, error: "already_official", status: 409 };
   }
 
-  const receiptNumber = await allocateOfficialReceiptNumber();
+  const receiptNumber = await allocateOfficialReceiptNumber(
+    new Date(),
+    payment.paymentId,
+  );
   const now = Timestamp.now();
   const token = member.publicToken ?? "";
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
   const receiptUrl = `${WEB_ORIGIN}/receipt?m=${encodeURIComponent(member.memberId)}&t=${token}`;
 
-  await getFirestore()
-    .collection(PAYMENTS_COLLECTION)
-    .doc(payment.paymentId)
-    .set(
-      {
-        receiptNumber,
-        receiptStatus: "official",
-        receiptUrl,
-        status: "official_receipt_issued",
-        verifiedBy: actorEmail,
-        verifiedAt: now,
-        updatedAt: now,
-      },
-      { merge: true },
+  const db = getFirestore();
+  const batch = db.batch();
+  if (payment.receiptNumber && payment.receiptNumber !== receiptNumber) {
+    batch.delete(
+      db.collection("idRegistry").doc(`receipts_${payment.receiptNumber}`),
     );
-
-  await getFirestore()
-    .collection(MEMBERS_COLLECTION)
-    .doc(member.memberId)
-    .set({ updatedAt: now }, { merge: true });
+  }
+  batch.set(
+    db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId),
+    {
+      previousReceiptNumber: payment.receiptNumber ?? null,
+      receiptNumber,
+      receiptStatus: "official",
+      receiptUrl,
+      status: "official_receipt_issued",
+      verifiedBy: actorEmail,
+      verifiedAt: now,
+      updatedAt: now,
+    },
+    { merge: true },
+  );
+  batch.set(
+    db.collection(MEMBERS_COLLECTION).doc(member.memberId),
+    { updatedAt: now },
+    { merge: true },
+  );
+  await batch.commit();
 
   if (member.lineUserId) {
     try {
@@ -498,27 +523,37 @@ export async function rejectSlipReview(
   if (!payment) return { ok: false, error: "payment_not_found", status: 404 };
 
   // New receipt number reserved for next approval (docs: ออกเลขใบเสร็จใหม่)
-  const nextReceiptNumber = await allocateTempReceiptNumber();
+  const previousReceiptNumber = payment.receiptNumber;
+  const nextReceiptNumber = await allocateTempReceiptNumber(
+    new Date(),
+    payment.paymentId,
+  );
   const now = Timestamp.now();
   const token = member.publicToken ?? "";
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
 
-  await getFirestore()
-    .collection(PAYMENTS_COLLECTION)
-    .doc(payment.paymentId)
-    .set(
-      {
-        receiptStatus: "rejected",
-        // Keep previous number visible; store next reserved number
-        receiptNumber: nextReceiptNumber,
-        status: "slip_review",
-        rejectReason: trimmed,
-        verifiedBy: actorEmail,
-        verifiedAt: now,
-        updatedAt: now,
-      },
-      { merge: true },
+  const db = getFirestore();
+  const batch = db.batch();
+  if (previousReceiptNumber && previousReceiptNumber !== nextReceiptNumber) {
+    batch.delete(
+      db.collection("idRegistry").doc(`receipts_${previousReceiptNumber}`),
     );
+  }
+  batch.set(
+    db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId),
+    {
+      previousReceiptNumber: previousReceiptNumber ?? null,
+      receiptStatus: "rejected",
+      receiptNumber: nextReceiptNumber,
+      status: "slip_review",
+      rejectReason: trimmed,
+      verifiedBy: actorEmail,
+      verifiedAt: now,
+      updatedAt: now,
+    },
+    { merge: true },
+  );
+  await batch.commit();
 
   if (member.lineUserId) {
     try {

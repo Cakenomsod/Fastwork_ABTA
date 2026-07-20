@@ -491,6 +491,48 @@
   color: var(--bo-muted);
 }
 
+.bo-field-warn {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: #b45309;
+  font-weight: 600;
+}
+
+.bo-field-ok {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--bo-success);
+  font-weight: 600;
+}
+
+.bo-linkish {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--bo-green);
+  font: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bo-id-suggest {
+  line-height: 1.5;
+}
+
+.bo-profile-editor {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--bo-line);
+}
+
+.bo-profile-editor h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--bo-green);
+}
+
 .bo-ids-editor {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -620,6 +662,110 @@
 
 .bo-mobile-nav {
   display: none;
+}
+
+/* Modal — Impeccable-inspired OKLCH soft overlay */
+.bo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: oklch(0.22 0.03 160 / 0.38);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: bo-fade-in 0.2s ease both;
+}
+
+.bo-modal {
+  width: min(440px, 100%);
+  background: var(--bo-card);
+  border: 1px solid oklch(0.88 0.02 150);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 2px oklch(0.2 0.02 160 / 0.06),
+    0 16px 48px oklch(0.2 0.04 160 / 0.14);
+  padding: 1.35rem 1.4rem 1.2rem;
+  animation: bo-rise 0.28s ease both;
+}
+
+.bo-modal-title {
+  margin: 0;
+  font-family: var(--bo-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bo-text);
+}
+
+.bo-modal-desc {
+  margin: 0.55rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--bo-muted);
+  white-space: pre-line;
+}
+
+.bo-modal-code {
+  font-size: 0.85em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+  background: var(--bo-mist);
+  color: var(--bo-green-deep);
+}
+
+.bo-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--bo-line);
+}
+
+.bo-danger-zone {
+  margin-top: 1rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid oklch(0.72 0.12 25 / 0.35);
+  border-radius: var(--bo-radius);
+  background: var(--bo-danger-soft);
+}
+
+.bo-danger-zone h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--bo-danger);
+}
+
+.bo-panel-nested {
+  margin-top: 1rem;
+  border: 1px solid var(--bo-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: oklch(0.98 0.01 150);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.6);
+}
+
+.bo-panel-nested .bo-panel-head {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(180deg, #f8fbf9, #f0f5f1);
+}
+
+.bo-panel-nested .bo-panel-head h2 {
+  font-size: 0.88rem;
+}
+
+@keyframes bo-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes bo-rise {

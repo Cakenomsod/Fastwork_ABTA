@@ -143,3 +143,71 @@ export async function submitRegistration(
     resubmitted: data.resubmitted === true,
   };
 }
+
+/** Public legacy match from POST /api/members/legacy/search. */
+export interface LegacyMatch {
+  legacyMemberId: string;
+  fullName: string;
+  legalEntityName?: string;
+  buildingName?: string;
+  status: "active" | "expired" | "non_active" | "pending";
+  statusLabel: string;
+  memberTypeLabel?: string;
+  expiryDate?: string;
+}
+
+export async function searchLegacyMembers(input: {
+  idToken: string;
+  firstName: string;
+  lastName: string;
+  legalEntityName?: string;
+  buildingName?: string;
+}): Promise<LegacyMatch[]> {
+  const res = await fetch(`${apiBase()}/api/members/legacy/search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    const err = new Error(data?.error ?? `request_failed_${res.status}`);
+    (err as Error & { code?: string }).code = data?.error ?? String(res.status);
+    throw err;
+  }
+  return (data.matches ?? []) as LegacyMatch[];
+}
+
+/** Success payload from POST /api/members/legacy/bind. */
+export interface LegacyBindSuccess {
+  memberId: string;
+  legacyMemberId: string;
+  publicToken: string;
+  statusUrl: string;
+  memberCardUrl: string;
+  status: string;
+}
+
+export async function bindLegacyMember(input: {
+  idToken: string;
+  legacyMemberId: string;
+}): Promise<LegacyBindSuccess> {
+  const res = await fetch(`${apiBase()}/api/members/legacy/bind`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    const err = new Error(data?.error ?? `request_failed_${res.status}`);
+    (err as Error & { code?: string }).code = data?.error ?? String(res.status);
+    throw err;
+  }
+  return {
+    memberId: data.memberId,
+    legacyMemberId: data.legacyMemberId,
+    publicToken: data.publicToken,
+    statusUrl: data.statusUrl,
+    memberCardUrl: data.memberCardUrl,
+    status: data.status,
+  };
+}

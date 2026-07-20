@@ -70,6 +70,8 @@ export interface PaymentDoc {
   paymentId: string;
   memberId: string;
   receiptNumber?: string;
+  /** Prior receipt number kept for audit when replaced. */
+  previousReceiptNumber?: string;
   receiptStatus: ReceiptStatus;
   receiptUrl?: string;
   slipUrl?: string;
