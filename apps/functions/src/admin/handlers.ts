@@ -20,9 +20,9 @@ import {
   rejectDataReview,
   rejectSlipReview,
   slipObjectRef,
-  type MemberIdTFilter,
   type MemberListSort,
   type MemberListStatusFilter,
+  type ReceiptIdTFilter,
 } from "./reviews";
 import { checkMemberIds, updateMemberIds } from "./update-ids";
 import {
@@ -304,8 +304,10 @@ const STATUS_FILTERS = new Set<MemberListStatusFilter>([
   "pending_slip",
   "temporary",
   "active",
+  "near_expiry",
+  "expired",
 ]);
-const MEMBER_ID_T_FILTERS = new Set<MemberIdTFilter>(["with_t", "without_t"]);
+const RECEIPT_ID_T_FILTERS = new Set<ReceiptIdTFilter>(["with_t", "without_t"]);
 const MEMBER_SORTS = new Set<MemberListSort>([
   "member_asc",
   "member_desc",
@@ -326,22 +328,22 @@ export async function handleAdminMemberSearch(
   }
   const q = String(req.query.q ?? "").trim();
   const statusRaw = String(req.query.status ?? "").trim();
-  const memberIdTRaw = String(req.query.memberIdT ?? "").trim();
+  const receiptIdTRaw = String(req.query.receiptIdT ?? "").trim();
   const sortRaw = String(req.query.sort ?? "").trim();
   const limitRaw = Number(req.query.limit ?? 30);
 
   const status = STATUS_FILTERS.has(statusRaw as MemberListStatusFilter)
     ? (statusRaw as MemberListStatusFilter)
     : undefined;
-  const memberIdT = MEMBER_ID_T_FILTERS.has(memberIdTRaw as MemberIdTFilter)
-    ? (memberIdTRaw as MemberIdTFilter)
+  const receiptIdT = RECEIPT_ID_T_FILTERS.has(receiptIdTRaw as ReceiptIdTFilter)
+    ? (receiptIdTRaw as ReceiptIdTFilter)
     : undefined;
   const sort = MEMBER_SORTS.has(sortRaw as MemberListSort)
     ? (sortRaw as MemberListSort)
     : undefined;
 
   // Require at least a query or a filter/sort so we don't dump the full DB by accident.
-  if (!q && !status && !memberIdT && !sort) {
+  if (!q && !status && !receiptIdT && !sort) {
     res.status(200).json({ ok: true, items: [] });
     return;
   }
@@ -349,7 +351,7 @@ export async function handleAdminMemberSearch(
   const items = await listMembers({
     q,
     status,
-    memberIdT,
+    receiptIdT,
     sort: sort ?? (q ? "updated_desc" : undefined),
     limit: Number.isFinite(limitRaw) ? limitRaw : 30,
   });

@@ -11,6 +11,7 @@ import {
   slipReviewApprovedText,
   slipReviewRejectedText,
 } from "../line/messages";
+import { parseMemberId, parseReceiptNumber } from "../members/id-registry";
 import { allocatePermanentMemberId } from "../members/ids";
 import {
   MEMBERS_COLLECTION,
@@ -49,14 +50,17 @@ export interface QueueMemberItem {
   hasSlip: boolean;
 }
 
-/** Display-status filter aligned with admin StatusBadge labels. */
+/** Display-status filter aligned with admin StatusBadge labels + Phase 1 member statuses. */
 export type MemberListStatusFilter =
   | "pending_data"
   | "pending_slip"
   | "temporary"
-  | "active";
+  | "active"
+  | "near_expiry"
+  | "expired";
 
-export type MemberIdTFilter = "with_t" | "without_t";
+/** Filter on receipt number form: RC-T-… vs RC-… (or none). */
+export type ReceiptIdTFilter = "with_t" | "without_t";
 
 export type MemberListSort =
   | "member_asc"
@@ -69,7 +73,7 @@ export type MemberListSort =
 export interface ListMembersOpts {
   q?: string;
   status?: MemberListStatusFilter | "";
-  memberIdT?: MemberIdTFilter | "";
+  receiptIdT?: ReceiptIdTFilter | "";
   sort?: MemberListSort;
   limit?: number;
 }
@@ -121,9 +125,21 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
   };
 }
 
-/** Temp IDs use ABTA-T-{YYYY}-{####} (letter T in the id). */
+/**
+ * Temp IDs are ABTA-T-{YYYY}-{####} (see members/ids.ts).
+ * Do not use /T/i — the prefix "ABTA" always contains the letter T.
+ */
 export function memberIdHasT(memberId: string): boolean {
-  return /T/i.test(memberId);
+  return parseMemberId(memberId)?.kind === "temp";
+}
+
+/**
+ * Temp receipts are RC-T-{YYYY}-{####} (see admin/receipts.ts).
+ * Do not use /T/i — "RC" alone must not count as having T.
+ */
+export function receiptIdHasT(receiptNumber?: string): boolean {
+  if (!receiptNumber?.trim()) return false;
+  return parseReceiptNumber(receiptNumber)?.kind === "temp";
 }
 
 function isAwaitingSlipReview(item: {
@@ -154,6 +170,8 @@ export function memberDisplayStatus(
 ): MemberListStatusFilter | "other" {
   if (item.dataReviewStatus === "pending") return "pending_data";
   if (isAwaitingSlipReview(item)) return "pending_slip";
+  if (item.status === "near_expiry") return "near_expiry";
+  if (item.status === "expired") return "expired";
   if (item.status === "active") return "active";
   if (item.status === "temporary") return "temporary";
   return "other";
@@ -372,7 +390,7 @@ export async function getDashboardStats(): Promise<{
 }
 
 /**
- * List / search members with optional status + T-in-id filters and sort.
+ * List / search members with optional status + receipt-T filters and sort.
  * Scans the members collection (same as prior search) then filters in memory.
  */
 export async function listMembers(
@@ -380,13 +398,13 @@ export async function listMembers(
 ): Promise<QueueMemberItem[]> {
   const q = (opts.q ?? "").trim().toLowerCase();
   const status = opts.status || undefined;
-  const memberIdT = opts.memberIdT || undefined;
+  const receiptIdT = opts.receiptIdT || undefined;
   const sort: MemberListSort = opts.sort ?? "updated_desc";
   const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
 
   // Empty search with no filters/sort: return nothing (dashboard uses recent).
   // Empty search WITH filters or explicit sort: browse mode over all members.
-  if (!q && !status && !memberIdT && !opts.sort) {
+  if (!q && !status && !receiptIdT && !opts.sort) {
     return [];
   }
 
@@ -412,11 +430,11 @@ export async function listMembers(
         .toLowerCase();
       if (!hay.includes(q)) continue;
     }
-    if (memberIdT === "with_t" && !memberIdHasT(m.memberId)) continue;
-    if (memberIdT === "without_t" && memberIdHasT(m.memberId)) continue;
 
     const payment = await findLatestPayment(m.memberId);
     const item = toQueueItem(m, payment);
+    if (receiptIdT === "with_t" && !receiptIdHasT(item.receiptNumber)) continue;
+    if (receiptIdT === "without_t" && receiptIdHasT(item.receiptNumber)) continue;
     if (status && !matchesStatusFilter(item, status)) continue;
     results.push(item);
   }

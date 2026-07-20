@@ -1,10 +1,12 @@
-import type {
-  AdminMe,
-  DashboardData,
-  LegacyPaymentRow,
-  MemberDetail,
-  QueueItem,
-  StaffRow,
+import {
+  memberIdHasT,
+  receiptIdHasT,
+  type AdminMe,
+  type DashboardData,
+  type LegacyPaymentRow,
+  type MemberDetail,
+  type QueueItem,
+  type StaffRow,
 } from "./admin-api";
 
 const SESSION_KEY = "abta-dev-admin";
@@ -49,18 +51,18 @@ const MOCK_QUEUE: QueueItem[] = [
     hasSlip: true,
   },
   {
-    memberId: "ABTA-T-2026-0043",
+    memberId: "ABTA-2026-0043",
     tempMemberId: "ABTA-T-2026-0043",
     fullName: "วิไล รักเรียน",
     phone: "0898765432",
     legalEntityName: "ห้างหุ้นส่วนจำกัด วิไลดีไซน์",
     buildingName: "Central Plaza",
     linkType: "legacy",
-    status: "temporary",
+    status: "active",
     dataReviewStatus: "approved",
     paymentId: "pay-0043",
     amount: 500,
-    receiptNumber: "R-T-2026-0043",
+    receiptNumber: "RC-T-2026-0043",
     receiptStatus: "temp",
     paymentStatus: "slip_review",
     createdAt: "2026-07-17T08:15:00.000Z",
@@ -74,11 +76,36 @@ const MOCK_QUEUE: QueueItem[] = [
     legalEntityName: "บริษัท ประเสริฐ กรุ๊ป จำกัด",
     status: "active",
     dataReviewStatus: "approved",
+    receiptNumber: "RC-2025-1045",
     receiptStatus: "official",
     paymentStatus: "official_receipt_issued",
     verifiedAt: "2026-07-15T11:00:00.000Z",
     createdAt: "2025-03-01T00:00:00.000Z",
     updatedAt: "2026-07-15T11:00:00.000Z",
+    hasSlip: false,
+  },
+  {
+    memberId: "ABTA-2024-0888",
+    fullName: "มานี ใกล้หมด",
+    phone: "0811112222",
+    legalEntityName: "หจก. มานี",
+    status: "near_expiry",
+    dataReviewStatus: "approved",
+    receiptStatus: "official",
+    paymentStatus: "official_receipt_issued",
+    verifiedAt: "2025-06-01T10:00:00.000Z",
+    createdAt: "2024-06-01T00:00:00.000Z",
+    updatedAt: "2026-07-10T08:00:00.000Z",
+    hasSlip: false,
+  },
+  {
+    memberId: "ABTA-2023-0012",
+    fullName: "สมศักดิ์ หมดอายุ",
+    phone: "0899990000",
+    status: "expired",
+    dataReviewStatus: "approved",
+    createdAt: "2023-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
     hasSlip: false,
   },
 ];
@@ -146,10 +173,10 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (path.startsWith("/admin/members/search")) {
     const q = query.trim().toLowerCase();
     const status = url.searchParams.get("status") ?? "";
-    const memberIdT = url.searchParams.get("memberIdT") ?? "";
+    const receiptIdT = url.searchParams.get("receiptIdT") ?? "";
     const sort = url.searchParams.get("sort") ?? "updated_desc";
 
-    if (!q && !status && !memberIdT && !url.searchParams.get("sort")) {
+    if (!q && !status && !receiptIdT && !url.searchParams.get("sort")) {
       return Promise.resolve({ items: [] } as T);
     }
 
@@ -162,10 +189,10 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
           (i.legalEntityName ?? "").toLowerCase().includes(q),
       );
     }
-    if (memberIdT === "with_t") {
-      items = items.filter((i) => /T/i.test(i.memberId));
-    } else if (memberIdT === "without_t") {
-      items = items.filter((i) => !/T/i.test(i.memberId));
+    if (receiptIdT === "with_t") {
+      items = items.filter((i) => receiptIdHasT(i.receiptNumber));
+    } else if (receiptIdT === "without_t") {
+      items = items.filter((i) => !receiptIdHasT(i.receiptNumber));
     }
     function displayStatus(i: QueueItem): string {
       if (i.dataReviewStatus === "pending") return "pending_data";
@@ -177,6 +204,8 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
             i.receiptStatus === "rejected") &&
             i.dataReviewStatus === "approved"));
       if (awaitingSlip) return "pending_slip";
+      if (i.status === "near_expiry") return "near_expiry";
+      if (i.status === "expired") return "expired";
       if (i.status === "active") return "active";
       if (i.status === "temporary") return "temporary";
       return "other";
@@ -187,7 +216,7 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
     }
 
     items.sort((a, b) => {
-      const hasT = (id: string) => (/T/i.test(id) ? 0 : 1);
+      const tRank = (id: string) => (memberIdHasT(id) ? 0 : 1);
       const cmpId = (x: string, y: string) => x.localeCompare(y, "en");
       switch (sort) {
         case "member_asc":
@@ -195,11 +224,11 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
         case "member_desc":
           return cmpId(b.memberId, a.memberId);
         case "t_first": {
-          const d = hasT(a.memberId) - hasT(b.memberId);
+          const d = tRank(a.memberId) - tRank(b.memberId);
           return d !== 0 ? d : cmpId(a.memberId, b.memberId);
         }
         case "no_t_first": {
-          const d = hasT(b.memberId) - hasT(a.memberId);
+          const d = tRank(b.memberId) - tRank(a.memberId);
           return d !== 0 ? d : cmpId(a.memberId, b.memberId);
         }
         case "confirmed_desc":
@@ -225,8 +254,8 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
       suggest: {
         nextTempMemberId: "T-2026-0099",
         nextPermanentMemberId: "A-1099",
-        nextTempReceiptNumber: "R-T-2026-0099",
-        nextOfficialReceiptNumber: "R-2026-0099",
+        nextTempReceiptNumber: "RC-T-2026-0099",
+        nextOfficialReceiptNumber: "RC-2026-0099",
       },
     } as T);
   }

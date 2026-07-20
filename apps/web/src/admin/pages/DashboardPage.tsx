@@ -1,19 +1,27 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import {
   fetchDashboard,
   fetchMemberDetail,
-  MEMBER_ID_T_FILTER_OPTIONS,
   MEMBER_SORT_OPTIONS,
   MEMBER_STATUS_FILTER_OPTIONS,
+  RECEIPT_ID_T_FILTER_OPTIONS,
   memberNameParts,
   searchAdminMembers,
   type AdminMe,
   type DashboardData,
   type MemberDetail,
-  type MemberIdTFilter,
   type MemberListSort,
   type MemberListStatusFilter,
   type QueueItem,
+  type ReceiptIdTFilter,
 } from "../../lib/admin-api";
 import MemberDetailDrawer from "../MemberDetailDrawer";
 
@@ -31,7 +39,7 @@ export default function DashboardPage(props: {
   const [statusFilter, setStatusFilter] = useState<"" | MemberListStatusFilter>(
     "",
   );
-  const [memberIdTFilter, setMemberIdTFilter] = useState<"" | MemberIdTFilter>(
+  const [receiptIdTFilter, setReceiptIdTFilter] = useState<"" | ReceiptIdTFilter>(
     "",
   );
   const [sort, setSort] = useState<MemberListSort>(DEFAULT_SORT);
@@ -45,7 +53,7 @@ export default function DashboardPage(props: {
 
   const filtersActive =
     Boolean(statusFilter) ||
-    Boolean(memberIdTFilter) ||
+    Boolean(receiptIdTFilter) ||
     sort !== DEFAULT_SORT;
 
   const reloadDashboard = useCallback(async () => {
@@ -115,14 +123,14 @@ export default function DashboardPage(props: {
   async function loadMemberList(opts: {
     q?: string;
     status?: "" | MemberListStatusFilter;
-    memberIdT?: "" | MemberIdTFilter;
+    receiptIdT?: "" | ReceiptIdTFilter;
     sort: MemberListSort;
   }) {
     const q = opts.q?.trim() ?? "";
     const useApi =
       Boolean(q) ||
       Boolean(opts.status) ||
-      Boolean(opts.memberIdT) ||
+      Boolean(opts.receiptIdT) ||
       opts.sort !== DEFAULT_SORT;
 
     if (!useApi) {
@@ -138,7 +146,7 @@ export default function DashboardPage(props: {
       const items = await searchAdminMembers({
         q: q || undefined,
         status: opts.status || undefined,
-        memberIdT: opts.memberIdT || undefined,
+        receiptIdT: opts.receiptIdT || undefined,
         sort: opts.sort,
         limit: q ? 30 : 50,
       });
@@ -169,7 +177,7 @@ export default function DashboardPage(props: {
     await loadMemberList({
       q: query,
       status: statusFilter,
-      memberIdT: memberIdTFilter,
+      receiptIdT: receiptIdTFilter,
       sort,
     });
   }
@@ -179,17 +187,17 @@ export default function DashboardPage(props: {
     await loadMemberList({
       q: query,
       status: value,
-      memberIdT: memberIdTFilter,
+      receiptIdT: receiptIdTFilter,
       sort,
     });
   }
 
-  async function onMemberIdTChange(value: "" | MemberIdTFilter) {
-    setMemberIdTFilter(value);
+  async function onReceiptIdTChange(value: "" | ReceiptIdTFilter) {
+    setReceiptIdTFilter(value);
     await loadMemberList({
       q: query,
       status: statusFilter,
-      memberIdT: value,
+      receiptIdT: value,
       sort,
     });
   }
@@ -199,7 +207,7 @@ export default function DashboardPage(props: {
     await loadMemberList({
       q: query,
       status: statusFilter,
-      memberIdT: memberIdTFilter,
+      receiptIdT: receiptIdTFilter,
       sort: value,
     });
   }
@@ -207,7 +215,7 @@ export default function DashboardPage(props: {
   async function clearFilters() {
     setQuery("");
     setStatusFilter("");
-    setMemberIdTFilter("");
+    setReceiptIdTFilter("");
     setSort(DEFAULT_SORT);
     setSearching(true);
     setError(null);
@@ -288,59 +296,32 @@ export default function DashboardPage(props: {
           </button>
         </form>
 
-        <div className="bo-list-toolbar">
-          <div className="bo-field">
-            <label htmlFor="bo-filter-status">สถานะสมาชิก</label>
-            <select
-              id="bo-filter-status"
-              value={statusFilter}
-              onChange={(e) =>
-                void onStatusChange(
-                  e.target.value as "" | MemberListStatusFilter,
-                )
-              }
-              disabled={searching}
-            >
-              {MEMBER_STATUS_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value || "all"} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="bo-field">
-            <label htmlFor="bo-filter-t">เลขสมาชิก (T)</label>
-            <select
-              id="bo-filter-t"
-              value={memberIdTFilter}
-              onChange={(e) =>
-                void onMemberIdTChange(e.target.value as "" | MemberIdTFilter)
-              }
-              disabled={searching}
-            >
-              {MEMBER_ID_T_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value || "all"} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="bo-field">
-            <label htmlFor="bo-sort">เรียงตาม</label>
-            <select
-              id="bo-sort"
+        <div className="bo-list-filters">
+          <FilterSegGroup
+            label="สถานะสมาชิก"
+            options={MEMBER_STATUS_FILTER_OPTIONS}
+            value={statusFilter}
+            disabled={searching}
+            onChange={(v) => void onStatusChange(v)}
+          />
+          <FilterSegGroup
+            label="เลขใบเสร็จ (T)"
+            options={RECEIPT_ID_T_FILTER_OPTIONS}
+            value={receiptIdTFilter}
+            disabled={searching}
+            onChange={(v) => void onReceiptIdTChange(v)}
+            compact
+          />
+          <div className="bo-filter-group bo-filter-group--sort">
+            <span className="bo-filter-label" id="bo-sort-label">
+              เรียงตาม
+            </span>
+            <SortMenu
               value={sort}
-              onChange={(e) =>
-                void onSortChange(e.target.value as MemberListSort)
-              }
               disabled={searching}
-            >
-              {MEMBER_SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              labelledBy="bo-sort-label"
+              onChange={(v) => void onSortChange(v)}
+            />
           </div>
           <div className="bo-list-toolbar-actions">
             <button
@@ -442,6 +423,136 @@ export default function DashboardPage(props: {
   );
 }
 
+function FilterSegGroup<T extends string>(props: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  disabled?: boolean;
+  compact?: boolean;
+  onChange: (value: T) => void;
+}) {
+  const labelId = useId();
+  return (
+    <div
+      className={`bo-filter-group${props.compact ? " bo-filter-group--compact" : ""}`}
+    >
+      <span className="bo-filter-label" id={labelId}>
+        {props.label}
+      </span>
+      <div
+        className="bo-seg"
+        role="radiogroup"
+        aria-labelledby={labelId}
+      >
+        {props.options.map((opt) => {
+          const active = props.value === opt.value;
+          return (
+            <button
+              key={opt.value || "all"}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              className={`bo-seg-btn${active ? " is-active" : ""}`}
+              disabled={props.disabled}
+              onClick={() => {
+                if (!active) props.onChange(opt.value);
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SortMenu(props: {
+  value: MemberListSort;
+  disabled?: boolean;
+  labelledBy: string;
+  onChange: (value: MemberListSort) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const selected =
+    MEMBER_SORT_OPTIONS.find((o) => o.value === props.value) ??
+    MEMBER_SORT_OPTIONS[0];
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function onTriggerKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
+    if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setOpen(true);
+    }
+  }
+
+  return (
+    <div className="bo-menu" ref={rootRef}>
+      <button
+        type="button"
+        className={`bo-menu-trigger${open ? " is-open" : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-labelledby={props.labelledBy}
+        disabled={props.disabled}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={onTriggerKeyDown}
+      >
+        <span className="bo-menu-trigger-text">{selected.label}</span>
+        <span className="bo-menu-chevron" aria-hidden="true" />
+      </button>
+      {open ? (
+        <ul
+          id={listId}
+          className="bo-menu-list"
+          role="listbox"
+          aria-labelledby={props.labelledBy}
+        >
+          {MEMBER_SORT_OPTIONS.map((opt) => {
+            const active = opt.value === props.value;
+            return (
+              <li key={opt.value} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={`bo-menu-option${active ? " is-active" : ""}`}
+                  onClick={() => {
+                    setOpen(false);
+                    if (!active) props.onChange(opt.value);
+                  }}
+                >
+                  {opt.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function isAwaitingSlipReview(props: {
   dataReview?: string;
   paymentStatus?: string;
@@ -473,11 +584,23 @@ function StatusBadge(props: {
   if (isAwaitingSlipReview(props)) {
     return <span className="bo-badge slip">รอตรวจสลิป</span>;
   }
+  if (props.status === "near_expiry") {
+    return <span className="bo-badge near-expiry">ใกล้หมดอายุ</span>;
+  }
+  if (props.status === "expired") {
+    return <span className="bo-badge expired">หมดอายุ</span>;
+  }
   if (props.status === "active") {
     return <span className="bo-badge active">สมาชิกสมบูรณ์</span>;
   }
   if (props.status === "temporary") {
     return <span className="bo-badge temp">สมาชิกชั่วคราว</span>;
+  }
+  if (props.status === "registered") {
+    return <span className="bo-badge pending">สมัครแล้ว</span>;
+  }
+  if (props.status === "pending_review") {
+    return <span className="bo-badge pending">รอตรวจสอบเอกสาร</span>;
   }
   return <span className="bo-badge pending">{props.status}</span>;
 }

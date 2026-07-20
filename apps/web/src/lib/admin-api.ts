@@ -38,14 +38,16 @@ export interface QueueItem {
   hasSlip: boolean;
 }
 
-/** Display-status filter (matches admin StatusBadge labels). */
+/** Display-status filter (matches admin StatusBadge labels + Phase 1 statuses). */
 export type MemberListStatusFilter =
   | "pending_data"
   | "pending_slip"
   | "temporary"
-  | "active";
+  | "active"
+  | "near_expiry"
+  | "expired";
 
-export type MemberIdTFilter = "with_t" | "without_t";
+export type ReceiptIdTFilter = "with_t" | "without_t";
 
 export type MemberListSort =
   | "member_asc"
@@ -58,28 +60,41 @@ export type MemberListSort =
 export interface MemberListQuery {
   q?: string;
   status?: MemberListStatusFilter | "";
-  memberIdT?: MemberIdTFilter | "";
+  receiptIdT?: ReceiptIdTFilter | "";
   sort?: MemberListSort | "";
   limit?: number;
+}
+
+/** Temp IDs are ABTA-T-{YYYY}-{####}; "ABTA" alone must not count as having T. */
+export function memberIdHasT(memberId: string): boolean {
+  return /^ABTA-T-\d{4}-\d{4}$/i.test(memberId.trim());
+}
+
+/** Temp receipts are RC-T-{YYYY}-{####}; "RC" alone must not count as having T. */
+export function receiptIdHasT(receiptNumber?: string): boolean {
+  if (!receiptNumber?.trim()) return false;
+  return /^RC-T-\d{4}-\d{4}$/i.test(receiptNumber.trim());
 }
 
 export const MEMBER_STATUS_FILTER_OPTIONS: {
   value: "" | MemberListStatusFilter;
   label: string;
 }[] = [
-  { value: "", label: "ทุกสถานะ" },
+  { value: "", label: "ทั้งหมด" },
   { value: "pending_data", label: "รอตรวจข้อมูล" },
   { value: "pending_slip", label: "รอตรวจสลิป" },
   { value: "temporary", label: "สมาชิกชั่วคราว" },
   { value: "active", label: "สมาชิกสมบูรณ์" },
+  { value: "near_expiry", label: "ใกล้หมดอายุ" },
+  { value: "expired", label: "หมดอายุ" },
 ];
 
-export const MEMBER_ID_T_FILTER_OPTIONS: {
-  value: "" | MemberIdTFilter;
+export const RECEIPT_ID_T_FILTER_OPTIONS: {
+  value: "" | ReceiptIdTFilter;
   label: string;
 }[] = [
-  { value: "", label: "เลขสมาชิกทั้งหมด" },
-  { value: "with_t", label: "มี T (ชั่วคราว)" },
+  { value: "", label: "ทั้งหมด" },
+  { value: "with_t", label: "มี T" },
   { value: "without_t", label: "ไม่มี T" },
 ];
 
@@ -215,7 +230,7 @@ export async function searchAdminMembers(
   const q = opts.q?.trim() ?? "";
   if (q) params.set("q", q);
   if (opts.status) params.set("status", opts.status);
-  if (opts.memberIdT) params.set("memberIdT", opts.memberIdT);
+  if (opts.receiptIdT) params.set("receiptIdT", opts.receiptIdT);
   if (opts.sort) params.set("sort", opts.sort);
   if (opts.limit != null) params.set("limit", String(opts.limit));
   const data = await adminFetch<{ items: QueueItem[] }>(

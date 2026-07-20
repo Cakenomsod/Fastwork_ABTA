@@ -183,11 +183,23 @@ function StatusBadge(props: {
   if (isAwaitingSlipReview(props)) {
     return <span className="bo-badge slip">รอตรวจสลิป</span>;
   }
+  if (props.status === "near_expiry") {
+    return <span className="bo-badge near-expiry">ใกล้หมดอายุ</span>;
+  }
+  if (props.status === "expired") {
+    return <span className="bo-badge expired">หมดอายุ</span>;
+  }
   if (props.status === "active") {
     return <span className="bo-badge active">สมาชิกสมบูรณ์</span>;
   }
   if (props.status === "temporary") {
     return <span className="bo-badge temp">สมาชิกชั่วคราว</span>;
+  }
+  if (props.status === "registered") {
+    return <span className="bo-badge pending">สมัครแล้ว</span>;
+  }
+  if (props.status === "pending_review") {
+    return <span className="bo-badge pending">รอตรวจสอบเอกสาร</span>;
   }
   return <span className="bo-badge pending">{props.status}</span>;
 }
