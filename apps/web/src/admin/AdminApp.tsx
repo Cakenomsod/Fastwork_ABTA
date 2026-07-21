@@ -60,6 +60,12 @@ export default function AdminApp() {
     parseRoute(window.location.pathname),
   );
   const [counts, setCounts] = useState({ data: 0, slips: 0 });
+  const [navOpen, setNavOpen] = useState(false);
+
+  function go(next: AdminRoute) {
+    setNavOpen(false);
+    navigate(next);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -271,23 +277,57 @@ export default function AdminApp() {
   return (
     <div className="bo-root">
       <div className="bo-layout">
-        <aside className="bo-sidebar">
+        <aside className={`bo-sidebar${navOpen ? " nav-open" : ""}`}>
           <div className="bo-brand">
-            <p className="bo-brand-mark">ABTA</p>
-            <p className="bo-brand-sub">Back Office · Phase 1</p>
+            <div className="bo-brand-text">
+              <p className="bo-brand-mark">ABTA</p>
+              <p className="bo-brand-sub">Back Office · Phase 1</p>
+            </div>
+            <button
+              type="button"
+              className="bo-nav-toggle"
+              aria-expanded={navOpen}
+              aria-controls="bo-mobile-nav"
+              aria-label={navOpen ? "ปิดเมนู" : "เปิดเมนู"}
+              onClick={() => setNavOpen((o) => !o)}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                {navOpen ? (
+                  <>
+                    <path d="M6 6 18 18" />
+                    <path d="M18 6 6 18" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M4 7h16" />
+                    <path d="M4 12h16" />
+                    <path d="M4 17h16" />
+                  </>
+                )}
+              </svg>
+            </button>
           </div>
 
-          <nav className="bo-nav" aria-label="เมนูหลัก">
+          <nav className="bo-nav" id="bo-mobile-nav" aria-label="เมนูหลัก">
             <p className="bo-nav-section">สมาชิก</p>
             <NavBtn
               active={route === "dashboard"}
-              onClick={() => navigate("dashboard")}
+              onClick={() => go("dashboard")}
               label="Dashboard"
             />
             {canSeeData && (
               <NavBtn
                 active={route === "data"}
-                onClick={() => navigate("data")}
+                onClick={() => go("data")}
                 label="ตรวจข้อมูล"
                 count={counts.data}
               />
@@ -295,7 +335,7 @@ export default function AdminApp() {
             {canSeeSlips && (
               <NavBtn
                 active={route === "slips"}
-                onClick={() => navigate("slips")}
+                onClick={() => go("slips")}
                 label="ตรวจสลิป"
                 count={counts.slips}
               />
@@ -306,7 +346,7 @@ export default function AdminApp() {
                 <p className="bo-nav-section">ข้อมูลเก่า</p>
                 <NavBtn
                   active={route === "legacy"}
-                  onClick={() => navigate("legacy")}
+                  onClick={() => go("legacy")}
                   label="นำเข้า Excel"
                 />
               </>
@@ -317,7 +357,7 @@ export default function AdminApp() {
                 <p className="bo-nav-section">ระบบ</p>
                 <NavBtn
                   active={route === "staff"}
-                  onClick={() => navigate("staff")}
+                  onClick={() => go("staff")}
                   label="เจ้าหน้าที่"
                 />
               </>

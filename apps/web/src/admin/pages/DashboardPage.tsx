@@ -364,7 +364,7 @@ export default function DashboardPage(props: {
                 : "เมื่อมีใบสมัครใหม่จะแสดงที่นี่"}
             </div>
           ) : (
-            <table className="bo-table">
+            <table className="bo-table bo-table--cards">
               <thead>
                 <tr>
                   <th>ชื่อ</th>
@@ -384,13 +384,13 @@ export default function DashboardPage(props: {
                       className={`bo-row-clickable${selectedId === row.memberId ? " selected" : ""}`}
                       onClick={() => openMember(row.memberId)}
                     >
-                      <td>{name.firstName}</td>
-                      <td>{name.lastName}</td>
-                      <td>
+                      <td data-label="ชื่อ">{name.firstName}</td>
+                      <td data-label="นามสกุล">{name.lastName}</td>
+                      <td data-label="เลขสมาชิก">
                         <code>{row.memberId}</code>
                       </td>
-                      <td>{row.receiptNumber || "—"}</td>
-                      <td>
+                      <td data-label="ใบเสร็จ">{row.receiptNumber || "—"}</td>
+                      <td data-label="สถานะ">
                         <StatusBadge
                           status={row.status}
                           dataReview={row.dataReviewStatus}
@@ -398,7 +398,9 @@ export default function DashboardPage(props: {
                           receiptStatus={row.receiptStatus}
                         />
                       </td>
-                      <td>{formatDate(row.updatedAt ?? row.createdAt)}</td>
+                      <td data-label="อัปเดต">
+                        {formatDate(row.updatedAt ?? row.createdAt)}
+                      </td>
                     </tr>
                   );
                 })}
