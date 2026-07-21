@@ -253,7 +253,7 @@ export default function StaffPage() {
                 setDisplayName(e.target.value);
                 setFormSuccess(null);
               }}
-              placeholder="เช่น คุณตุ๊กตา"
+              placeholder="เช่น เพชญเกล้า"
             />
           </div>
           <div className="bo-field">

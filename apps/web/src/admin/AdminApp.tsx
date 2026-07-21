@@ -347,14 +347,6 @@ export default function AdminApp() {
           <header className="bo-topbar">
             <h1>{titleMap[route]}</h1>
             <div className="bo-topbar-actions">
-              {ADMIN_OPEN_ACCESS ? (
-                <span
-                  className="bo-open-access-badge"
-                  title="ปิดได้ที่ ADMIN_OPEN_ACCESS"
-                >
-                  โหมดเปิดตรวจงาน
-                </span>
-              ) : null}
               {user ? (
                 <button
                   type="button"
@@ -374,12 +366,7 @@ export default function AdminApp() {
               ) : null}
             </div>
           </header>
-          {ADMIN_OPEN_ACCESS ? (
-            <div className="bo-open-access-banner" role="status">
-              เปิดสิทธิ์ชั่วคราวให้ทุกคนใช้งานได้เต็มที่ รวมจัดการเจ้าหน้าที่ —
-              อย่าลืมปิดหลังลูกค้าตรวจงานเสร็จ
-            </div>
-          ) : null}
+
           <div className="bo-content">
             <Suspense
               fallback={

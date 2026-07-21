@@ -126,8 +126,7 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
         </div>
         <div className="bo-legacy-intro ">
           <p>
-            อัปโหลดไฟล์ Excel รูปแบบเดียวกับ{" "}
-            <code>NewMemDatabase.xlsx</code> ระบบจะแยกข้อมูลเข้า collection{" "}
+            อัปโหลดไฟล์ Excel {" "} ระบบจะแยกข้อมูลเข้า collection{" "}
             <code>legacyMembers</code> และ <code>legacyPayments</code>{" "}
             (อัปเดทแบบ merge ตามเลขสมาชิกเก่า)
           </p>
@@ -137,7 +136,6 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
               ถ้ามีประวัติชำระ)
             </li>
             <li>รองรับไฟล์ .xlsx / .xls ขนาดไม่เกิน 8 MB</li>
-            <li>ปี พ.ศ. ในวันที่จะถูกแปลงเป็น ค.ศ. อัตโนมัติ</li>
           </ul>
         </div>
 
