@@ -47,12 +47,15 @@ export interface PublicStatus {
   receiptLabel: string;
   receiptNumber?: string;
   seminarLabel: string;
+  renewalLabel?: string;
   memberCardUrl?: string;
   receiptUrl?: string;
   updatedAtLabel?: string;
   dataReviewStatus?: string;
   rejectReason?: string;
   canResubmit?: boolean;
+  canResubmitSlip?: boolean;
+  canRenew?: boolean;
 }
 
 export async function fetchMemberStatus(
@@ -116,7 +119,11 @@ export async function fetchRegisterDraft(idToken: string): Promise<RegisterDraft
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.ok) {
     const err = new Error(data?.error ?? `request_failed_${res.status}`);
-    (err as Error & { code?: string }).code = data?.error ?? String(res.status);
+    (err as Error & { code?: string; statusUrl?: string }).code =
+      data?.error ?? String(res.status);
+    if (typeof data?.statusUrl === "string" && data.statusUrl) {
+      (err as Error & { statusUrl?: string }).statusUrl = data.statusUrl;
+    }
     throw err;
   }
   if (data.mode === "resubmit") {
@@ -207,6 +214,10 @@ export interface LegacyBindSuccess {
 export async function bindLegacyMember(input: {
   idToken: string;
   legacyMemberId: string;
+  firstName: string;
+  lastName: string;
+  legalEntityName?: string;
+  buildingName?: string;
 }): Promise<LegacyBindSuccess> {
   const res = await fetch(`${apiBase()}/api/members/legacy/bind`, {
     method: "POST",

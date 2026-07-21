@@ -70,65 +70,74 @@ export default function SlipResubmitPage() {
     }
   }
 
-  if (liff.phase === "loading") {
-    return (
-      <main className="reg-page">
-        <p className="reg-muted">กำลังเชื่อมต่อ LINE…</p>
-      </main>
-    );
-  }
-  if (liff.phase === "error") {
-    return (
-      <main className="reg-page">
-        <p className="reg-error">{liff.message}</p>
-      </main>
-    );
-  }
-
-  if (done) {
-    return (
-      <main className="reg-page">
-        <section className="reg-card">
-          <h1>รับสลิปใหม่แล้ว</h1>
-          <p>เลขสมาชิก {done.memberId}</p>
-          <p>รอเหรัญญิกตรวจสอบครับ</p>
-          <p>
-            <a href={done.statusUrl}>ดูสถานะ</a>
-          </p>
-        </section>
-      </main>
-    );
-  }
-
   return (
-    <main className="reg-page">
-      <section className="reg-card">
-        <h1>ส่งสลิปใหม่</h1>
-        <p className="reg-muted">
-          ใช้เมื่อเหรัญญิกแจ้งว่าสลิปไม่ผ่าน — สมาชิกยังคงสถานะสมาชิกสมบูรณ์
-        </p>
-        <form onSubmit={(e) => void onSubmit(e)}>
-          <label className="reg-field">
-            <span>ไฟล์สลิป (JPG/PNG)</span>
-            <input type="file" accept="image/jpeg,image/png" onChange={onFile} />
-          </label>
-          {slip.kind === "ready" ? (
-            <img src={slip.previewUrl} alt="สลิป" className="reg-slip-preview" />
-          ) : null}
-          {slip.kind === "error" ? (
-            <p className="reg-error">{slip.message}</p>
-          ) : null}
-          {error ? <p className="reg-error">{error}</p> : null}
-          <button
-            type="submit"
-            className="reg-btn-primary"
-            disabled={busy || slip.kind !== "ready"}
-          >
-            {busy ? "กำลังส่ง…" : "ส่งสลิป"}
-          </button>
-        </form>
-      </section>
-    </main>
+    <div className="reg-shell">
+      <div className="reg-atmosphere" aria-hidden />
+      <main className="reg-wrap">
+        {liff.phase === "loading" && (
+          <p className="reg-lead">กำลังเชื่อมต่อ LINE…</p>
+        )}
+        {liff.phase === "error" && (
+          <div className="reg-error">
+            <div className="reg-error__badge">ABTA</div>
+            <h1 className="reg-error__title">เชื่อมต่อ LINE ไม่สำเร็จ</h1>
+            <p className="reg-error__detail">{liff.message}</p>
+          </div>
+        )}
+
+        {liff.phase !== "loading" && liff.phase !== "error" && done && (
+          <section className="reg-success">
+            <p className="reg-kicker">ABTA</p>
+            <h1>รับสลิปใหม่แล้ว</h1>
+            <p className="reg-success__id">{done.memberId}</p>
+            <p className="reg-lead">รอเหรัญญิกตรวจสอบครับ</p>
+            <a className="reg-btn reg-btn--primary" href={done.statusUrl}>
+              ดูสถานะ
+            </a>
+          </section>
+        )}
+
+        {liff.phase !== "loading" && liff.phase !== "error" && !done && (
+          <>
+            <header className="reg-hero">
+              <p className="reg-kicker">ABTA</p>
+              <h1>ส่งสลิปใหม่</h1>
+              <p className="reg-lead">
+                ใช้เมื่อเหรัญญิกแจ้งว่าสลิปไม่ผ่าน — สมาชิกยังคงสถานะสมาชิกสมบูรณ์
+              </p>
+            </header>
+            <form className="reg-form" onSubmit={(e) => void onSubmit(e)}>
+              <label className="reg-field">
+                <span>ไฟล์สลิป (JPG/PNG)</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  onChange={onFile}
+                />
+              </label>
+              {slip.kind === "ready" ? (
+                <img
+                  src={slip.previewUrl}
+                  alt="สลิป"
+                  className="reg-slip-preview"
+                />
+              ) : null}
+              {slip.kind === "error" ? (
+                <p className="reg-form-error">{slip.message}</p>
+              ) : null}
+              {error ? <p className="reg-form-error">{error}</p> : null}
+              <button
+                type="submit"
+                className="reg-btn reg-btn--primary"
+                disabled={busy || slip.kind !== "ready"}
+              >
+                {busy ? "กำลังส่ง…" : "ส่งสลิป"}
+              </button>
+            </form>
+          </>
+        )}
+      </main>
+    </div>
   );
 }
 

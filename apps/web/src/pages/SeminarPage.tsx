@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { apiBase } from "../lib/api";
+import { apiBase, fetchRenewDraft } from "../lib/api";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import "./register.css";
 
@@ -10,10 +10,18 @@ type Seminar = {
   eventDate?: string;
   location?: string;
   pricing: Record<string, number>;
+  pricingLabels?: Record<string, string>;
+};
+
+const PRICING_FALLBACK: Record<string, string> = {
+  public_paid: "บุคคลทั่วไป (เสียเงิน)",
+  member_free: "สมาชิก (ฟรี)",
+  member_paid: "สมาชิก (เสียเงิน)",
 };
 
 export default function SeminarPage() {
   const [liff, setLiff] = useState<LiffPhase>({ phase: "loading" });
+  const [isMember, setIsMember] = useState(false);
   const [items, setItems] = useState<Seminar[]>([]);
   const [selected, setSelected] = useState<Seminar | null>(null);
   const [form, setForm] = useState({
@@ -32,7 +40,25 @@ export default function SeminarPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void initLiff().then(setLiff);
+    void initLiff().then(async (phase) => {
+      setLiff(phase);
+      if (phase.phase !== "ready" && phase.phase !== "dev") return;
+      try {
+        const idToken =
+          (await getIdToken()) ?? (phase.phase === "dev" ? "dev" : "");
+        if (!idToken) return;
+        const draft = await fetchRenewDraft(idToken);
+        setIsMember(true);
+        setForm((f) => ({
+          ...f,
+          firstName: draft.firstName || f.firstName,
+          lastName: draft.lastName || f.lastName,
+          applicantType: "member_free",
+        }));
+      } catch {
+        setIsMember(false);
+      }
+    });
     void fetch(`${apiBase()}/api/seminars`)
       .then((r) => r.json())
       .then((d) => {
@@ -41,17 +67,39 @@ export default function SeminarPage() {
       .catch(() => setError("โหลดรายการสัมมนาไม่สำเร็จ"));
   }, []);
 
+  const pricingOptions = selected
+    ? Object.keys(selected.pricing).filter((k) => {
+        if (isMember) return true;
+        return k === "public_paid";
+      })
+    : [];
+
   const fee = selected
     ? Number(selected.pricing[form.applicantType] ?? 0) || 0
     : 0;
 
+  function pricingLabel(key: string): string {
+    return (
+      selected?.pricingLabels?.[key] ??
+      PRICING_FALLBACK[key] ??
+      key
+    );
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!selected) return;
+    if (liff.phase === "error") {
+      setError("กรุณาเปิดจาก LINE OA");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const idToken = await getIdToken();
+      if (!idToken && liff.phase !== "dev") {
+        throw new Error("invalid_id_token");
+      }
       let slipContentType: string | undefined;
       let slipBase64: string | undefined;
       if (fee > 0) {
@@ -63,7 +111,7 @@ export default function SeminarPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          idToken,
+          idToken: idToken ?? (liff.phase === "dev" ? "dev" : undefined),
           seminarId: selected.seminarId,
           ...form,
           slipContentType,
@@ -74,149 +122,200 @@ export default function SeminarPage() {
       if (!res.ok || !data.ok) throw new Error(data.error ?? "error");
       setDone(data.registrationId);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "error";
       setError(
-        err instanceof Error && err.message === "slip_required"
+        msg === "slip_required"
           ? "กรุณาแนบสลิป"
-          : "สมัครไม่สำเร็จ",
+          : msg === "member_required"
+            ? "ประเภทนี้สำหรับสมาชิกเท่านั้น"
+            : msg === "invalid_id_token"
+              ? "เซสชัน LINE หมดอายุ กรุณาเปิดจาก LINE OA อีกครั้ง"
+              : "สมัครไม่สำเร็จ",
       );
     } finally {
       setBusy(false);
     }
   }
 
-  if (done) {
-    return (
-      <main className="reg-page">
-        <section className="reg-card">
-          <h1>รับสมัครสัมมนาแล้ว</h1>
-          <p>รหัสใบสมัคร {done}</p>
-          <p>รอเจ้าหน้าที่ยืนยันสิทธิ์ครับ</p>
-        </section>
-      </main>
-    );
-  }
-
   return (
-    <main className="reg-page">
-      <section className="reg-card">
-        <h1>สมัครสัมมนา</h1>
-        {liff.phase === "error" ? (
-          <p className="reg-muted">{liff.message}</p>
-        ) : null}
-        {error ? <p className="reg-error">{error}</p> : null}
+    <div className="reg-shell">
+      <div className="reg-atmosphere" aria-hidden />
+      <main className="reg-wrap">
+        {done ? (
+          <section className="reg-success">
+            <p className="reg-kicker">ABTA</p>
+            <h1>รับสมัครสัมมนาแล้ว</h1>
+            <p className="reg-success__id">{done}</p>
+            <p className="reg-lead">รอเจ้าหน้าที่ยืนยันสิทธิ์ครับ</p>
+          </section>
+        ) : (
+          <>
+            <header className="reg-hero">
+              <p className="reg-kicker">ABTA</p>
+              <h1>สมัครสัมมนา</h1>
+              <p className="reg-lead">
+                {isMember
+                  ? "ดึงข้อมูลสมาชิกจากบัญชี LINE แล้ว"
+                  : "เลือกงานแล้วกรอกข้อมูลผู้สมัคร"}
+              </p>
+            </header>
 
-        {!selected ? (
-          <ul className="reg-list">
-            {items.map((s) => (
-              <li key={s.seminarId}>
+            {liff.phase === "error" ? (
+              <div className="reg-warn">{liff.message}</div>
+            ) : null}
+            {error ? <p className="reg-form-error">{error}</p> : null}
+
+            {!selected ? (
+              <section className="reg-form">
+                <h2 className="reg-section__title">รายการสัมมนา</h2>
+                {items.length === 0 ? (
+                  <p className="reg-lead" style={{ color: "inherit" }}>
+                    ยังไม่มีงานสัมมนาที่เปิดรับสมัคร
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {items.map((s) => (
+                      <li key={s.seminarId} style={{ marginBottom: "0.75rem" }}>
+                        <button
+                          type="button"
+                          className="reg-btn reg-btn--ghost"
+                          style={{ width: "100%", textAlign: "left" }}
+                          onClick={() => {
+                            setSelected(s);
+                            const keys = Object.keys(s.pricing);
+                            const preferred = isMember
+                              ? keys.find((k) => k.startsWith("member")) ??
+                                keys[0]
+                              : keys.find((k) => k === "public_paid") ?? keys[0];
+                            if (preferred) {
+                              setForm((f) => ({
+                                ...f,
+                                applicantType: preferred,
+                              }));
+                            }
+                          }}
+                        >
+                          <strong>{s.title}</strong>
+                          {(s.eventDate || s.location) && (
+                            <span>
+                              {" "}
+                              · {[s.eventDate, s.location]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : (
+              <form className="reg-form" onSubmit={(e) => void onSubmit(e)}>
                 <button
                   type="button"
-                  className="reg-btn-ghost"
-                  onClick={() => setSelected(s)}
+                  className="reg-btn reg-btn--ghost"
+                  style={{ marginBottom: "1rem" }}
+                  onClick={() => setSelected(null)}
                 >
-                  <strong>{s.title}</strong>
-                  <span className="reg-muted">
-                    {" "}
-                    {s.eventDate ?? ""} {s.location ?? ""}
-                  </span>
+                  ← กลับเลือกรายการ
                 </button>
-              </li>
-            ))}
-            {items.length === 0 ? (
-              <li className="reg-muted">ยังไม่มีงานสัมมนา</li>
-            ) : null}
-          </ul>
-        ) : (
-          <form onSubmit={(e) => void onSubmit(e)}>
-            <button
-              type="button"
-              className="reg-btn-ghost"
-              onClick={() => setSelected(null)}
-            >
-              ← กลับ
-            </button>
-            <h2>{selected.title}</h2>
-            <p className="reg-muted">{selected.description}</p>
-            <label className="reg-field">
-              <span>ชื่อ</span>
-              <input
-                value={form.firstName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, firstName: e.target.value }))
-                }
-                required
-              />
-            </label>
-            <label className="reg-field">
-              <span>นามสกุล</span>
-              <input
-                value={form.lastName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, lastName: e.target.value }))
-                }
-                required
-              />
-            </label>
-            <label className="reg-field">
-              <span>เบอร์โทร</span>
-              <input
-                value={form.phone}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, phone: e.target.value }))
-                }
-                required
-              />
-            </label>
-            <label className="reg-field">
-              <span>ประเภทผู้สมัคร</span>
-              <select
-                value={form.applicantType}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, applicantType: e.target.value }))
-                }
-              >
-                {Object.keys(selected.pricing).map((k) => (
-                  <option key={k} value={k}>
-                    {k} ({selected.pricing[k]} บาท)
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="reg-field">
-              <span>ไซส์เสื้อ</span>
-              <input
-                value={form.shirtSize}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, shirtSize: e.target.value }))
-                }
-              />
-            </label>
-            <label className="reg-field">
-              <span>ประเภทอาหาร</span>
-              <input
-                value={form.foodType}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, foodType: e.target.value }))
-                }
-              />
-            </label>
-            {fee > 0 ? (
-              <label className="reg-field">
-                <span>สลิป ({fee} บาท)</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  onChange={(e) => setSlipFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            ) : null}
-            <button type="submit" className="reg-btn-primary" disabled={busy}>
-              {busy ? "กำลังส่ง…" : "สมัครสัมมนา"}
-            </button>
-          </form>
+                <h2 className="reg-section__title">{selected.title}</h2>
+                {selected.description ? (
+                  <p style={{ marginTop: 0 }}>{selected.description}</p>
+                ) : null}
+
+                <label className="reg-field">
+                  <span>ชื่อ</span>
+                  <input
+                    value={form.firstName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, firstName: e.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="reg-field">
+                  <span>นามสกุล</span>
+                  <input
+                    value={form.lastName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, lastName: e.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="reg-field">
+                  <span>เบอร์โทร</span>
+                  <input
+                    value={form.phone}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, phone: e.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="reg-field">
+                  <span>ประเภทผู้สมัคร</span>
+                  <select
+                    value={form.applicantType}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        applicantType: e.target.value,
+                      }))
+                    }
+                  >
+                    {pricingOptions.map((k) => (
+                      <option key={k} value={k}>
+                        {pricingLabel(k)} ({selected.pricing[k]} บาท)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="reg-field">
+                  <span>ไซส์เสื้อ</span>
+                  <input
+                    value={form.shirtSize}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, shirtSize: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="reg-field">
+                  <span>ประเภทอาหาร</span>
+                  <input
+                    value={form.foodType}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, foodType: e.target.value }))
+                    }
+                  />
+                </label>
+                {fee > 0 ? (
+                  <label className="reg-field">
+                    <span>สลิป ({fee.toLocaleString("th-TH")} บาท)</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      onChange={(e) =>
+                        setSlipFile(e.target.files?.[0] ?? null)
+                      }
+                    />
+                  </label>
+                ) : null}
+                <button
+                  type="submit"
+                  className="reg-btn reg-btn--primary"
+                  disabled={busy || liff.phase === "loading"}
+                >
+                  {busy ? "กำลังส่ง…" : "สมัครสัมมนา"}
+                </button>
+              </form>
+            )}
+          </>
         )}
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }
 

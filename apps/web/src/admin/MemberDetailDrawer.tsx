@@ -9,6 +9,7 @@ export interface MemberDetailDrawerProps {
   me: AdminMe;
   onClose: () => void;
   onDeleted: (memberId: string) => void;
+  onUpdated?: (member: MemberDetail) => void;
 }
 
 export function MemberDetailDrawer(props: MemberDetailDrawerProps) {
@@ -143,6 +144,7 @@ export function MemberDetailDrawer(props: MemberDetailDrawerProps) {
                 detail={props.detail}
                 me={props.me}
                 onDeleted={props.onDeleted}
+                onUpdated={props.onUpdated}
               />
             </>
           )}
@@ -160,11 +162,11 @@ function isAwaitingSlipReview(props: {
   if (props.dataReview === "pending" || props.dataReview === "rejected") {
     return false;
   }
+  if (props.receiptStatus === "rejected") return false;
   if (props.paymentStatus === "slip_review") return true;
   if (
     props.receiptStatus === "temp" ||
-    props.receiptStatus === "pending_review" ||
-    props.receiptStatus === "rejected"
+    props.receiptStatus === "pending_review"
   ) {
     return props.dataReview === "approved";
   }
@@ -179,6 +181,12 @@ function StatusBadge(props: {
 }) {
   if (props.dataReview === "pending") {
     return <span className="bo-badge pending">รอตรวจข้อมูล</span>;
+  }
+  if (props.dataReview === "rejected") {
+    return <span className="bo-badge expired">ข้อมูลไม่ผ่าน</span>;
+  }
+  if (props.receiptStatus === "rejected") {
+    return <span className="bo-badge near-expiry">รอส่งสลิปใหม่</span>;
   }
   if (isAwaitingSlipReview(props)) {
     return <span className="bo-badge slip">รอตรวจสลิป</span>;

@@ -720,6 +720,16 @@ label.reg-legacy-match {
   color: #f0d998;
 }
 
+.reg-slip-preview {
+  display: block;
+  width: 100%;
+  max-height: 14rem;
+  object-fit: contain;
+  margin: 0.75rem 0;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

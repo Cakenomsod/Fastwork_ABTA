@@ -40,7 +40,7 @@ type SubmitState =
 type DraftState =
   | { phase: "loading" }
   | { phase: "ready"; draft: RegisterDraft }
-  | { phase: "blocked"; code: string }
+  | { phase: "blocked"; code: string; statusUrl?: string }
   | { phase: "error"; code: string };
 
 type LegacyStep = 1 | 2 | 3;
@@ -105,6 +105,8 @@ function legacyErrorCopy(code: string): string {
       return "สมาชิกรายนี้อยู่ระหว่างรออนุมัติจากสมาคม กรุณาติดต่อเจ้าหน้าที่";
     case "legacy_already_bound":
       return "สมาชิกรายนี้ถูกผูกกับ LINE แล้ว หากเป็นบัญชีของคุณ ให้พิมพ์ “เช็คสถานะ” ใน LINE OA";
+    case "identity_mismatch":
+      return "ข้อมูลยืนยันตัวตนไม่ตรงกับรายการที่เลือก กรุณาค้นหาใหม่";
     case "already_registered":
       return "บัญชี LINE นี้สมัครหรือผูกสมาชิกไว้แล้ว — พิมพ์ “เช็คสถานะ” ใน LINE OA เพื่อดูสถานะ";
     case "required_fields_missing":
@@ -248,7 +250,8 @@ export default function RegisterPage() {
         const code = (err as Error & { code?: string }).code ?? "unknown";
         if (!active) return;
         if (code === "already_registered") {
-          setDraftState({ phase: "blocked", code });
+          const statusUrl = (err as Error & { statusUrl?: string }).statusUrl;
+          setDraftState({ phase: "blocked", code, statusUrl });
         } else {
           setDraftState({ phase: "error", code });
         }
@@ -413,6 +416,10 @@ export default function RegisterPage() {
       const result = await bindLegacyMember({
         idToken,
         legacyMemberId: selectedLegacyId,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        legalEntityName: form.legalEntityName.trim() || undefined,
+        buildingName: form.buildingName.trim() || undefined,
       });
 
       setLegacyBind({
@@ -484,11 +491,15 @@ export default function RegisterPage() {
                 ? legacyErrorCopy(draftState.code)
                 : errorCopy(draftState.code)}
             </p>
-            {draftState.code === "already_registered" && (
-              <a className="reg-btn reg-btn--primary" href="/status">
-                เปิดหน้าสถานะ
-              </a>
-            )}
+            {draftState.phase === "blocked" &&
+              draftState.code === "already_registered" &&
+              (draftState.statusUrl ? (
+                <a className="reg-btn reg-btn--primary" href={draftState.statusUrl}>
+                  เปิดหน้าสถานะ
+                </a>
+              ) : (
+                <p className="reg-lead">พิมพ์ «เช็คสถานะ» ใน LINE OA เพื่อดูข้อมูลสมาชิก</p>
+              ))}
           </div>
         </main>
       </div>
@@ -681,10 +692,7 @@ export default function RegisterPage() {
                       legacySearch.code === "already_registered") ||
                       (legacyBind.phase === "error" &&
                         legacyBind.code === "already_registered")) && (
-                      <>
-                        {" "}
-                        <a href="/status">เปิดหน้าสถานะ</a>
-                      </>
+                      <> พิมพ์ «เช็คสถานะ» ใน LINE OA</>
                     )}
                   </p>
                 )}
@@ -805,10 +813,7 @@ export default function RegisterPage() {
                     <p className="reg-form-error" role="alert">
                       {legacyErrorCopy(legacyBind.code)}
                       {legacyBind.code === "already_registered" && (
-                        <>
-                          {" "}
-                          <a href="/status">เปิดหน้าสถานะ</a>
-                        </>
+                        <> พิมพ์ «เช็คสถานะ» ใน LINE OA</>
                       )}
                     </p>
                   )}
@@ -984,10 +989,7 @@ export default function RegisterPage() {
                 <p className="reg-form-error" role="alert">
                   {errorCopy(submit.code)}
                   {submit.code === "already_registered" && (
-                    <>
-                      {" "}
-                      <a href="/status">เปิดหน้าสถานะ</a>
-                    </>
+                    <> พิมพ์ «เช็คสถานะ» ใน LINE OA</>
                   )}
                 </p>
               )}

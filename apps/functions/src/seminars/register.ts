@@ -82,24 +82,7 @@ function resolveApplicantType(
 }
 
 export async function publicListSeminars() {
-  let items = await listActiveSeminars();
-  if (items.length === 0) {
-    // Seed one demo event so Phase 1 UI is testable out of the box.
-    const seminarId = `SEM-${new Date().getFullYear()}-DEMO`;
-    const demo: SeminarDoc = {
-      seminarId,
-      title: "สัมมนาตัวอย่าง ABTA",
-      description: "งานตัวอย่างสำหรับทดสอบระบบ — แก้ไข/ปิดได้จาก Back Office",
-      eventDate: `${new Date().getFullYear()}-09-15`,
-      location: "กรุงเทพฯ",
-      pricing: { public_paid: 500, member_free: 0, member_paid: 300 },
-      active: true,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    };
-    await upsertSeminar(demo);
-    items = [demo];
-  }
+  const items = await listActiveSeminars();
   return items.map(publicSeminar);
 }
 
@@ -262,8 +245,7 @@ export async function adminCreateSeminar(input: {
   if (input.memberFree != null) pricing.member_free = Number(input.memberFree) || 0;
   if (input.memberPaid != null) pricing.member_paid = Number(input.memberPaid) || 0;
   if (Object.keys(pricing).length === 0) {
-    pricing.public_paid = 500;
-    pricing.member_free = 0;
+    throw Object.assign(new Error("pricing_required"), { status: 400 });
   }
   const doc: SeminarDoc = {
     seminarId,

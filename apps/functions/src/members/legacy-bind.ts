@@ -165,6 +165,10 @@ export async function searchLegacyMembers(input: {
 export async function bindLegacyMember(input: {
   idToken: string;
   legacyMemberId: string;
+  firstName: string;
+  lastName: string;
+  legalEntityName?: string;
+  buildingName?: string;
 }): Promise<LegacyBindResult> {
   const verified = await verifyLineUser(input.idToken);
   if (!verified.ok) return verified;
@@ -175,13 +179,38 @@ export async function bindLegacyMember(input: {
   }
 
   const legacyMemberId = input.legacyMemberId.trim();
+  const firstName = input.firstName.trim();
+  const lastName = input.lastName.trim();
   if (!legacyMemberId) {
     return { ok: false, error: "legacy_member_id_required", status: 400 };
+  }
+  if (!firstName || !lastName) {
+    return { ok: false, error: "required_fields_missing", status: 400 };
   }
 
   const legacy = await findLegacyMemberById(legacyMemberId);
   if (!legacy) {
     return { ok: false, error: "legacy_not_found", status: 404 };
+  }
+
+  const norm = (s: string | undefined) => (s ?? "").trim().toLowerCase();
+  if (
+    norm(legacy.firstName) !== norm(firstName) ||
+    norm(legacy.lastName) !== norm(lastName)
+  ) {
+    return { ok: false, error: "identity_mismatch", status: 403 };
+  }
+  const legal = input.legalEntityName?.trim();
+  if (legal && legacy.legalEntityName && norm(legacy.legalEntityName) !== norm(legal)) {
+    return { ok: false, error: "identity_mismatch", status: 403 };
+  }
+  const building = input.buildingName?.trim();
+  if (
+    building &&
+    (legacy.buildingName || legacy.organization) &&
+    norm(legacy.buildingName || legacy.organization) !== norm(building)
+  ) {
+    return { ok: false, error: "identity_mismatch", status: 403 };
   }
 
   if (legacy.status === "pending") {

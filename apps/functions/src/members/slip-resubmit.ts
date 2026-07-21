@@ -15,6 +15,7 @@ import {
   findLatestPayment,
   findMemberByLineUserId,
 } from "./repository";
+import { notifyStaff } from "./staff-notify";
 
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
 const ALLOWED_SLIP_TYPES = new Set(["image/jpeg", "image/jpg", "image/png"]);
@@ -158,6 +159,14 @@ export async function resubmitSlip(input: {
       console.error("slip resubmit notify failed", err);
     }
   }
+
+  void notifyStaff([
+    "📎 สมาชิกส่งสลิปใหม่",
+    `เลขสมาชิก: ${member.memberId}`,
+    `ชื่อ: ${member.firstName} ${member.lastName}`,
+    payment.receiptNumber ? `เลขใบเสร็จ: ${payment.receiptNumber}` : "",
+    "รอคิวเหรัญญิกตรวจสลิป",
+  ]);
 
   return {
     ok: true,

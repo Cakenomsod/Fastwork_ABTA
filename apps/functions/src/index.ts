@@ -324,7 +324,11 @@ async function handleRegisterDraft(req: Request, res: Response): Promise<void> {
     const result = await getRegisterDraft(String(body.idToken ?? ""));
 
     if (!result.ok) {
-      res.status(result.status).json({ ok: false, error: result.error });
+      res.status(result.status).json({
+        ok: false,
+        error: result.error,
+        ...(result.statusUrl ? { statusUrl: result.statusUrl } : {}),
+      });
       return;
     }
 
@@ -380,6 +384,12 @@ async function handleLegacyBind(req: Request, res: Response): Promise<void> {
     const result = await bindLegacyMember({
       idToken: String(body.idToken ?? ""),
       legacyMemberId: String(body.legacyMemberId ?? ""),
+      firstName: String(body.firstName ?? ""),
+      lastName: String(body.lastName ?? ""),
+      legalEntityName:
+        body.legalEntityName != null ? String(body.legalEntityName) : undefined,
+      buildingName:
+        body.buildingName != null ? String(body.buildingName) : undefined,
     });
     if (!result.ok) {
       res.status(result.status).json({ ok: false, error: result.error });

@@ -10,8 +10,11 @@ export function textMessage(text: string): LineMessage {
   return { type: "text", text };
 }
 
-function registerUri(): string {
-  return isConfiguredLiffUrl() ? LIFF_URL : `${WEB_ORIGIN}/register`;
+function registerUri(query?: string): string {
+  const base = isConfiguredLiffUrl() ? LIFF_URL : `${WEB_ORIGIN}/register`;
+  if (!query) return base;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}${query}`;
 }
 
 export function renewInviteText(): LineMessage {
@@ -108,7 +111,7 @@ export function registerInviteFlex(): LineMessage {
           },
           {
             type: "text",
-            text: "ถ้าเคยเป็นสมาชิกแล้วและต้องการผูก LINE แจ้งเจ้าหน้าที่ได้ครับ (ฟีเจอร์ยืนยันสมาชิกเก่ากำลังเตรียม)",
+            text: "ถ้าเคยเป็นสมาชิกแล้ว กดปุ่ม «ยืนยันสมาชิกเก่า» เพื่อผูก LINE กับข้อมูลเดิมได้ครับ",
             size: "xs",
             color: BRAND.subtle,
             wrap: true,
@@ -120,6 +123,7 @@ export function registerInviteFlex(): LineMessage {
         layout: "vertical",
         paddingAll: "16px",
         paddingTop: "0px",
+        spacing: "sm",
         contents: [
           {
             type: "button",
@@ -130,6 +134,16 @@ export function registerInviteFlex(): LineMessage {
               type: "uri",
               label: hasLiff ? "เปิดฟอร์มสมัคร" : "เปิดหน้าสมัคร",
               uri: registerUri(),
+            },
+          },
+          {
+            type: "button",
+            style: "secondary",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "ยืนยันสมาชิกเก่า",
+              uri: registerUri("flow=legacy"),
             },
           },
         ],
@@ -247,6 +261,16 @@ export function notLinkedFlex(lineUserId?: string): LineMessage {
               type: "uri",
               label: hasLiff ? "สมัครสมาชิกใหม่" : "เปิดหน้าเว็บสมาชิก",
               uri: hasLiff ? registerUri() : WEB_ORIGIN,
+            },
+          },
+          {
+            type: "button",
+            style: "secondary",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "ยืนยันสมาชิกเก่า",
+              uri: registerUri("flow=legacy"),
             },
           },
         ],

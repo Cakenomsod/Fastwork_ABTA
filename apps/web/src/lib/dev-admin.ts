@@ -195,13 +195,17 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
       items = items.filter((i) => !receiptIdHasT(i.receiptNumber));
     }
     function displayStatus(i: QueueItem): string {
-      if (i.dataReviewStatus === "pending") return "pending_data";
+      if (
+        i.dataReviewStatus === "pending" ||
+        i.dataReviewStatus === "rejected"
+      ) {
+        return "pending_data";
+      }
       const awaitingSlip =
-        i.dataReviewStatus !== "rejected" &&
+        i.receiptStatus !== "rejected" &&
         (i.paymentStatus === "slip_review" ||
           ((i.receiptStatus === "temp" ||
-            i.receiptStatus === "pending_review" ||
-            i.receiptStatus === "rejected") &&
+            i.receiptStatus === "pending_review") &&
             i.dataReviewStatus === "approved"));
       if (awaitingSlip) return "pending_slip";
       if (i.status === "near_expiry") return "near_expiry";

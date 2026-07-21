@@ -614,6 +614,9 @@ export async function fetchAdminSeminars() {
 
 export async function createAdminSeminar(input: {
   title: string;
+  description?: string;
+  eventDate?: string;
+  location?: string;
   publicPaid?: number;
   memberFree?: number;
   memberPaid?: number;

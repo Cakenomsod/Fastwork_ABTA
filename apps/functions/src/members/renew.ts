@@ -20,6 +20,7 @@ import {
   findLatestPayment,
   findMemberByLineUserId,
 } from "./repository";
+import { notifyStaff } from "./staff-notify";
 import type { MemberDoc, PaymentDoc } from "./types";
 
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
@@ -217,6 +218,14 @@ export async function renewMembership(input: {
   } catch (err) {
     console.error("renew notify failed", err);
   }
+
+  void notifyStaff([
+    "🔄 คำขอต่ออายุสมาชิก",
+    `เลขสมาชิก: ${member.memberId}`,
+    `ชื่อ: ${member.firstName} ${member.lastName}`,
+    `เลขใบเสร็จชั่วคราว: ${receiptNumber}`,
+    "รอคิวเหรัญญิกตรวจสลิป",
+  ]);
 
   return {
     ok: true,

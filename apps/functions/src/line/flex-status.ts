@@ -131,13 +131,40 @@ export function buildStatusFlex(view: StatusView, publicToken?: string): LineMes
       ),
       separator(),
       detailRow("สัมมนา", view.seminarLabel),
+      separator(),
+      detailRow("การต่ออายุ", view.renewalLabel),
     ] },
   ];
 
   const footerContents: LineMessage[] = [];
+  let hasPrimaryCta = false;
+  if (view.canResubmit) {
+    footerContents.push(
+      actionButton("แก้ไขข้อมูลแล้วส่งใหม่", `${WEB_ORIGIN}/register`, "primary", BRAND.green),
+    );
+    hasPrimaryCta = true;
+  } else if (view.canResubmitSlip) {
+    footerContents.push(
+      actionButton("ส่งสลิปใหม่", `${WEB_ORIGIN}/slip`, "primary", BRAND.green),
+    );
+    hasPrimaryCta = true;
+  } else if (
+    view.canRenew &&
+    (view.statusKey === "near_expiry" || view.statusKey === "expired")
+  ) {
+    footerContents.push(
+      actionButton("ต่ออายุสมาชิก", `${WEB_ORIGIN}/renew`, "primary", BRAND.green),
+    );
+    hasPrimaryCta = true;
+  }
   if (view.memberCardUrl) {
     footerContents.push(
-      actionButton("เปิดบัตรสมาชิก", view.memberCardUrl, "primary", BRAND.green),
+      actionButton(
+        "เปิดบัตรสมาชิก",
+        view.memberCardUrl,
+        hasPrimaryCta ? "secondary" : "primary",
+        hasPrimaryCta ? undefined : BRAND.green,
+      ),
     );
   }
   if (view.receiptUrl) {

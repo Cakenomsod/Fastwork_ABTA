@@ -11,6 +11,9 @@
  */
 
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
+import { WEB_ORIGIN } from "../config";
+import { pushMessages } from "../line/client";
+import { memberIdsUpdatedText } from "../line/messages";
 import {
   isValidMemberIdFormat,
   isValidReceiptNumberFormat,
@@ -138,6 +141,34 @@ export async function updateMemberIds(opts: {
   const detail = await getAdminMemberDetail(member.memberId);
   if (!detail) {
     return { ok: false, error: "not_found", status: 404 };
+  }
+
+  if (member.lineUserId) {
+    const token = member.publicToken ?? "";
+    const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
+    try {
+      await pushMessages(member.lineUserId, [
+        memberIdsUpdatedText({
+          fullName: `${member.firstName} ${member.lastName}`.trim(),
+          memberIdChange:
+            changingMember && nextMemberId
+              ? { from: member.memberId, to: nextMemberId }
+              : undefined,
+          receiptNumberChange:
+            changingReceipt && nextReceipt
+              ? {
+                  from: payment?.receiptNumber ?? "—",
+                  to: nextReceipt,
+                }
+              : undefined,
+          statusUrl,
+          cardUrl: member.memberCardUrl,
+          receiptUrl: payment?.receiptUrl,
+        }),
+      ]);
+    } catch (err) {
+      console.error("notify memberIdsUpdated failed", err);
+    }
   }
 
   return {

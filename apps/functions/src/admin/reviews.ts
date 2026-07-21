@@ -190,11 +190,12 @@ function isAwaitingSlipReview(item: {
   if (item.dataReviewStatus === "pending" || item.dataReviewStatus === "rejected") {
     return false;
   }
+  // Rejected slips wait for member resubmit — not treasurer queue.
+  if (item.receiptStatus === "rejected") return false;
   if (item.paymentStatus === "slip_review") return true;
   if (
     item.receiptStatus === "temp" ||
-    item.receiptStatus === "pending_review" ||
-    item.receiptStatus === "rejected"
+    item.receiptStatus === "pending_review"
   ) {
     return item.dataReviewStatus === "approved";
   }
@@ -208,7 +209,12 @@ export function memberDisplayStatus(
     "status" | "dataReviewStatus" | "paymentStatus" | "receiptStatus"
   >,
 ): MemberListStatusFilter | "other" {
-  if (item.dataReviewStatus === "pending") return "pending_data";
+  if (
+    item.dataReviewStatus === "pending" ||
+    item.dataReviewStatus === "rejected"
+  ) {
+    return "pending_data";
+  }
   if (isAwaitingSlipReview(item)) return "pending_slip";
   if (item.status === "near_expiry") return "near_expiry";
   if (item.status === "expired") return "expired";
@@ -326,14 +332,18 @@ export function slipObjectRef(
 }
 
 export async function listPendingDataReviews(): Promise<QueueMemberItem[]> {
-  const snap = await getFirestore()
-    .collection(MEMBERS_COLLECTION)
-    .where("dataReviewStatus", "==", "pending")
-    .get();
+  const db = getFirestore();
+  const [pendingSnap, rejectedSnap] = await Promise.all([
+    db.collection(MEMBERS_COLLECTION).where("dataReviewStatus", "==", "pending").get(),
+    db.collection(MEMBERS_COLLECTION).where("dataReviewStatus", "==", "rejected").get(),
+  ]);
 
   const items: QueueMemberItem[] = [];
-  for (const doc of snap.docs) {
+  const seen = new Set<string>();
+  for (const doc of [...pendingSnap.docs, ...rejectedSnap.docs]) {
     const member = doc.data() as MemberDoc;
+    if (seen.has(member.memberId)) continue;
+    seen.add(member.memberId);
     const payment = await findLatestPayment(member.memberId);
     items.push(toQueueItem(member, payment));
   }
@@ -343,22 +353,17 @@ export async function listPendingDataReviews(): Promise<QueueMemberItem[]> {
 
 export async function listPendingSlipReviews(): Promise<QueueMemberItem[]> {
   // Prefer single-field equality to avoid composite index requirements.
-  // Include temp receipts waiting for treasurer + rejected awaiting new slip.
+  // Only temp / pending_review — rejected waits for member resubmit.
   const db = getFirestore();
-  const [tempSnap, pendingSnap, rejectedSnap] = await Promise.all([
+  const [tempSnap, pendingSnap] = await Promise.all([
     db.collection(PAYMENTS_COLLECTION).where("receiptStatus", "==", "temp").get(),
     db
       .collection(PAYMENTS_COLLECTION)
       .where("receiptStatus", "==", "pending_review")
       .get(),
-    db.collection(PAYMENTS_COLLECTION).where("receiptStatus", "==", "rejected").get(),
   ]);
 
-  const paymentDocs = [
-    ...tempSnap.docs,
-    ...pendingSnap.docs,
-    ...rejectedSnap.docs,
-  ];
+  const paymentDocs = [...tempSnap.docs, ...pendingSnap.docs];
   const seen = new Set<string>();
   const items: QueueMemberItem[] = [];
 
@@ -367,6 +372,7 @@ export async function listPendingSlipReviews(): Promise<QueueMemberItem[]> {
     if (seen.has(payment.paymentId)) continue;
     seen.add(payment.paymentId);
     if (payment.status === "official_receipt_issued") continue;
+    if (payment.receiptStatus === "rejected") continue;
     const member = await findMemberById(payment.memberId);
     if (!member || member.dataReviewStatus !== "approved") continue;
     items.push(toQueueItem(member, payment));
@@ -773,6 +779,9 @@ export async function approveSlipReview(
   ) {
     return { ok: false, error: "already_official", status: 409 };
   }
+  if (payment.receiptStatus === "rejected") {
+    return { ok: false, error: "slip_rejected_awaiting_resubmit", status: 409 };
+  }
 
   // Official number to issue: staged pendingReceiptNumber if set, otherwise
   // the temporary number with T stripped (RC-T-2026-0043 → RC-2026-0043).
@@ -922,7 +931,9 @@ export async function rejectSlipReview(
       receiptNumber: nextReceiptNumber,
       // Staged number belongs to this review round — drop it.
       pendingReceiptNumber: FieldValue.delete(),
-      status: "slip_review",
+      // Keep payment_received so treasurer queue (slip_review) stays clear
+      // until the member uploads a new slip.
+      status: "payment_received",
       rejectReason: trimmed,
       verifiedBy: actorEmail,
       verifiedAt: now,

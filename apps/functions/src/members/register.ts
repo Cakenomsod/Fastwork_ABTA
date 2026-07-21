@@ -21,6 +21,7 @@ import {
   MEMBER_TYPE_LABEL,
   membershipExpiryDec31,
 } from "./membership";
+import { staffLineUserIds } from "./staff-notify";
 import type { MemberDoc, PaymentDoc } from "./types";
 
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
@@ -65,18 +66,10 @@ export type RegisterDraftResult =
       legalEntityName?: string;
       buildingName?: string;
     }
-  | { ok: false; error: string; status: number };
+  | { ok: false; error: string; status: number; statusUrl?: string };
 
 function publicToken(): string {
   return randomBytes(6).toString("hex");
-}
-
-function staffIds(): string[] {
-  const raw = process.env.STAFF_LINE_USER_IDS ?? "";
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
 
 function decodeSlip(base64: string): Buffer {
@@ -188,7 +181,7 @@ async function notifyAfterRegister(opts: {
     console.error("Failed to push registration confirm", err);
   }
 
-  const staff = staffIds();
+  const staff = staffLineUserIds();
   if (staff.length) {
     const text = staffNewRegistrationText({
       memberId: opts.memberId,
@@ -222,7 +215,12 @@ export async function getRegisterDraft(idToken: string): Promise<RegisterDraftRe
     };
   }
 
-  return { ok: false, error: "already_registered", status: 409 };
+  return {
+    ok: false,
+    error: "already_registered",
+    status: 409,
+    statusUrl: `${WEB_ORIGIN}/status?m=${encodeURIComponent(existing.memberId)}&t=${existing.publicToken ?? ""}`,
+  };
 }
 
 async function resubmitRejectedMember(
@@ -417,6 +415,7 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
     receiptStatus: "none",
     slipUrl: uploaded.slipUrl,
     amount: MEMBERSHIP_FEE_THB,
+    paymentKind: "registration",
     status: "data_review",
     createdAt: ts,
     updatedAt: ts,

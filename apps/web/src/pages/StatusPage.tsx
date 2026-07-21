@@ -94,6 +94,9 @@ function StatusCard({ data }: { data: PublicStatus }) {
         ? "หมดอายุแล้ว"
         : `อีก ${data.expiryDaysLeft} วัน`;
   const openReceipt = receiptHref(data.memberId, data.receiptUrl);
+  const showRenew =
+    data.canRenew &&
+    (data.statusKey === "near_expiry" || data.statusKey === "expired");
 
   return (
     <div className="status-content">
@@ -139,6 +142,9 @@ function StatusCard({ data }: { data: PublicStatus }) {
           sub={data.receiptNumber}
         />
         <DetailRow label="สถานะสัมมนา" value={data.seminarLabel} />
+        {data.renewalLabel ? (
+          <DetailRow label="การต่ออายุ" value={data.renewalLabel} />
+        ) : null}
         {data.updatedAtLabel && (
           <DetailRow label="อัปเดตล่าสุด" value={data.updatedAtLabel} muted />
         )}
@@ -157,10 +163,31 @@ function StatusCard({ data }: { data: PublicStatus }) {
         </section>
       )}
 
-      {!data.canResubmit && (
+      {data.canResubmitSlip && (
         <section className="actions">
+          {data.rejectReason && (
+            <p className="foot-note" style={{ marginBottom: "0.75rem" }}>
+              เหตุผลที่สลิปไม่ผ่าน: {data.rejectReason}
+            </p>
+          )}
+          <a className="btn btn--primary" href="/slip">
+            ส่งสลิปใหม่
+          </a>
+        </section>
+      )}
+
+      {!data.canResubmit && !data.canResubmitSlip && (
+        <section className="actions">
+          {showRenew && (
+            <a className="btn btn--primary" href="/renew">
+              ต่ออายุสมาชิก
+            </a>
+          )}
           {data.memberCardUrl && (
-            <a className="btn btn--primary" href={data.memberCardUrl}>
+            <a
+              className={showRenew ? "btn btn--ghost" : "btn btn--primary"}
+              href={data.memberCardUrl}
+            >
               เปิดบัตรสมาชิก
             </a>
           )}
