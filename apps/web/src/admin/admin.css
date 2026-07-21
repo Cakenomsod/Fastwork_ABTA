@@ -225,6 +225,13 @@
   animation: bo-rise 0.4s ease both;
 }
 
+/* Panels with dropdowns: overflow + stacking so menus aren't clipped or covered */
+.bo-panel--has-menu {
+  position: relative;
+  z-index: 5;
+  overflow: visible;
+}
+
 .bo-panel-head {
   padding: 0.95rem 1.15rem;
   border-bottom: 1px solid var(--bo-line);
@@ -727,7 +734,7 @@
   .bo-list-filters {
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.85fr) minmax(12rem, 0.9fr) auto;
-    align-items: end;
+    align-items: start;
     gap: 0.85rem 1.1rem;
   }
 
@@ -736,7 +743,11 @@
   }
 
   .bo-list-toolbar-actions {
-    padding-bottom: 0.1rem;
+    /* Match filter control row (label line-height + group gap) */
+    padding-top: calc(0.75rem * 1.5 + 0.4rem);
+    padding-bottom: 0;
+    min-height: 0;
+    align-items: start;
   }
 }
 

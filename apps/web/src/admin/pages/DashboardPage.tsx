@@ -266,12 +266,10 @@ export default function DashboardPage(props: {
         </div>
       </div>
 
-      <div className="bo-panel" style={{ marginBottom: "1.25rem" }}>
+      <div className="bo-panel bo-panel--has-menu" style={{ marginBottom: "1.25rem" }}>
         <div className="bo-panel-head">
           <h2>ค้นหาสมาชิก</h2>
-          <span style={{ fontSize: "0.8rem", color: "var(--bo-muted)" }}>
-            คลิกแถวเพื่อเปิดรายละเอียด
-          </span>
+
         </div>
         <form
           className="bo-form-grid"
@@ -349,7 +347,6 @@ export default function DashboardPage(props: {
             {listMode === "recent"
               ? `ชั่วคราว ${data.temporaryMembers} ราย · `
               : `${listRows.length} รายการ · `}
-            คลิกแถวเพื่อเปิดรายละเอียด
           </span>
         </div>
         <div className="bo-table-wrap">

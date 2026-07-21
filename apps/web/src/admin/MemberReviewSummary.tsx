@@ -108,7 +108,7 @@ export default function MemberReviewSummary(props: MemberReviewSummaryProps) {
           </ReviewField>
         </ReviewSection>
 
-        <ReviewSection title="ตัวตนสมาชิก">
+        <ReviewSection title="รายละเอียดสมาชิก">
           <NameFields detail={detail} />
           <ReviewField label="เลขสมาชิก (ถาวร)">
             <code>{detail.memberId}</code>
@@ -123,7 +123,7 @@ export default function MemberReviewSummary(props: MemberReviewSummaryProps) {
           </ReviewField>
         </ReviewSection>
 
-        <ReviewSection title="การติดต่อ">
+        <ReviewSection title="ช่องทางติดต่อ">
           <ReviewField label="เบอร์โทร">{detail.phone || "—"}</ReviewField>
           <ReviewField label="อีเมล" wide>
             {detail.email || "—"}
@@ -141,7 +141,7 @@ export default function MemberReviewSummary(props: MemberReviewSummaryProps) {
 
   return (
     <div className="bo-review-summary">
-      <ReviewSection title="ตัวตนสมาชิก">
+      <ReviewSection title="รายละเอียดสมาชิก">
         <NameFields detail={detail} />
         <ReviewField label="เลขสมาชิกชั่วคราว">
           <code>{detail.memberId}</code>
@@ -156,7 +156,7 @@ export default function MemberReviewSummary(props: MemberReviewSummaryProps) {
         </ReviewField>
       </ReviewSection>
 
-      <ReviewSection title="การติดต่อ">
+      <ReviewSection title="ช่องทางติดต่อ">
         <ReviewField label="เบอร์โทร">{detail.phone || "—"}</ReviewField>
         <ReviewField label="อีเมล" wide>
           {detail.email || "—"}

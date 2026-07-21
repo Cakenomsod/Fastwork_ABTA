@@ -78,48 +78,112 @@ function asString(v: unknown): string | undefined {
   return String(v).trim() || undefined;
 }
 
+/** Date-only → UTC noon so th-TH / UTC clients keep the same calendar day. */
+function dateOnlyTimestamp(year: number, monthIndex: number, day: number): Timestamp {
+  return Timestamp.fromDate(new Date(Date.UTC(year, monthIndex, day, 12, 0, 0)));
+}
+
+function toGregorianYear(year: number): number {
+  return year > 2400 ? year - 543 : year;
+}
+
+/**
+ * SheetJS Excel dates often land a few seconds before local midnight
+ * (e.g. 23:59:56) so the calendar day is one earlier than Excel displays.
+ * Nudge forward before reading Y/M/D for date-only fields.
+ */
+const EXCEL_DATE_FP_SLACK_MS = 5_000;
+
+function excelCalendarParts(d: Date): {
+  rawYear: number;
+  monthIndex: number;
+  day: number;
+  hasClockTime: boolean;
+} {
+  const shifted = new Date(d.getTime() + EXCEL_DATE_FP_SLACK_MS);
+  const h = shifted.getHours();
+  const min = shifted.getMinutes();
+  const sec = shifted.getSeconds();
+  const hasClockTime = !(h === 0 && min === 0 && sec === 0);
+  return {
+    rawYear: shifted.getFullYear(),
+    monthIndex: shifted.getMonth(),
+    day: shifted.getDate(),
+    hasClockTime,
+  };
+}
+
 /**
  * Parse Excel dates that may be:
  * - JS Date / Excel serial
  * - ISO strings
  * - Buddhist Era years (e.g. 2568-12-27 or 10/25/2562)
+ *
+ * SheetJS `cellDates` can yield a JS Date whose year is still พ.ศ. (e.g. 2569).
+ * Those must be converted to ค.ศ. before storage — UI formats with `th-TH` (+543).
  */
 function parseFlexibleDate(v: unknown): Timestamp | undefined {
   if (v == null || v === "") return undefined;
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    const parts = excelCalendarParts(v);
+    const year = toGregorianYear(parts.rawYear);
+    // Date-only (or BE year) → store calendar day at UTC noon
+    if (!parts.hasClockTime || parts.rawYear > 2400) {
+      return dateOnlyTimestamp(year, parts.monthIndex, parts.day);
+    }
+    // Timed value with Gregorian year — keep clock, only fix year if needed
+    if (year !== v.getFullYear()) {
+      const fixed = new Date(v.getTime());
+      fixed.setFullYear(year);
+      return Timestamp.fromDate(fixed);
+    }
     return Timestamp.fromDate(v);
   }
   if (typeof v === "number" && Number.isFinite(v)) {
-    // Excel serial date
+    // Excel serial date (always Gregorian under the hood)
     const epoch = new Date(Date.UTC(1899, 11, 30));
-    const d = new Date(epoch.getTime() + v * 86400000);
-    if (!Number.isNaN(d.getTime())) return Timestamp.fromDate(d);
+    const d = new Date(epoch.getTime() + v * 86400000 + EXCEL_DATE_FP_SLACK_MS);
+    if (!Number.isNaN(d.getTime())) {
+      return dateOnlyTimestamp(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate(),
+      );
+    }
   }
 
   const s = String(v).trim();
   // 2568-12-27T... or 2568-12-27
   const beIso = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(s);
   if (beIso) {
-    let year = Number(beIso[1]);
-    if (year > 2400) year -= 543;
-    const d = new Date(
-      Date.UTC(year, Number(beIso[2]) - 1, Number(beIso[3])),
-    );
-    if (!Number.isNaN(d.getTime())) return Timestamp.fromDate(d);
+    const year = toGregorianYear(Number(beIso[1]));
+    return dateOnlyTimestamp(year, Number(beIso[2]) - 1, Number(beIso[3]));
   }
 
-  // 10/25/2562 or 10/25/2019
+  // 12/31/2569 or 10/25/2019 (Excel US-style M/D/YYYY; year may be พ.ศ.)
   const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s);
   if (slash) {
-    let year = Number(slash[3]);
-    if (year > 2400) year -= 543;
-    const d = new Date(year, Number(slash[1]) - 1, Number(slash[2]));
+    const year = toGregorianYear(Number(slash[3]));
+    return dateOnlyTimestamp(year, Number(slash[1]) - 1, Number(slash[2]));
+  }
+
+  // 7/21/2569 15:00 — keep time-of-day, only fix BE year
+  const slashDateTime =
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/.exec(s);
+  if (slashDateTime) {
+    const year = toGregorianYear(Number(slashDateTime[3]));
+    const d = new Date(
+      year,
+      Number(slashDateTime[1]) - 1,
+      Number(slashDateTime[2]),
+      Number(slashDateTime[4]),
+      Number(slashDateTime[5]),
+    );
     if (!Number.isNaN(d.getTime())) return Timestamp.fromDate(d);
   }
 
   const parsed = new Date(s);
   if (!Number.isNaN(parsed.getTime())) {
-    // If year looks like BE on a parsed ISO-ish string
     if (parsed.getFullYear() > 2400) {
       parsed.setFullYear(parsed.getFullYear() - 543);
     }
