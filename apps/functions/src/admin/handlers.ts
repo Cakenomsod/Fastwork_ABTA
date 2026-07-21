@@ -31,6 +31,11 @@ import {
 } from "./member-profile";
 import { findLegacyPaymentsByMemberId } from "../legacy/repository";
 import {
+  importLegacyWorkbookFromBuffer,
+  LegacyImportError,
+  LEGACY_IMPORT_MAX_BYTES,
+} from "../legacy/import-xlsx";
+import {
   deleteStaffUser,
   listStaffUsers,
   upsertStaffUser,
@@ -570,6 +575,78 @@ export async function handleAdminLegacyPayments(
       transferredAt: r.transferredAt?.toDate?.()?.toISOString?.(),
     })),
   });
+}
+
+/**
+ * POST /admin/legacy/import
+ * Body: { fileName: string, contentBase64: string }
+ * Staff: admin (or super-admin) only.
+ */
+export async function handleAdminLegacyImport(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireStaffManager(auth.session);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const fileName = String(body.fileName ?? "").trim() || "upload.xlsx";
+  const contentBase64 = String(body.contentBase64 ?? "").trim();
+  if (!contentBase64) {
+    jsonError(res, 400, "file_required");
+    return;
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(contentBase64, "base64");
+  } catch {
+    jsonError(res, 400, "invalid_file_encoding");
+    return;
+  }
+
+  if (!buffer.byteLength) {
+    jsonError(res, 400, "file_required");
+    return;
+  }
+  if (buffer.byteLength > LEGACY_IMPORT_MAX_BYTES) {
+    jsonError(res, 413, "file_too_large");
+    return;
+  }
+
+  const lower = fileName.toLowerCase();
+  if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls")) {
+    jsonError(res, 400, "invalid_file_type");
+    return;
+  }
+
+  try {
+    const result = await importLegacyWorkbookFromBuffer(buffer, fileName);
+    res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    if (err instanceof LegacyImportError) {
+      const status =
+        err.code === "file_too_large"
+          ? 413
+          : err.code === "invalid_workbook" ||
+              err.code === "missing_member_sheet" ||
+              err.code === "no_members_parsed"
+            ? 400
+            : 500;
+      jsonError(res, status, err.code);
+      return;
+    }
+    console.error("legacy import failed", err);
+    jsonError(res, 500, "import_failed");
+  }
 }
 
 export async function handleApproveData(

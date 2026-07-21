@@ -75,6 +75,30 @@
   opacity: 0.65;
 }
 
+.bo-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.bo-nav-section {
+  margin: 0.85rem 0.85rem 0.25rem;
+  padding: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bo-gold-soft, #e4ce93);
+  opacity: 0.85;
+}
+
+.bo-nav-section:first-child {
+  margin-top: 0.15rem;
+}
+
 .bo-nav-btn {
   appearance: none;
   border: 0;
@@ -174,6 +198,30 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
+}
+
+.bo-open-access-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #7a3410;
+  background: #fff1df;
+  border: 1px solid #f0c48a;
+  white-space: nowrap;
+}
+
+.bo-open-access-banner {
+  margin: 0;
+  padding: 0.65rem 1.5rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #7a3410;
+  background: #fff7ed;
+  border-bottom: 1px solid #f0c48a;
 }
 
 .bo-content {
@@ -1634,6 +1682,114 @@
   gap: 1.25rem;
 }
 
+/* Legacy Excel import */
+.bo-legacy-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.bo-legacy-intro {
+  padding: 1.15rem 1.25rem 0.25rem;
+  color: var(--bo-muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  max-width: 62ch;
+}
+
+.bo-legacy-intro p {
+  margin: 0 0 0.65rem;
+}
+
+.bo-legacy-intro ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.bo-legacy-intro li {
+  margin: 0.25rem 0;
+}
+
+.bo-legacy-intro code {
+  font-size: 0.86em;
+  background: var(--bo-paper);
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+}
+
+.bo-legacy-form {
+  padding: 0.5rem 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.bo-file-drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 7.5rem;
+  padding: 1.25rem;
+  border: 1.5px dashed var(--bo-line);
+  border-radius: var(--bo-radius);
+  background: var(--bo-paper);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.bo-file-drop:hover,
+.bo-file-drop:focus-within {
+  border-color: var(--bo-green);
+  background: #eef6f1;
+}
+
+.bo-file-drop.has-file {
+  border-style: solid;
+  border-color: rgb(15 76 54 / 0.35);
+  background: #eef6f1;
+}
+
+.bo-file-drop input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.bo-file-drop__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+  pointer-events: none;
+  color: var(--bo-muted);
+  font-size: 0.88rem;
+}
+
+.bo-file-drop__meta strong {
+  color: var(--bo-text);
+  font-size: 0.98rem;
+}
+
+.bo-legacy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.bo-legacy-source {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
 .bo-staff-form {
   background: var(--bo-card);
   border: 1px solid var(--bo-line);
@@ -1742,6 +1898,20 @@
     border: 0;
     margin: 0;
     padding: 0.25rem 0.5rem 0.5rem;
+  }
+
+  .bo-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: 1 1 auto;
+    overflow: visible;
+    gap: 0.25rem;
+  }
+
+  .bo-nav-section {
+    width: 100%;
+    margin: 0.45rem 0.5rem 0.1rem;
   }
 
   .bo-nav-btn {

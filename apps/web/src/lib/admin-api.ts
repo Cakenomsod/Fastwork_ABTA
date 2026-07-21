@@ -1,6 +1,7 @@
 /** Admin Back Office API client — Firebase Auth Bearer token. */
 
 import { apiBase } from "./api";
+import { ADMIN_OPEN_ACCESS } from "./admin-open-access";
 import { getIdToken } from "./firebase";
 
 export type StaffRole = "admin" | "registrar" | "treasurer";
@@ -168,7 +169,7 @@ async function adminFetch<T>(
   init?: RequestInit,
 ): Promise<T> {
   const token = await getIdToken();
-  if (!token) {
+  if (!token && !ADMIN_OPEN_ACCESS) {
     const err = new Error("auth_required");
     (err as Error & { code?: string }).code = "auth_required";
     throw err;
@@ -178,7 +179,7 @@ async function adminFetch<T>(
     ...init,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
   });
@@ -346,6 +347,34 @@ export async function fetchLegacyPayments(
     `/admin/members/legacy-payments?${params}`,
   );
   return data.items;
+}
+
+export interface LegacyImportResult {
+  members: number;
+  payments: number;
+  feeMasters: number;
+  sourceFile: string;
+  sample: Array<{
+    legacyMemberId: string;
+    fullName: string;
+    status: string;
+    memberTypeLabel?: string;
+  }>;
+}
+
+/** Upload NewMemDatabase-style .xlsx → upsert legacyMembers / legacyPayments. */
+export async function importLegacyXlsx(input: {
+  fileName: string;
+  contentBase64: string;
+}): Promise<LegacyImportResult> {
+  return adminFetch<LegacyImportResult>("/admin/legacy/import", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function canImportLegacy(me: AdminMe): boolean {
+  return me.isSuperAdmin || me.roles.includes("admin");
 }
 
 export async function approveDataReview(memberId: string) {

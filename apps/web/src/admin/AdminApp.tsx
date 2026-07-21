@@ -14,6 +14,7 @@ import {
   type StaffRole,
   ROLE_LABEL,
 } from "../lib/admin-api";
+import { ADMIN_OPEN_ACCESS } from "../lib/admin-open-access";
 import {
   initAuth,
   signInWithGoogle,
@@ -23,15 +24,17 @@ import type { User } from "firebase/auth";
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const DataReviewPage = lazy(() => import("./pages/DataReviewPage"));
 const SlipReviewPage = lazy(() => import("./pages/SlipReviewPage"));
+const LegacyImportPage = lazy(() => import("./pages/LegacyImportPage"));
 const StaffPage = lazy(() => import("./pages/StaffPage"));
 import "./admin.css";
 
-type AdminRoute = "dashboard" | "data" | "slips" | "staff";
+type AdminRoute = "dashboard" | "data" | "slips" | "legacy" | "staff";
 
 function parseRoute(pathname: string): AdminRoute {
   const p = pathname.replace(/\/+$/, "") || "/admin";
   if (p.endsWith("/data") || p.endsWith("/reviews/data")) return "data";
   if (p.endsWith("/slips") || p.endsWith("/reviews/slips")) return "slips";
+  if (p.endsWith("/legacy") || p.endsWith("/legacy-import")) return "legacy";
   if (p.endsWith("/staff")) return "staff";
   return "dashboard";
 }
@@ -41,6 +44,7 @@ function navigate(route: AdminRoute) {
     dashboard: "/admin",
     data: "/admin/data",
     slips: "/admin/slips",
+    legacy: "/admin/legacy",
     staff: "/admin/staff",
   };
   window.history.pushState({}, "", map[route]);
@@ -84,11 +88,15 @@ export default function AdminApp() {
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    // Wait until Firebase auth settles (null or User).
+    if (user === undefined) return;
+
+    if (!user && !ADMIN_OPEN_ACCESS) {
       setMe(null);
       setAuthError(null);
       return;
     }
+
     let cancelled = false;
     setLoadingMe(true);
     setAuthError(null);
@@ -149,6 +157,10 @@ export default function AdminApp() {
       ),
     [me],
   );
+  const canImportLegacy = useMemo(
+    () => Boolean(me?.isSuperAdmin || me?.roles.includes("admin")),
+    [me],
+  );
 
   if (user === undefined) {
     return (
@@ -165,7 +177,7 @@ export default function AdminApp() {
     );
   }
 
-  if (!user) {
+  if (!user && !ADMIN_OPEN_ACCESS) {
     return <LoginScreen />;
   }
 
@@ -188,7 +200,10 @@ export default function AdminApp() {
     );
   }
 
-  if (authError === "not_authorized" || (!me && !authError)) {
+  if (
+    !ADMIN_OPEN_ACCESS &&
+    (authError === "not_authorized" || (!me && !authError))
+  ) {
     return (
       <UnauthorizedScreen
         email={me?.email ?? user?.email ?? ""}
@@ -206,13 +221,15 @@ export default function AdminApp() {
               AB<span className="gold">TA</span>
             </p>
             <div className="bo-error">{authError || "โหลดสิทธิ์ไม่สำเร็จ"}</div>
-            <button
-              type="button"
-              className="bo-btn bo-btn-ghost"
-              onClick={() => void handleSignOut()}
-            >
-              ออกจากระบบ
-            </button>
+            {user ? (
+              <button
+                type="button"
+                className="bo-btn bo-btn-ghost"
+                onClick={() => void handleSignOut()}
+              >
+                ออกจากระบบ
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -223,6 +240,7 @@ export default function AdminApp() {
     dashboard: "Dashboard",
     data: "ตรวจข้อมูลสมาชิก",
     slips: "ตรวจสลิป / ใบเสร็จ",
+    legacy: "นำเข้าสมาชิกเก่า",
     staff: "จัดการเจ้าหน้าที่",
   };
 
@@ -235,6 +253,8 @@ export default function AdminApp() {
     page = (
       <SlipReviewPage me={me} onChanged={() => refreshCounts(setCounts)} />
     );
+  } else if (route === "legacy" && canImportLegacy) {
+    page = <LegacyImportPage me={me} />;
   } else if (route === "staff" && me.canManageStaff) {
     page = <StaffPage />;
   } else if (route !== "dashboard") {
@@ -256,38 +276,65 @@ export default function AdminApp() {
             <p className="bo-brand-mark">ABTA</p>
             <p className="bo-brand-sub">Back Office · Phase 1</p>
           </div>
-          <NavBtn
-            active={route === "dashboard"}
-            onClick={() => navigate("dashboard")}
-            label="Dashboard"
-          />
-          {canSeeData && (
+
+          <nav className="bo-nav" aria-label="เมนูหลัก">
+            <p className="bo-nav-section">สมาชิก</p>
             <NavBtn
-              active={route === "data"}
-              onClick={() => navigate("data")}
-              label="ตรวจข้อมูล"
-              count={counts.data}
+              active={route === "dashboard"}
+              onClick={() => navigate("dashboard")}
+              label="Dashboard"
             />
-          )}
-          {canSeeSlips && (
-            <NavBtn
-              active={route === "slips"}
-              onClick={() => navigate("slips")}
-              label="ตรวจสลิป"
-              count={counts.slips}
-            />
-          )}
-          {me.canManageStaff && (
-            <NavBtn
-              active={route === "staff"}
-              onClick={() => navigate("staff")}
-              label="เจ้าหน้าที่"
-            />
-          )}
+            {canSeeData && (
+              <NavBtn
+                active={route === "data"}
+                onClick={() => navigate("data")}
+                label="ตรวจข้อมูล"
+                count={counts.data}
+              />
+            )}
+            {canSeeSlips && (
+              <NavBtn
+                active={route === "slips"}
+                onClick={() => navigate("slips")}
+                label="ตรวจสลิป"
+                count={counts.slips}
+              />
+            )}
+
+            {canImportLegacy ? (
+              <>
+                <p className="bo-nav-section">ข้อมูลเก่า</p>
+                <NavBtn
+                  active={route === "legacy"}
+                  onClick={() => navigate("legacy")}
+                  label="นำเข้า Excel"
+                />
+              </>
+            ) : null}
+
+            {me.canManageStaff ? (
+              <>
+                <p className="bo-nav-section">ระบบ</p>
+                <NavBtn
+                  active={route === "staff"}
+                  onClick={() => navigate("staff")}
+                  label="เจ้าหน้าที่"
+                />
+              </>
+            ) : null}
+          </nav>
+
           <div className="bo-sidebar-foot">
             <strong>{me.displayName || "เจ้าหน้าที่"}</strong>
             <span>{me.email}</span>
-            <div style={{ marginTop: "0.45rem", display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+            <div
+              style={{
+                marginTop: "0.45rem",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.25rem",
+              }}
+            >
               {me.roles.map((r: StaffRole) => (
                 <span key={r} className={`bo-badge role-${r}`}>
                   {ROLE_LABEL[r]}
@@ -300,15 +347,39 @@ export default function AdminApp() {
           <header className="bo-topbar">
             <h1>{titleMap[route]}</h1>
             <div className="bo-topbar-actions">
-              <button
-                type="button"
-                className="bo-btn bo-btn-ghost bo-btn-sm"
-                onClick={() => void handleSignOut()}
-              >
-                ออกจากระบบ
-              </button>
+              {ADMIN_OPEN_ACCESS ? (
+                <span
+                  className="bo-open-access-badge"
+                  title="ปิดได้ที่ ADMIN_OPEN_ACCESS"
+                >
+                  โหมดเปิดตรวจงาน
+                </span>
+              ) : null}
+              {user ? (
+                <button
+                  type="button"
+                  className="bo-btn bo-btn-ghost bo-btn-sm"
+                  onClick={() => void handleSignOut()}
+                >
+                  ออกจากระบบ
+                </button>
+              ) : ADMIN_OPEN_ACCESS ? (
+                <button
+                  type="button"
+                  className="bo-btn bo-btn-ghost bo-btn-sm"
+                  onClick={() => void signInWithGoogle()}
+                >
+                  เข้าสู่ระบบ Google (ไม่บังคับ)
+                </button>
+              ) : null}
             </div>
           </header>
+          {ADMIN_OPEN_ACCESS ? (
+            <div className="bo-open-access-banner" role="status">
+              เปิดสิทธิ์ชั่วคราวให้ทุกคนใช้งานได้เต็มที่ รวมจัดการเจ้าหน้าที่ —
+              อย่าลืมปิดหลังลูกค้าตรวจงานเสร็จ
+            </div>
+          ) : null}
           <div className="bo-content">
             <Suspense
               fallback={
@@ -357,7 +428,9 @@ function LoginScreen() {
       await signInWithGoogle();
     } catch (err) {
       console.error(err);
-      setError("เข้าสู่ระบบด้วย Google ไม่สำเร็จ — ตรวจว่าเปิด Google provider แล้ว");
+      setError(
+        "เข้าสู่ระบบด้วย Google ไม่สำเร็จ — ตรวจว่าเปิด Google provider แล้ว",
+      );
     } finally {
       setBusy(false);
     }

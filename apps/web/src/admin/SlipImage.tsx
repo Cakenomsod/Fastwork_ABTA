@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiBase } from "../lib/api";
+import { ADMIN_OPEN_ACCESS } from "../lib/admin-open-access";
 import { getIdToken } from "../lib/firebase";
 
 /**
@@ -31,12 +32,12 @@ export default function SlipImage(props: {
 
       try {
         const token = await getIdToken();
-        if (!token) {
+        if (!token && !ADMIN_OPEN_ACCESS) {
           if (!cancelled) setError(true);
           return;
         }
         const res = await fetch(`${apiBase()}/api${url}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) {
           if (!cancelled) setError(true);
