@@ -11,7 +11,18 @@ import {
   slipReviewApprovedText,
   slipReviewRejectedText,
 } from "../line/messages";
-import { parseMemberId, parseReceiptNumber } from "../members/id-registry";
+import {
+  assertMemberIdAvailableInTx,
+  deleteReceiptRegistryInTx,
+  ensureMemberCounterForIdInTx,
+  ensureReceiptCounterForNumberInTx,
+  parseMemberId,
+  parseReceiptNumber,
+  receiptRegistryRef,
+  writeMemberRegistryInTx,
+  writeReceiptRegistryInTx,
+  type ReceiptRegistryDoc,
+} from "../members/id-registry";
 import { allocatePermanentMemberId } from "../members/ids";
 import {
   MEMBERS_COLLECTION,
@@ -28,6 +39,8 @@ import {
 export interface QueueMemberItem {
   memberId: string;
   tempMemberId?: string;
+  /** Staged permanent member ID — applied when data review is approved. */
+  pendingMemberId?: string;
   firstName: string;
   lastName: string;
   fullName: string;
@@ -45,6 +58,8 @@ export interface QueueMemberItem {
   paymentId?: string;
   amount?: number;
   receiptNumber?: string;
+  /** Staged official receipt number — applied when slip review is approved. */
+  pendingReceiptNumber?: string;
   receiptStatus?: string;
   paymentStatus?: string;
   hasSlip: boolean;
@@ -103,6 +118,7 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
   return {
     memberId: member.memberId,
     tempMemberId: member.tempMemberId,
+    pendingMemberId: member.pendingMemberId,
     firstName,
     lastName,
     fullName: `${firstName} ${lastName}`.trim(),
@@ -119,6 +135,7 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
     paymentId: payment?.paymentId,
     amount: payment?.amount,
     receiptNumber: payment?.receiptNumber,
+    pendingReceiptNumber: payment?.pendingReceiptNumber,
     receiptStatus: payment?.receiptStatus,
     paymentStatus: payment?.status,
     hasSlip: Boolean(payment?.slipUrl),
@@ -453,6 +470,43 @@ type ActionResult =
   | { ok: true; memberId: string; receiptNumber?: string; permanentMemberId?: string }
   | { ok: false; error: string; status: number };
 
+function pad4(n: number): string {
+  return String(n).padStart(4, "0");
+}
+
+function thrownCode(err: unknown): string {
+  if (err && typeof err === "object" && "code" in err) {
+    return String((err as { code: unknown }).code);
+  }
+  return err instanceof Error ? err.message : "";
+}
+
+function codedError(code: string): Error {
+  const err = new Error(code);
+  (err as Error & { code: string }).code = code;
+  return err;
+}
+
+/**
+ * Permanent ID to assign on approve:
+ * staged pendingMemberId if set, otherwise the temporary number with T
+ * stripped (ABTA-T-2026-0042 → ABTA-2026-0042).
+ */
+async function resolvePermanentMemberId(member: MemberDoc): Promise<string> {
+  const pending = member.pendingMemberId
+    ? parseMemberId(member.pendingMemberId)
+    : null;
+  if (pending?.kind === "permanent") return pending.raw;
+  const current = parseMemberId(member.memberId);
+  if (current) {
+    return current.kind === "temp"
+      ? `ABTA-${current.year}-${pad4(current.seq)}`
+      : current.raw;
+  }
+  // Non-standard current ID (e.g. legacy) — fall back to auto allocation.
+  return allocatePermanentMemberId();
+}
+
 export async function approveDataReview(
   memberId: string,
   actorEmail: string,
@@ -466,7 +520,7 @@ export async function approveDataReview(
   const payment = await findLatestPayment(member.memberId);
   if (!payment) return { ok: false, error: "payment_not_found", status: 404 };
 
-  const permanentId = await allocatePermanentMemberId();
+  const permanentId = await resolvePermanentMemberId(member);
   const receiptNumber = await allocateTempReceiptNumber(
     new Date(),
     payment.paymentId,
@@ -480,46 +534,69 @@ export async function approveDataReview(
   const db = getFirestore();
   const oldRef = db.collection(MEMBERS_COLLECTION).doc(member.memberId);
   const newRef = db.collection(MEMBERS_COLLECTION).doc(permanentId);
+  const renaming = oldRef.path !== newRef.path;
 
-  const existingTarget = await newRef.get();
-  if (existingTarget.exists && oldRef.path !== newRef.path) {
-    return { ok: false, error: "member_id_taken", status: 409 };
+  try {
+    await db.runTransaction(async (tx) => {
+      const oldSnap = await tx.get(oldRef);
+      if (!oldSnap.exists) throw codedError("not_found");
+      const live = oldSnap.data() as MemberDoc;
+
+      if (renaming) {
+        const newSnap = await tx.get(newRef);
+        if (newSnap.exists) throw codedError("member_id_taken");
+        await assertMemberIdAvailableInTx(tx, permanentId);
+      }
+      // Bump the permanent counter so auto-allocation cannot collide later.
+      await ensureMemberCounterForIdInTx(tx, permanentId);
+
+      const updatedMember: MemberDoc = {
+        ...live,
+        memberId: permanentId,
+        // Temporary number is preserved as-is for reference.
+        tempMemberId: live.tempMemberId ?? live.memberId,
+        status: "active",
+        dataReviewStatus: "approved",
+        memberCardUrl,
+        updatedAt: now,
+      };
+      // Clear reject reason + applied staged number.
+      delete (updatedMember as MemberDoc & { rejectReason?: string })
+        .rejectReason;
+      delete updatedMember.pendingMemberId;
+
+      tx.set(newRef, updatedMember);
+      if (renaming) {
+        writeMemberRegistryInTx(tx, permanentId, "promote");
+        tx.delete(oldRef);
+      }
+
+      tx.set(
+        db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId),
+        {
+          memberId: permanentId,
+          receiptNumber,
+          receiptStatus: "temp",
+          receiptUrl,
+          status: "slip_review",
+          verifiedBy: actorEmail,
+          verifiedAt: now,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+    });
+  } catch (err) {
+    const code = thrownCode(err);
+    if (code === "member_id_taken") {
+      return { ok: false, error: "member_id_taken", status: 409 };
+    }
+    if (code === "not_found") {
+      return { ok: false, error: "not_found", status: 404 };
+    }
+    console.error("approveDataReview transaction failed", err);
+    return { ok: false, error: "approve_failed", status: 500 };
   }
-
-  const updatedMember: MemberDoc = {
-    ...member,
-    memberId: permanentId,
-    tempMemberId: member.tempMemberId ?? member.memberId,
-    status: "active",
-    dataReviewStatus: "approved",
-    memberCardUrl,
-    updatedAt: now,
-  };
-  // Clear reject reason if present
-  delete (updatedMember as MemberDoc & { rejectReason?: string }).rejectReason;
-
-  const batch = db.batch();
-  batch.set(newRef, updatedMember);
-  if (oldRef.path !== newRef.path) {
-    batch.delete(oldRef);
-  }
-
-  batch.set(
-    db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId),
-    {
-      memberId: permanentId,
-      receiptNumber,
-      receiptStatus: "temp",
-      receiptUrl,
-      status: "slip_review",
-      verifiedBy: actorEmail,
-      verifiedAt: now,
-      updatedAt: now,
-    },
-    { merge: true },
-  );
-
-  await batch.commit();
 
   if (member.lineUserId) {
     try {
@@ -575,6 +652,8 @@ export async function rejectDataReview(
       status: "temporary",
       rejectReason: trimmed,
       rejectedBy: actorEmail,
+      // Staged number belongs to this review round — drop it.
+      pendingMemberId: FieldValue.delete(),
       updatedAt: now,
     },
     { merge: true },
@@ -633,42 +712,89 @@ export async function approveSlipReview(
     return { ok: false, error: "already_official", status: 409 };
   }
 
-  const receiptNumber = await allocateOfficialReceiptNumber(
-    new Date(),
-    payment.paymentId,
-  );
+  // Official number to issue: staged pendingReceiptNumber if set, otherwise
+  // the temporary number with T stripped (RC-T-2026-0043 → RC-2026-0043).
+  const pending = payment.pendingReceiptNumber
+    ? parseReceiptNumber(payment.pendingReceiptNumber)
+    : null;
+  const current = payment.receiptNumber
+    ? parseReceiptNumber(payment.receiptNumber)
+    : null;
+  const receiptNumber =
+    pending?.kind === "official"
+      ? pending.raw
+      : current
+        ? current.kind === "temp"
+          ? `RC-${current.year}-${pad4(current.seq)}`
+          : current.raw
+        : await allocateOfficialReceiptNumber(new Date(), payment.paymentId);
+
   const now = Timestamp.now();
   const token = member.publicToken ?? "";
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
   const receiptUrl = `${WEB_ORIGIN}/receipt?m=${encodeURIComponent(member.memberId)}&t=${token}`;
 
   const db = getFirestore();
-  const batch = db.batch();
-  if (payment.receiptNumber && payment.receiptNumber !== receiptNumber) {
-    batch.delete(
-      db.collection("idRegistry").doc(`receipts_${payment.receiptNumber}`),
-    );
+  const payRef = db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId);
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const paySnap = await tx.get(payRef);
+      if (!paySnap.exists) throw codedError("payment_not_found");
+      const pay = paySnap.data() as PaymentDoc;
+      const changing = pay.receiptNumber !== receiptNumber;
+
+      if (changing) {
+        const regSnap = await tx.get(receiptRegistryRef(receiptNumber));
+        if (
+          regSnap.exists &&
+          (regSnap.data() as ReceiptRegistryDoc).paymentId !==
+            payment.paymentId
+        ) {
+          throw codedError("receipt_number_taken");
+        }
+      }
+      // Bump the official counter so auto-allocation cannot collide later.
+      await ensureReceiptCounterForNumberInTx(tx, receiptNumber);
+
+      if (changing && pay.receiptNumber) {
+        deleteReceiptRegistryInTx(tx, pay.receiptNumber);
+      }
+      writeReceiptRegistryInTx(tx, receiptNumber, payment.paymentId, "official");
+
+      tx.set(
+        payRef,
+        {
+          previousReceiptNumber: pay.receiptNumber ?? null,
+          receiptNumber,
+          receiptStatus: "official",
+          receiptUrl,
+          status: "official_receipt_issued",
+          verifiedBy: actorEmail,
+          verifiedAt: now,
+          updatedAt: now,
+          // Applied staged number.
+          pendingReceiptNumber: FieldValue.delete(),
+        },
+        { merge: true },
+      );
+      tx.set(
+        db.collection(MEMBERS_COLLECTION).doc(member.memberId),
+        { updatedAt: now },
+        { merge: true },
+      );
+    });
+  } catch (err) {
+    const code = thrownCode(err);
+    if (code === "receipt_number_taken") {
+      return { ok: false, error: "receipt_number_taken", status: 409 };
+    }
+    if (code === "payment_not_found") {
+      return { ok: false, error: "payment_not_found", status: 404 };
+    }
+    console.error("approveSlipReview transaction failed", err);
+    return { ok: false, error: "approve_failed", status: 500 };
   }
-  batch.set(
-    db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId),
-    {
-      previousReceiptNumber: payment.receiptNumber ?? null,
-      receiptNumber,
-      receiptStatus: "official",
-      receiptUrl,
-      status: "official_receipt_issued",
-      verifiedBy: actorEmail,
-      verifiedAt: now,
-      updatedAt: now,
-    },
-    { merge: true },
-  );
-  batch.set(
-    db.collection(MEMBERS_COLLECTION).doc(member.memberId),
-    { updatedAt: now },
-    { merge: true },
-  );
-  await batch.commit();
 
   if (member.lineUserId) {
     try {
@@ -728,6 +854,8 @@ export async function rejectSlipReview(
       previousReceiptNumber: previousReceiptNumber ?? null,
       receiptStatus: "rejected",
       receiptNumber: nextReceiptNumber,
+      // Staged number belongs to this review round — drop it.
+      pendingReceiptNumber: FieldValue.delete(),
       status: "slip_review",
       rejectReason: trimmed,
       verifiedBy: actorEmail,

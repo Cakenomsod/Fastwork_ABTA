@@ -24,17 +24,27 @@ import type { User } from "firebase/auth";
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const DataReviewPage = lazy(() => import("./pages/DataReviewPage"));
 const SlipReviewPage = lazy(() => import("./pages/SlipReviewPage"));
+const LegacyMembersPage = lazy(() => import("./pages/LegacyMembersPage"));
 const LegacyImportPage = lazy(() => import("./pages/LegacyImportPage"));
 const StaffPage = lazy(() => import("./pages/StaffPage"));
 import "./admin.css";
 
-type AdminRoute = "dashboard" | "data" | "slips" | "legacy" | "staff";
+type AdminRoute =
+  | "dashboard"
+  | "data"
+  | "slips"
+  | "legacy"
+  | "legacy-import"
+  | "staff";
 
 function parseRoute(pathname: string): AdminRoute {
   const p = pathname.replace(/\/+$/, "") || "/admin";
   if (p.endsWith("/data") || p.endsWith("/reviews/data")) return "data";
   if (p.endsWith("/slips") || p.endsWith("/reviews/slips")) return "slips";
-  if (p.endsWith("/legacy") || p.endsWith("/legacy-import")) return "legacy";
+  if (p.endsWith("/legacy/import") || p.endsWith("/legacy-import")) {
+    return "legacy-import";
+  }
+  if (p.endsWith("/legacy") || p.endsWith("/legacy/members")) return "legacy";
   if (p.endsWith("/staff")) return "staff";
   return "dashboard";
 }
@@ -45,6 +55,7 @@ function navigate(route: AdminRoute) {
     data: "/admin/data",
     slips: "/admin/slips",
     legacy: "/admin/legacy",
+    "legacy-import": "/admin/legacy/import",
     staff: "/admin/staff",
   };
   window.history.pushState({}, "", map[route]);
@@ -246,7 +257,8 @@ export default function AdminApp() {
     dashboard: "Dashboard",
     data: "ตรวจข้อมูลสมาชิก",
     slips: "ตรวจสลิป / ใบเสร็จ",
-    legacy: "นำเข้าสมาชิกเก่า",
+    legacy: "สมาชิกเก่า",
+    "legacy-import": "นำเข้าสมาชิกเก่า",
     staff: "จัดการเจ้าหน้าที่",
   };
 
@@ -259,7 +271,9 @@ export default function AdminApp() {
     page = (
       <SlipReviewPage me={me} onChanged={() => refreshCounts(setCounts)} />
     );
-  } else if (route === "legacy" && canImportLegacy) {
+  } else if (route === "legacy") {
+    page = <LegacyMembersPage />;
+  } else if (route === "legacy-import" && canImportLegacy) {
     page = <LegacyImportPage me={me} />;
   } else if (route === "staff" && me.canManageStaff) {
     page = <StaffPage />;
@@ -341,15 +355,18 @@ export default function AdminApp() {
               />
             )}
 
+            <p className="bo-nav-section">ข้อมูลเก่า</p>
+            <NavBtn
+              active={route === "legacy"}
+              onClick={() => go("legacy")}
+              label="สมาชิกเก่า"
+            />
             {canImportLegacy ? (
-              <>
-                <p className="bo-nav-section">ข้อมูลเก่า</p>
-                <NavBtn
-                  active={route === "legacy"}
-                  onClick={() => go("legacy")}
-                  label="นำเข้า Excel"
-                />
-              </>
+              <NavBtn
+                active={route === "legacy-import"}
+                onClick={() => go("legacy-import")}
+                label="นำเข้า Excel"
+              />
             ) : null}
 
             {me.canManageStaff ? (

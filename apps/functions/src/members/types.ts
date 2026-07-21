@@ -39,6 +39,12 @@ export type LinkType = "new_registration" | "legacy_bind" | "renewal";
 export interface MemberDoc {
   memberId: string;
   tempMemberId?: string;
+  /**
+   * Staged permanent member ID chosen by staff during review.
+   * Applied (and cleared) when the data review is approved; until then the
+   * temporary memberId stays untouched.
+   */
+  pendingMemberId?: string;
   legacyMemberId?: string;
   firstName: string;
   lastName: string;
@@ -70,6 +76,11 @@ export interface PaymentDoc {
   paymentId: string;
   memberId: string;
   receiptNumber?: string;
+  /**
+   * Staged official receipt number chosen by staff during slip review.
+   * Applied (and cleared) when the slip review is approved.
+   */
+  pendingReceiptNumber?: string;
   /** Prior receipt number kept for audit when replaced. */
   previousReceiptNumber?: string;
   receiptStatus: ReceiptStatus;

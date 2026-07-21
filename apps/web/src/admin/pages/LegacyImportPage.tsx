@@ -7,6 +7,7 @@ import {
 } from "../../lib/admin-api";
 
 const MAX_BYTES = 8 * 1024 * 1024;
+const SAMPLE_PREVIEW = 5;
 
 const ERROR_LABEL: Record<string, string> = {
   file_required: "กรุณาเลือกไฟล์ Excel",
@@ -45,6 +46,11 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function goLegacyMembers() {
+  window.history.pushState({}, "", "/admin/legacy");
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
 export interface LegacyImportPageProps {
   me: AdminMe;
 }
@@ -55,6 +61,7 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LegacyImportResult | null>(null);
+  const [showAllSample, setShowAllSample] = useState(false);
 
   if (!canImportLegacy(props.me)) {
     return (
@@ -71,6 +78,7 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
     const next = e.target.files?.[0] ?? null;
     setError(null);
     setResult(null);
+    setShowAllSample(false);
     if (!next) {
       setFile(null);
       return;
@@ -95,6 +103,7 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
     setFile(null);
     setError(null);
     setResult(null);
+    setShowAllSample(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -104,6 +113,7 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
     setBusy(true);
     setError(null);
     setResult(null);
+    setShowAllSample(false);
     try {
       const contentBase64 = await fileToBase64(file);
       const out = await importLegacyXlsx({
@@ -117,6 +127,12 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
       setBusy(false);
     }
   }
+
+  const sample = result?.sample ?? [];
+  const visibleSample = showAllSample
+    ? sample
+    : sample.slice(0, SAMPLE_PREVIEW);
+  const hiddenCount = Math.max(0, sample.length - SAMPLE_PREVIEW);
 
   return (
     <div className="bo-legacy-page">
@@ -178,31 +194,53 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
             </div>
           ) : null}
 
-          {result?.sample?.length ? (
-            <div className="bo-table-wrap">
-              <table className="bo-table">
-                <thead>
-                  <tr>
-                    <th>เลขสมาชิกเก่า</th>
-                    <th>ชื่อ</th>
-                    <th>สถานะ</th>
-                    <th>ประเภท</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.sample.map((row) => (
-                    <tr key={row.legacyMemberId}>
-                      <td>
-                        <code>{row.legacyMemberId}</code>
-                      </td>
-                      <td>{row.fullName}</td>
-                      <td>{row.status}</td>
-                      <td>{row.memberTypeLabel || "—"}</td>
+          {sample.length ? (
+            <>
+              <div className="bo-table-wrap">
+                <table className="bo-table">
+                  <thead>
+                    <tr>
+                      <th>เลขสมาชิกเก่า</th>
+                      <th>ชื่อ</th>
+                      <th>สถานะ</th>
+                      <th>ประเภท</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {visibleSample.map((row) => (
+                      <tr key={row.legacyMemberId}>
+                        <td>
+                          <code>{row.legacyMemberId}</code>
+                        </td>
+                        <td>{row.fullName}</td>
+                        <td>{row.status}</td>
+                        <td>{row.memberTypeLabel || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="bo-legacy-sample-actions">
+                {hiddenCount > 0 ? (
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-ghost"
+                    onClick={() => setShowAllSample((v) => !v)}
+                  >
+                    {showAllSample
+                      ? "ย่อรายชื่อ"
+                      : `แสดงเพิ่มอีก ${hiddenCount} รายชื่อ`}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="bo-btn bo-btn-ghost"
+                  onClick={goLegacyMembers}
+                >
+                  ไปหน้ารายชื่อสมาชิกเก่า
+                </button>
+              </div>
+            </>
           ) : null}
 
           <div className="bo-legacy-actions">

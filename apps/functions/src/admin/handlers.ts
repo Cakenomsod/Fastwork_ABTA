@@ -29,7 +29,12 @@ import {
   deleteMemberRecord,
   updateMemberProfile,
 } from "./member-profile";
-import { findLegacyPaymentsByMemberId } from "../legacy/repository";
+import {
+  findBoundLegacyLinks,
+  findLegacyPaymentsByMemberId,
+  listLegacyMembers,
+} from "../legacy/repository";
+import type { LegacyMemberStatus } from "../legacy/types";
 import {
   importLegacyWorkbookFromBuffer,
   LegacyImportError,
@@ -574,6 +579,119 @@ export async function handleAdminLegacyPayments(
       expiryDate: r.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
       transferredAt: r.transferredAt?.toDate?.()?.toISOString?.(),
     })),
+  });
+}
+
+const LEGACY_STATUS_SET = new Set<LegacyMemberStatus>([
+  "active",
+  "expired",
+  "non_active",
+  "pending",
+]);
+
+function matchesLegacyQuery(haystack: string, q: string): boolean {
+  if (!q) return true;
+  return haystack.toLowerCase().includes(q.toLowerCase());
+}
+
+/**
+ * GET /admin/legacy/members
+ * Query: q, bindStatus (all|bound|unbound), status (active|…), limit
+ * Any authenticated staff can browse (import remains admin-only).
+ */
+export async function handleAdminListLegacyMembers(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+
+  const q = String(req.query.q ?? "").trim();
+  const bindRaw = String(req.query.bindStatus ?? "all").trim().toLowerCase();
+  const bindStatus =
+    bindRaw === "bound" || bindRaw === "unbound" ? bindRaw : "all";
+  const statusRaw = String(req.query.status ?? "").trim().toLowerCase();
+  const statusFilter = LEGACY_STATUS_SET.has(statusRaw as LegacyMemberStatus)
+    ? (statusRaw as LegacyMemberStatus)
+    : "";
+  const limit = Math.min(
+    Math.max(Number(req.query.limit) || 500, 1),
+    2000,
+  );
+
+  const [legacyRows, boundMap] = await Promise.all([
+    listLegacyMembers(limit),
+    findBoundLegacyLinks(),
+  ]);
+
+  let items = legacyRows.map((m) => {
+    const bound = boundMap.get(m.legacyMemberId);
+    return {
+      legacyMemberId: m.legacyMemberId,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      fullName: `${m.firstName} ${m.lastName}`.trim(),
+      legalEntityName: m.legalEntityName,
+      buildingName: m.buildingName ?? m.organization,
+      phone: m.phone,
+      email: m.email,
+      status: m.status,
+      memberTypeLabel: m.memberTypeLabel,
+      entityTypeLabel: m.entityTypeLabel,
+      expiryDate: m.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
+      sourceFile: m.sourceFile,
+      lineBound: Boolean(bound),
+      boundMemberId: bound?.memberId,
+      boundFullName: bound?.fullName || undefined,
+    };
+  });
+
+  if (statusFilter) {
+    items = items.filter((r) => r.status === statusFilter);
+  }
+  if (bindStatus === "bound") {
+    items = items.filter((r) => r.lineBound);
+  } else if (bindStatus === "unbound") {
+    items = items.filter((r) => !r.lineBound);
+  }
+  if (q) {
+    items = items.filter((r) => {
+      const blob = [
+        r.legacyMemberId,
+        r.fullName,
+        r.firstName,
+        r.lastName,
+        r.legalEntityName,
+        r.buildingName,
+        r.phone,
+        r.email,
+        r.boundMemberId,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return matchesLegacyQuery(blob, q);
+    });
+  }
+
+  items.sort((a, b) =>
+    a.legacyMemberId.localeCompare(b.legacyMemberId, "th"),
+  );
+
+  const boundCount = legacyRows.reduce(
+    (n, m) => n + (boundMap.has(m.legacyMemberId) ? 1 : 0),
+    0,
+  );
+
+  res.status(200).json({
+    ok: true,
+    total: legacyRows.length,
+    boundCount,
+    unboundCount: legacyRows.length - boundCount,
+    truncated: legacyRows.length >= limit,
+    items,
   });
 }
 

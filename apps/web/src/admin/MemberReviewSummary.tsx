@@ -4,6 +4,8 @@ import { memberNameParts, type MemberDetail } from "../lib/admin-api";
 export interface MemberReviewSummaryProps {
   detail: MemberDetail;
   variant: "data" | "slip";
+  /** Action control for changing member / receipt number in this step. */
+  idChange?: ReactNode;
 }
 
 function ReviewField(props: {
@@ -78,7 +80,7 @@ function NameFields(props: { detail: MemberDetail }) {
 }
 
 export default function MemberReviewSummary(props: MemberReviewSummaryProps) {
-  const { detail, variant } = props;
+  const { detail, variant, idChange } = props;
 
   if (variant === "slip") {
     return (
@@ -91,8 +93,11 @@ export default function MemberReviewSummary(props: MemberReviewSummaryProps) {
               "—"
             )}
           </ReviewField>
-          <ReviewField label="ใบเสร็จชั่วคราว">
-            {detail.receiptNumber || "—"}
+          <ReviewField label="ใบเสร็จชั่วคราว" wide={Boolean(idChange)}>
+            <div className="bo-review-id-row">
+              <code>{detail.receiptNumber || "—"}</code>
+              {idChange}
+            </div>
           </ReviewField>
           <ReviewField label="สถานะใบเสร็จ">
             {receiptStatusLabel(detail.receiptStatus)}
@@ -143,8 +148,11 @@ export default function MemberReviewSummary(props: MemberReviewSummaryProps) {
     <div className="bo-review-summary">
       <ReviewSection title="รายละเอียดสมาชิก">
         <NameFields detail={detail} />
-        <ReviewField label="เลขสมาชิกชั่วคราว">
-          <code>{detail.memberId}</code>
+        <ReviewField label="เลขสมาชิกชั่วคราว" wide={Boolean(idChange)}>
+          <div className="bo-review-id-row">
+            <code>{detail.memberId}</code>
+            {idChange}
+          </div>
         </ReviewField>
         {detail.legacyMemberId ? (
           <ReviewField label="เลขสมาชิกเก่า">

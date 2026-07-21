@@ -17,6 +17,8 @@ export interface AdminMe {
 export interface QueueItem {
   memberId: string;
   tempMemberId?: string;
+  /** Staged permanent member ID — applied when data review is approved. */
+  pendingMemberId?: string;
   firstName?: string;
   lastName?: string;
   fullName: string;
@@ -34,6 +36,8 @@ export interface QueueItem {
   paymentId?: string;
   amount?: number;
   receiptNumber?: string;
+  /** Staged official receipt number — applied when slip review is approved. */
+  pendingReceiptNumber?: string;
   receiptStatus?: string;
   paymentStatus?: string;
   hasSlip: boolean;
@@ -76,6 +80,27 @@ export function receiptIdHasT(receiptNumber?: string): boolean {
   if (!receiptNumber?.trim()) return false;
   return /^RC-T-\d{4}-\d{4}$/i.test(receiptNumber.trim());
 }
+
+/**
+ * Number that will be applied when the review is confirmed:
+ * the staged pending number if any, otherwise the current number with T
+ * stripped (ABTA-T-2026-0042 → ABTA-2026-0042, RC-T-2026-0001 → RC-2026-0001).
+ */
+export function effectiveIdOnConfirm(
+  current: string | undefined,
+  pending: string | undefined,
+): string {
+  const staged = pending?.trim().toUpperCase();
+  if (staged) return staged;
+  const value = current?.trim().toUpperCase() ?? "";
+  return value.replace(/^(ABTA|RC)-T-/, "$1-");
+}
+
+export type IdConflictCheck = {
+  contestedId: string;
+  tempId: string;
+  suggestedId: string;
+};
 
 export const MEMBER_STATUS_FILTER_OPTIONS: {
   value: "" | MemberListStatusFilter;
@@ -281,6 +306,39 @@ export async function checkMemberIds(input: {
   return adminFetch(`/admin/members/ids/check?${params}`);
 }
 
+/** Returns conflict info when the ID that would apply on confirm is taken. */
+export async function checkIdConflictOnConfirm(opts: {
+  kind: "member" | "receipt";
+  current: string | undefined;
+  pending: string | undefined;
+  exceptMemberId: string;
+  exceptPaymentId?: string;
+}): Promise<IdConflictCheck | null> {
+  const contestedId = effectiveIdOnConfirm(opts.current, opts.pending);
+  if (!contestedId) return null;
+
+  const result = await checkMemberIds({
+    memberId: opts.kind === "member" ? contestedId : undefined,
+    receiptNumber: opts.kind === "receipt" ? contestedId : undefined,
+    exceptMemberId: opts.exceptMemberId,
+    exceptPaymentId: opts.exceptPaymentId,
+  });
+
+  const row = opts.kind === "member" ? result.memberId : result.receiptNumber;
+  if (!row || row.available) return null;
+
+  const suggestedId =
+    opts.kind === "member"
+      ? result.suggest.nextPermanentMemberId
+      : result.suggest.nextOfficialReceiptNumber;
+
+  return {
+    contestedId,
+    tempId: (opts.current ?? "").trim().toUpperCase() || contestedId,
+    suggestedId,
+  };
+}
+
 export function canEditMemberNumber(me: AdminMe): boolean {
   return (
     me.isSuperAdmin ||
@@ -362,6 +420,61 @@ export interface LegacyImportResult {
   }>;
 }
 
+export type LegacyBindFilter = "all" | "bound" | "unbound";
+
+export type LegacyStatusFilter =
+  | "active"
+  | "expired"
+  | "non_active"
+  | "pending";
+
+export interface LegacyMemberListRow {
+  legacyMemberId: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  legalEntityName?: string;
+  buildingName?: string;
+  phone?: string;
+  email?: string;
+  status: string;
+  memberTypeLabel?: string;
+  entityTypeLabel?: string;
+  expiryDate?: string;
+  sourceFile?: string;
+  lineBound: boolean;
+  boundMemberId?: string;
+  boundFullName?: string;
+}
+
+export interface LegacyMemberListResult {
+  total: number;
+  boundCount: number;
+  unboundCount: number;
+  truncated: boolean;
+  items: LegacyMemberListRow[];
+}
+
+/** Browse / search imported legacy members (+ LINE bind status). */
+export async function searchLegacyMembersAdmin(input: {
+  q?: string;
+  bindStatus?: LegacyBindFilter;
+  status?: "" | LegacyStatusFilter;
+  limit?: number;
+}): Promise<LegacyMemberListResult> {
+  const params = new URLSearchParams();
+  if (input.q?.trim()) params.set("q", input.q.trim());
+  if (input.bindStatus && input.bindStatus !== "all") {
+    params.set("bindStatus", input.bindStatus);
+  }
+  if (input.status) params.set("status", input.status);
+  if (input.limit) params.set("limit", String(input.limit));
+  const qs = params.toString();
+  return adminFetch<LegacyMemberListResult>(
+    `/admin/legacy/members${qs ? `?${qs}` : ""}`,
+  );
+}
+
 /** Upload NewMemDatabase-style .xlsx → upsert legacyMembers / legacyPayments. */
 export async function importLegacyXlsx(input: {
   fileName: string;
@@ -376,6 +489,33 @@ export async function importLegacyXlsx(input: {
 export function canImportLegacy(me: AdminMe): boolean {
   return me.isSuperAdmin || me.roles.includes("admin");
 }
+
+export const LEGACY_BIND_FILTER_OPTIONS: Array<{
+  value: LegacyBindFilter;
+  label: string;
+}> = [
+  { value: "all", label: "ทั้งหมด" },
+  { value: "bound", label: "ยืนยัน LINE แล้ว" },
+  { value: "unbound", label: "ยังไม่ยืนยัน" },
+];
+
+export const LEGACY_STATUS_FILTER_OPTIONS: Array<{
+  value: "" | LegacyStatusFilter;
+  label: string;
+}> = [
+  { value: "", label: "ทุกสถานะ" },
+  { value: "active", label: "Active" },
+  { value: "expired", label: "Expired" },
+  { value: "non_active", label: "NonActive" },
+  { value: "pending", label: "Pending" },
+];
+
+export const LEGACY_STATUS_LABEL: Record<string, string> = {
+  active: "Active",
+  expired: "Expired",
+  non_active: "NonActive",
+  pending: "Pending",
+};
 
 export async function approveDataReview(memberId: string) {
   return adminFetch<{ memberId: string; receiptNumber?: string }>(

@@ -15,10 +15,17 @@ export interface ReviewActionBarProps {
   note?: string;
   approveDisabled?: boolean;
   rejectTextareaId?: string;
+  /**
+   * Called when the user clicks Approve (before the built-in confirm).
+   * Return true to show the normal confirm; false if the parent handled
+   * the click (e.g. opened an ID-conflict dialog).
+   */
+  gateApprove?: () => boolean | Promise<boolean>;
 }
 
 export default function ReviewActionBar(props: ReviewActionBarProps) {
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [gating, setGating] = useState(false);
 
   const {
     busy,
@@ -35,9 +42,19 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
     note,
     approveDisabled = false,
     rejectTextareaId = "review-reject-reason",
+    gateApprove,
   } = props;
 
-  function handleApproveClick() {
+  async function handleApproveClick() {
+    if (gateApprove) {
+      setGating(true);
+      try {
+        const proceed = await gateApprove();
+        if (!proceed) return;
+      } finally {
+        setGating(false);
+      }
+    }
     setShowApproveConfirm(true);
   }
 
@@ -50,6 +67,8 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
     setShowApproveConfirm(false);
   }
 
+  const locked = busy || gating;
+
   return (
     <div className="bo-review-actions">
       {showApproveConfirm ? (
@@ -59,7 +78,7 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
             <button
               type="button"
               className="bo-btn bo-btn-success"
-              disabled={busy}
+              disabled={locked}
               onClick={() => void handleApproveConfirm()}
             >
               ยืนยันอนุมัติ
@@ -67,7 +86,7 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
             <button
               type="button"
               className="bo-btn bo-btn-ghost"
-              disabled={busy}
+              disabled={locked}
               onClick={handleApproveCancel}
             >
               ยกเลิก
@@ -79,15 +98,15 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
           <button
             type="button"
             className="bo-btn bo-btn-success"
-            disabled={busy || approveDisabled}
-            onClick={handleApproveClick}
+            disabled={locked || approveDisabled}
+            onClick={() => void handleApproveClick()}
           >
-            {approveLabel}
+            {gating ? "กำลังตรวจสอบเลข…" : approveLabel}
           </button>
           <button
             type="button"
             className="bo-btn bo-btn-danger-ghost"
-            disabled={busy}
+            disabled={locked}
             onClick={onRejectToggle}
           >
             {rejectLabel}
@@ -110,7 +129,7 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
             <button
               type="button"
               className="bo-btn bo-btn-danger"
-              disabled={busy}
+              disabled={locked}
               onClick={() => void onRejectConfirm()}
             >
               ยืนยันปฏิเสธ
@@ -118,7 +137,7 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
             <button
               type="button"
               className="bo-btn bo-btn-ghost"
-              disabled={busy}
+              disabled={locked}
               onClick={onRejectToggle}
             >
               ยกเลิก

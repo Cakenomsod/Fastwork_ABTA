@@ -107,3 +107,44 @@ export async function isLegacyMemberBound(
     .get();
   return !snap.empty;
 }
+
+export type BoundLegacyLink = {
+  memberId: string;
+  fullName: string;
+};
+
+/** Map legacyMemberId → live member created via LINE bind. */
+export async function findBoundLegacyLinks(): Promise<
+  Map<string, BoundLegacyLink>
+> {
+  const snap = await db()
+    .collection("members")
+    .where("linkType", "==", "legacy_bind")
+    .get();
+  const map = new Map<string, BoundLegacyLink>();
+  for (const doc of snap.docs) {
+    const data = doc.data() as {
+      legacyMemberId?: string;
+      firstName?: string;
+      lastName?: string;
+    };
+    const lid = String(data.legacyMemberId ?? "").trim();
+    if (!lid || map.has(lid)) continue;
+    map.set(lid, {
+      memberId: doc.id,
+      fullName: `${data.firstName ?? ""} ${data.lastName ?? ""}`.trim(),
+    });
+  }
+  return map;
+}
+
+/** List legacy members (capped) for admin browse/search. */
+export async function listLegacyMembers(
+  limit = 2000,
+): Promise<LegacyMemberDoc[]> {
+  const snap = await db()
+    .collection(LEGACY_MEMBERS_COLLECTION)
+    .limit(Math.min(Math.max(limit, 1), 5000))
+    .get();
+  return snap.docs.map((d) => d.data() as LegacyMemberDoc);
+}

@@ -245,19 +245,201 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (path.startsWith("/admin/members/ids/check")) {
+    const memberId = (url.searchParams.get("memberId") ?? "").toUpperCase();
+    const receiptNumber = (
+      url.searchParams.get("receiptNumber") ?? ""
+    ).toUpperCase();
+    const exceptMemberId = (
+      url.searchParams.get("exceptMemberId") ?? ""
+    ).toUpperCase();
+    // Only permanent member IDs count as "taken" for permanent-format checks.
+    const TAKEN_PERMANENT = new Set(
+      Object.keys(MOCK_MEMBER_DETAILS)
+        .map((k) => k.toUpperCase())
+        .filter((k) => /^ABTA-\d{4}-\d{4}$/.test(k)),
+    );
+    const TAKEN_RECEIPTS = new Set(
+      Object.values(MOCK_MEMBER_DETAILS)
+        .map((m) => m.receiptNumber?.toUpperCase())
+        .filter(
+          (r): r is string =>
+            typeof r === "string" && /^RC-\d{4}-\d{4}$/.test(r),
+        ),
+    );
+    // Numbers staged by other members also count as taken.
+    for (const m of Object.values(MOCK_MEMBER_DETAILS)) {
+      if (m.memberId.toUpperCase() === exceptMemberId) continue;
+      if (m.pendingMemberId) {
+        TAKEN_PERMANENT.add(m.pendingMemberId.toUpperCase());
+      }
+      if (m.pendingReceiptNumber) {
+        TAKEN_RECEIPTS.add(m.pendingReceiptNumber.toUpperCase());
+      }
+    }
+    const memberValid = /^ABTA(-\d{4}-\d{4}|-T-\d{4}-\d{4})$/.test(memberId);
+    const isPermanent = /^ABTA-\d{4}-\d{4}$/.test(memberId);
+    const receiptValid = /^RC(-T)?-\d{4}-\d{4}$/.test(receiptNumber);
     return Promise.resolve({
-      memberId: {
-        value: url.searchParams.get("memberId") ?? "",
-        validFormat: true,
-        available: true,
-      },
+      ...(memberId
+        ? {
+            memberId: {
+              value: memberId,
+              validFormat: memberValid,
+              available:
+                memberValid &&
+                (memberId === exceptMemberId ||
+                  (isPermanent
+                    ? !TAKEN_PERMANENT.has(memberId)
+                    : !Object.keys(MOCK_MEMBER_DETAILS).some(
+                        (k) => k.toUpperCase() === memberId,
+                      ))),
+            },
+          }
+        : {}),
+      ...(receiptNumber
+        ? {
+            receiptNumber: {
+              value: receiptNumber,
+              validFormat: receiptValid,
+              available:
+                receiptValid &&
+                (!/^RC-\d{4}-\d{4}$/.test(receiptNumber) ||
+                  !TAKEN_RECEIPTS.has(receiptNumber)),
+            },
+          }
+        : {}),
       suggest: {
-        nextTempMemberId: "T-2026-0099",
-        nextPermanentMemberId: "A-1099",
+        nextTempMemberId: "ABTA-T-2026-0099",
+        nextPermanentMemberId: "ABTA-2026-1099",
         nextTempReceiptNumber: "RC-T-2026-0099",
         nextOfficialReceiptNumber: "RC-2026-0099",
       },
     } as T);
+  }
+
+  if (
+    path === "/admin/members/ids" &&
+    (init?.method === "PATCH" || init?.method === "patch")
+  ) {
+    // New numbers are staged (pending) — nothing is renamed until confirm.
+    const body = JSON.parse(String(init.body ?? "{}")) as {
+      memberId?: string;
+      newMemberId?: string;
+      newReceiptNumber?: string;
+    };
+    const current = MOCK_MEMBER_DETAILS[body.memberId ?? ""] ?? {
+      ...MOCK_MEMBER_DETAILS["ABTA-T-2026-0042"],
+      memberId: body.memberId ?? "ABTA-T-2026-0042",
+    };
+    const updated: MemberDetail = {
+      ...current,
+      ...(body.newMemberId
+        ? { pendingMemberId: body.newMemberId.toUpperCase() }
+        : {}),
+      ...(body.newReceiptNumber
+        ? { pendingReceiptNumber: body.newReceiptNumber.toUpperCase() }
+        : {}),
+    };
+    MOCK_MEMBER_DETAILS[current.memberId] = updated;
+    const qi = MOCK_QUEUE.findIndex((r) => r.memberId === current.memberId);
+    if (qi >= 0) {
+      MOCK_QUEUE[qi] = {
+        ...MOCK_QUEUE[qi],
+        pendingMemberId: updated.pendingMemberId,
+        pendingReceiptNumber: updated.pendingReceiptNumber,
+      };
+    }
+    return Promise.resolve({
+      memberId: current.memberId,
+      receiptNumber: updated.receiptNumber,
+      member: updated,
+    } as T);
+  }
+
+  if (path === "/admin/reviews/data/approve") {
+    const body = JSON.parse(String(init?.body ?? "{}")) as {
+      memberId?: string;
+    };
+    const current = MOCK_MEMBER_DETAILS[body.memberId ?? ""];
+    if (current) {
+      // Pending number wins; otherwise the temp number with T stripped.
+      const permanentId = (
+        current.pendingMemberId ??
+        current.memberId.replace(/^ABTA-T-/i, "ABTA-")
+      ).toUpperCase();
+      const receiptNumber =
+        current.receiptNumber ??
+        permanentId.replace(/^ABTA-/, "RC-T-");
+      const updated: MemberDetail = {
+        ...current,
+        memberId: permanentId,
+        tempMemberId: current.tempMemberId ?? current.memberId,
+        pendingMemberId: undefined,
+        status: "active",
+        dataReviewStatus: "approved",
+        receiptNumber,
+        receiptStatus: "temp",
+        paymentStatus: "slip_review",
+      };
+      delete MOCK_MEMBER_DETAILS[current.memberId];
+      MOCK_MEMBER_DETAILS[permanentId] = updated;
+      const qi = MOCK_QUEUE.findIndex((r) => r.memberId === current.memberId);
+      if (qi >= 0) {
+        MOCK_QUEUE[qi] = {
+          ...MOCK_QUEUE[qi],
+          memberId: permanentId,
+          pendingMemberId: undefined,
+          status: "active",
+          dataReviewStatus: "approved",
+          receiptNumber,
+          receiptStatus: "temp",
+          paymentStatus: "slip_review",
+        };
+      }
+      return Promise.resolve({
+        memberId: permanentId,
+        receiptNumber,
+        member: updated,
+      } as T);
+    }
+  }
+
+  if (path === "/admin/reviews/slips/approve") {
+    const body = JSON.parse(String(init?.body ?? "{}")) as {
+      memberId?: string;
+    };
+    const current = MOCK_MEMBER_DETAILS[body.memberId ?? ""];
+    if (current) {
+      // Pending number wins; otherwise the temp receipt with T stripped.
+      const receiptNumber = (
+        current.pendingReceiptNumber ??
+        current.receiptNumber?.replace(/^RC-T-/i, "RC-") ??
+        "RC-2026-0099"
+      ).toUpperCase();
+      const updated: MemberDetail = {
+        ...current,
+        pendingReceiptNumber: undefined,
+        receiptNumber,
+        receiptStatus: "official",
+        paymentStatus: "official_receipt_issued",
+      };
+      MOCK_MEMBER_DETAILS[current.memberId] = updated;
+      const qi = MOCK_QUEUE.findIndex((r) => r.memberId === current.memberId);
+      if (qi >= 0) {
+        MOCK_QUEUE[qi] = {
+          ...MOCK_QUEUE[qi],
+          pendingReceiptNumber: undefined,
+          receiptNumber,
+          receiptStatus: "official",
+          paymentStatus: "official_receipt_issued",
+        };
+      }
+      return Promise.resolve({
+        memberId: current.memberId,
+        receiptNumber,
+        member: updated,
+      } as T);
+    }
   }
 
   if (path.startsWith("/admin/members/legacy-payments")) {

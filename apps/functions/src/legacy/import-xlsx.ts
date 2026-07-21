@@ -429,7 +429,7 @@ export async function importLegacyWorkbookFromBuffer(
     payments: writtenPayments,
     feeMasters: writtenFees,
     sourceFile: safeName,
-    sample: members.slice(0, 5).map((m) => ({
+    sample: members.slice(0, 100).map((m) => ({
       legacyMemberId: m.legacyMemberId,
       fullName: `${m.firstName} ${m.lastName}`.trim(),
       status: m.status,

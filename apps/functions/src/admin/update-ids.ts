@@ -1,32 +1,25 @@
 /**
- * Admin correction of member / receipt numbers (manual override).
+ * Admin correction of member / receipt numbers during review.
  *
- * Safety:
- * - Format validation
- * - Uniqueness via member doc + idRegistry (transactional)
- * - Bumps year counters to max(seq) so auto-allocate cannot collide
- * - Never overwrite an existing member doc (create-or-abort)
+ * Changing a number does NOT rename anything immediately. Instead the new
+ * number is validated against real (permanent/official) numbers and staged
+ * on the document (`pendingMemberId` / `pendingReceiptNumber`). It is applied
+ * when the reviewer confirms:
+ *   - data review approve  → pendingMemberId becomes the permanent member ID
+ *   - slip review approve  → pendingReceiptNumber becomes the official receipt
+ * The temporary number itself stays untouched until then.
  */
 
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
-import { WEB_ORIGIN } from "../config";
-import { pushMessages } from "../line/client";
-import { memberIdsUpdatedText } from "../line/messages";
 import {
-  assertMemberIdAvailableInTx,
-  assertReceiptNumberAvailableInTx,
-  deleteMemberRegistryInTx,
-  deleteReceiptRegistryInTx,
-  ensureMemberCounterForIdInTx,
-  ensureReceiptCounterForNumberInTx,
   isValidMemberIdFormat,
   isValidReceiptNumberFormat,
   memberRegistryRef,
+  parseMemberId,
+  parseReceiptNumber,
   peekNextMemberId,
   peekNextReceiptNumber,
   receiptRegistryRef,
-  writeMemberRegistryInTx,
-  writeReceiptRegistryInTx,
 } from "../members/id-registry";
 import {
   MEMBERS_COLLECTION,
@@ -43,55 +36,10 @@ export type UpdateIdsResult =
 
 export { isValidMemberIdFormat, isValidReceiptNumberFormat };
 
-function rewriteMemberUrl(
-  url: string | undefined,
-  oldId: string,
-  newId: string,
-  token: string,
-  kind: "card" | "status" | "receipt",
-): string {
-  if (!url) {
-    const path =
-      kind === "card" ? "card" : kind === "receipt" ? "receipt" : "status";
-    return `${WEB_ORIGIN}/${path}?m=${encodeURIComponent(newId)}&t=${token}`;
-  }
-  try {
-    const u = new URL(url);
-    if (u.searchParams.get("m") === oldId) {
-      u.searchParams.set("m", newId);
-      return u.toString();
-    }
-  } catch {
-    // fall through to string replace
-  }
-  return url.replaceAll(oldId, newId);
-}
-
-function mapTxError(err: unknown): UpdateIdsResult {
-  const code =
-    err && typeof err === "object" && "code" in err
-      ? String((err as { code: unknown }).code)
-      : err instanceof Error
-        ? err.message
-        : "";
-  if (code === "member_id_taken" || code.includes("member_id_taken")) {
-    return { ok: false, error: "member_id_taken", status: 409 };
-  }
-  if (code === "receipt_number_taken" || code.includes("receipt_number_taken")) {
-    return { ok: false, error: "receipt_number_taken", status: 409 };
-  }
-  if (code === "not_found" || code.includes("not_found")) {
-    return { ok: false, error: "not_found", status: 404 };
-  }
-  if (code === "payment_not_found" || code.includes("payment_not_found")) {
-    return { ok: false, error: "payment_not_found", status: 404 };
-  }
-  console.error("updateMemberIds transaction failed", err);
-  return { ok: false, error: "id_update_conflict", status: 409 };
-}
-
 /**
- * Update the current displayed memberId and/or the latest payment receiptNumber.
+ * Stage a new member ID and/or receipt number for the current review.
+ * Numbers must be in permanent/official (no-T) format; uniqueness is checked
+ * against real numbers and other staged numbers, then re-checked when applied.
  */
 export async function updateMemberIds(opts: {
   memberId: string;
@@ -126,211 +74,70 @@ export async function updateMemberIds(opts: {
   if (!member) {
     return { ok: false, error: "not_found", status: 404 };
   }
-
   const payment = await findLatestPayment(member.memberId);
-  const memberIdChanged =
-    Boolean(nextMemberId) && nextMemberId !== member.memberId;
-  const receiptChanged =
-    Boolean(nextReceipt) && nextReceipt !== (payment?.receiptNumber ?? "");
 
-  if (!memberIdChanged && !receiptChanged) {
-    const detail = await getAdminMemberDetail(member.memberId);
-    if (!detail) return { ok: false, error: "not_found", status: 404 };
-    return {
-      ok: true,
-      memberId: detail.memberId,
-      receiptNumber: detail.receiptNumber,
-      member: detail,
-    };
-  }
-
-  if (memberIdChanged) {
-    if (!isValidMemberIdFormat(nextMemberId!)) {
+  if (changingMember) {
+    // Staged member IDs are always permanent format (no T).
+    if (parseMemberId(nextMemberId!)?.kind !== "permanent") {
       return { ok: false, error: "invalid_member_id_format", status: 400 };
     }
   }
-
-  if (receiptChanged) {
+  if (changingReceipt) {
     if (!payment) {
       return { ok: false, error: "payment_not_found", status: 404 };
     }
-    if (!isValidReceiptNumberFormat(nextReceipt!)) {
+    // Staged receipt numbers are always official format (no T).
+    if (parseReceiptNumber(nextReceipt!)?.kind !== "official") {
       return { ok: false, error: "invalid_receipt_number_format", status: 400 };
     }
   }
 
-  // Load payment refs before the transaction (known set of docs).
-  const db = getFirestore();
-  const paymentsSnap = await db
-    .collection(PAYMENTS_COLLECTION)
-    .where("memberId", "==", member.memberId)
-    .get();
-  const paymentRefs = paymentsSnap.docs.map((d) => d.ref);
-
-  const now = Timestamp.now();
-  let effectiveMemberId = member.memberId;
-
-  try {
-    await db.runTransaction(async (tx) => {
-      const oldRef = db.collection(MEMBERS_COLLECTION).doc(member.memberId);
-      const oldSnap = await tx.get(oldRef);
-      if (!oldSnap.exists) {
-        const err = new Error("not_found");
-        (err as Error & { code: string }).code = "not_found";
-        throw err;
-      }
-      const live = oldSnap.data() as MemberDoc;
-
-      if (memberIdChanged) {
-        const newId = nextMemberId!;
-        const newRef = db.collection(MEMBERS_COLLECTION).doc(newId);
-        const newSnap = await tx.get(newRef);
-        if (newSnap.exists) {
-          const err = new Error("member_id_taken");
-          (err as Error & { code: string }).code = "member_id_taken";
-          throw err;
-        }
-        await assertMemberIdAvailableInTx(tx, newId);
-        await ensureMemberCounterForIdInTx(tx, newId);
-
-        const token = live.publicToken ?? "";
-        const stillTemporary =
-          live.status === "temporary" ||
-          !live.tempMemberId ||
-          live.tempMemberId === live.memberId;
-
-        tx.set(newRef, {
-          ...live,
-          memberId: newId,
-          tempMemberId: stillTemporary ? newId : live.tempMemberId,
-          memberCardUrl: rewriteMemberUrl(
-            live.memberCardUrl,
-            live.memberId,
-            newId,
-            token,
-            "card",
-          ),
-          updatedAt: now,
-          updatedBy: opts.actorEmail,
-        });
-        writeMemberRegistryInTx(tx, newId, "admin_rename");
-        if (oldRef.path !== newRef.path) {
-          tx.delete(oldRef);
-          deleteMemberRegistryInTx(tx, live.memberId);
-        }
-        effectiveMemberId = newId;
-
-        for (const pref of paymentRefs) {
-          const paySnap = await tx.get(pref);
-          if (!paySnap.exists) continue;
-          const pay = paySnap.data() as PaymentDoc;
-          const patch: Record<string, unknown> = {
-            memberId: newId,
-            updatedAt: now,
-            updatedBy: opts.actorEmail,
-          };
-          if (pay.receiptUrl) {
-            patch.receiptUrl = rewriteMemberUrl(
-              pay.receiptUrl,
-              live.memberId,
-              newId,
-              token,
-              "receipt",
-            );
-          }
-          if (
-            receiptChanged &&
-            payment &&
-            pay.paymentId === payment.paymentId
-          ) {
-            const oldReceipt = pay.receiptNumber;
-            if (oldReceipt && oldReceipt !== nextReceipt) {
-              deleteReceiptRegistryInTx(tx, oldReceipt);
-            }
-            await assertReceiptNumberAvailableInTx(tx, nextReceipt!);
-            await ensureReceiptCounterForNumberInTx(tx, nextReceipt!);
-            patch.receiptNumber = nextReceipt;
-            writeReceiptRegistryInTx(
-              tx,
-              nextReceipt!,
-              pay.paymentId,
-              "admin_rename",
-            );
-          }
-          tx.set(pref, patch, { merge: true });
-        }
-      } else if (receiptChanged && payment) {
-        const payRef = db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId);
-        const paySnap = await tx.get(payRef);
-        if (!paySnap.exists) {
-          const err = new Error("payment_not_found");
-          (err as Error & { code: string }).code = "payment_not_found";
-          throw err;
-        }
-        const pay = paySnap.data() as PaymentDoc;
-        const oldReceipt = pay.receiptNumber;
-        if (oldReceipt && oldReceipt !== nextReceipt) {
-          deleteReceiptRegistryInTx(tx, oldReceipt);
-        }
-        await assertReceiptNumberAvailableInTx(tx, nextReceipt!);
-        await ensureReceiptCounterForNumberInTx(tx, nextReceipt!);
-        writeReceiptRegistryInTx(
-          tx,
-          nextReceipt!,
-          payment.paymentId,
-          "admin_rename",
-        );
-        tx.set(
-          payRef,
-          {
-            receiptNumber: nextReceipt,
-            updatedAt: now,
-            updatedBy: opts.actorEmail,
-          },
-          { merge: true },
-        );
-        tx.set(
-          oldRef,
-          { updatedAt: now, updatedBy: opts.actorEmail },
-          { merge: true },
-        );
-      }
-    });
-  } catch (err) {
-    return mapTxError(err);
+  const availability = await checkMemberIds({
+    memberId: changingMember ? nextMemberId : undefined,
+    exceptMemberId: member.memberId,
+    receiptNumber: changingReceipt ? nextReceipt : undefined,
+    exceptPaymentId: payment?.paymentId,
+  });
+  if (changingMember && !availability.memberId?.available) {
+    return { ok: false, error: "member_id_taken", status: 409 };
+  }
+  if (changingReceipt && !availability.receiptNumber?.available) {
+    return { ok: false, error: "receipt_number_taken", status: 409 };
   }
 
-  const detail = await getAdminMemberDetail(effectiveMemberId);
+  const db = getFirestore();
+  const now = Timestamp.now();
+  const batch = db.batch();
+  const memberRef = db.collection(MEMBERS_COLLECTION).doc(member.memberId);
+
+  if (changingMember) {
+    batch.set(
+      memberRef,
+      {
+        pendingMemberId: nextMemberId,
+        updatedAt: now,
+        updatedBy: opts.actorEmail,
+      },
+      { merge: true },
+    );
+  }
+  if (changingReceipt && payment) {
+    batch.set(
+      db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId),
+      {
+        pendingReceiptNumber: nextReceipt,
+        updatedAt: now,
+        updatedBy: opts.actorEmail,
+      },
+      { merge: true },
+    );
+    batch.set(memberRef, { updatedAt: now }, { merge: true });
+  }
+  await batch.commit();
+
+  const detail = await getAdminMemberDetail(member.memberId);
   if (!detail) {
     return { ok: false, error: "not_found", status: 404 };
-  }
-
-  if (member.lineUserId && (memberIdChanged || receiptChanged)) {
-    const token = member.publicToken ?? "";
-    const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(effectiveMemberId)}&t=${token}`;
-    const cardUrl = `${WEB_ORIGIN}/card?m=${encodeURIComponent(effectiveMemberId)}&t=${token}`;
-    const receiptUrl = `${WEB_ORIGIN}/receipt?m=${encodeURIComponent(effectiveMemberId)}&t=${token}`;
-    try {
-      await pushMessages(member.lineUserId, [
-        memberIdsUpdatedText({
-          fullName: `${member.firstName} ${member.lastName}`.trim(),
-          memberIdChange: memberIdChanged
-            ? { from: member.memberId, to: nextMemberId! }
-            : undefined,
-          receiptNumberChange: receiptChanged
-            ? {
-                from: payment?.receiptNumber ?? "—",
-                to: nextReceipt!,
-              }
-            : undefined,
-          statusUrl,
-          cardUrl: memberIdChanged ? cardUrl : undefined,
-          receiptUrl: receiptChanged ? receiptUrl : undefined,
-        }),
-      ]);
-    } catch (err) {
-      console.error("LINE notify member ids update failed", err);
-    }
   }
 
   return {
@@ -366,12 +173,15 @@ export async function checkMemberIds(opts: {
     nextOfficialReceiptNumber: string;
   };
 }> {
-  const db = getFirestore();
   const suggest = {
     nextTempMemberId: await peekNextMemberId("temp"),
-    nextPermanentMemberId: await peekNextMemberId("permanent"),
+    nextPermanentMemberId: await findNextAvailablePermanentMemberId(
+      opts.exceptMemberId,
+    ),
     nextTempReceiptNumber: await peekNextReceiptNumber("temp"),
-    nextOfficialReceiptNumber: await peekNextReceiptNumber("official"),
+    nextOfficialReceiptNumber: await findNextAvailableOfficialReceiptNumber(
+      opts.exceptPaymentId,
+    ),
   };
 
   let memberResult:
@@ -383,25 +193,19 @@ export async function checkMemberIds(opts: {
 
   if (opts.memberId) {
     const value = opts.memberId.trim().toUpperCase();
-    const validFormat = isValidMemberIdFormat(value);
+    const parsed = parseMemberId(value);
+    const validFormat = parsed !== null;
     let available = false;
-    if (validFormat) {
+    if (validFormat && parsed) {
       if (opts.exceptMemberId && value === opts.exceptMemberId) {
         available = true;
-      } else {
-        const [docSnap, regSnap, byTemp] = await Promise.all([
-          db.collection(MEMBERS_COLLECTION).doc(value).get(),
-          memberRegistryRef(value).get(),
-          db
-            .collection(MEMBERS_COLLECTION)
-            .where("tempMemberId", "==", value)
-            .limit(1)
-            .get(),
-        ]);
-        const tempHit = byTemp.docs.some(
-          (d) => (d.data() as MemberDoc).memberId !== opts.exceptMemberId,
+      } else if (parsed.kind === "permanent") {
+        available = await isPermanentMemberIdAvailable(
+          value,
+          opts.exceptMemberId,
         );
-        available = !docSnap.exists && !regSnap.exists && !tempHit;
+      } else {
+        available = await isTempMemberIdAvailable(value, opts.exceptMemberId);
       }
     }
     memberResult = { value, validFormat, available };
@@ -412,18 +216,7 @@ export async function checkMemberIds(opts: {
     const validFormat = isValidReceiptNumberFormat(value);
     let available = false;
     if (validFormat) {
-      const [regSnap, paySnap] = await Promise.all([
-        receiptRegistryRef(value).get(),
-        db
-          .collection(PAYMENTS_COLLECTION)
-          .where("receiptNumber", "==", value)
-          .limit(5)
-          .get(),
-      ]);
-      const payHit = paySnap.docs.some(
-        (d) => (d.data() as PaymentDoc).paymentId !== opts.exceptPaymentId,
-      );
-      available = !regSnap.exists && !payHit;
+      available = await isReceiptNumberAvailable(value, opts.exceptPaymentId);
     }
     receiptResult = { value, validFormat, available };
   }
@@ -434,4 +227,115 @@ export async function checkMemberIds(opts: {
     receiptNumber: receiptResult,
     suggest,
   };
+}
+
+function pad4(n: number): string {
+  return String(n).padStart(4, "0");
+}
+
+async function isPermanentMemberIdAvailable(
+  value: string,
+  exceptMemberId?: string,
+): Promise<boolean> {
+  const db = getFirestore();
+  const [docSnap, regSnap, pendingSnap] = await Promise.all([
+    db.collection(MEMBERS_COLLECTION).doc(value).get(),
+    memberRegistryRef(value).get(),
+    db
+      .collection(MEMBERS_COLLECTION)
+      .where("pendingMemberId", "==", value)
+      .limit(5)
+      .get(),
+  ]);
+  let docTaken = false;
+  if (docSnap.exists) {
+    const live = docSnap.data() as MemberDoc;
+    const isTemp =
+      live.status === "temporary" ||
+      Boolean(live.tempMemberId && live.tempMemberId === live.memberId);
+    docTaken = !isTemp;
+  }
+  const pendingHit = pendingSnap.docs.some(
+    (d) => (d.data() as MemberDoc).memberId !== exceptMemberId,
+  );
+  return !docTaken && !regSnap.exists && !pendingHit;
+}
+
+async function isTempMemberIdAvailable(
+  value: string,
+  exceptMemberId?: string,
+): Promise<boolean> {
+  const db = getFirestore();
+  const [docSnap, regSnap, byTemp] = await Promise.all([
+    db.collection(MEMBERS_COLLECTION).doc(value).get(),
+    memberRegistryRef(value).get(),
+    db
+      .collection(MEMBERS_COLLECTION)
+      .where("tempMemberId", "==", value)
+      .limit(1)
+      .get(),
+  ]);
+  const tempHit = byTemp.docs.some(
+    (d) => (d.data() as MemberDoc).memberId !== exceptMemberId,
+  );
+  return !docSnap.exists && !regSnap.exists && !tempHit;
+}
+
+async function isReceiptNumberAvailable(
+  value: string,
+  exceptPaymentId?: string,
+): Promise<boolean> {
+  const db = getFirestore();
+  const [regSnap, paySnap, pendingSnap] = await Promise.all([
+    receiptRegistryRef(value).get(),
+    db
+      .collection(PAYMENTS_COLLECTION)
+      .where("receiptNumber", "==", value)
+      .limit(5)
+      .get(),
+    db
+      .collection(PAYMENTS_COLLECTION)
+      .where("pendingReceiptNumber", "==", value)
+      .limit(5)
+      .get(),
+  ]);
+  const payHit = paySnap.docs.some(
+    (d) => (d.data() as PaymentDoc).paymentId !== exceptPaymentId,
+  );
+  const pendingHit = pendingSnap.docs.some(
+    (d) => (d.data() as PaymentDoc).paymentId !== exceptPaymentId,
+  );
+  return !regSnap.exists && !payHit && !pendingHit;
+}
+
+/** Peek counter, then scan forward until a free permanent member ID is found. */
+async function findNextAvailablePermanentMemberId(
+  exceptMemberId?: string,
+): Promise<string> {
+  let candidate = await peekNextMemberId("permanent");
+  for (let i = 0; i < 200; i++) {
+    if (await isPermanentMemberIdAvailable(candidate, exceptMemberId)) {
+      return candidate;
+    }
+    const parsed = parseMemberId(candidate);
+    if (!parsed) return candidate;
+    candidate = `ABTA-${parsed.year}-${pad4(parsed.seq + 1)}`;
+  }
+  return candidate;
+}
+
+/** Peek counter, then scan forward until a free official receipt number is found. */
+async function findNextAvailableOfficialReceiptNumber(
+  exceptPaymentId?: string,
+): Promise<string> {
+  let candidate = await peekNextReceiptNumber("official");
+  for (let i = 0; i < 200; i++) {
+    if (await isReceiptNumberAvailable(candidate, exceptPaymentId)) {
+      return candidate;
+    }
+    const parsed = parseReceiptNumber(candidate);
+    if (!parsed) return candidate;
+    candidate = `RC-${parsed.year}-${pad4(parsed.seq + 1)}`;
+  }
+  return candidate;
 }

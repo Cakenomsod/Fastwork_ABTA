@@ -2,8 +2,8 @@
 
 เอกสารสรุปโครงการสำหรับทีมงาน — อ่านจาก [Note.txt](./Note.txt) แล้วจัดระเบียบใหม่
 
-**เวอร์ชัน:** 1.0  
-**อัปเดตล่าสุด:** กรกฎาคม 2569
+**เวอร์ชัน:** 1.1  
+**อัปเดตล่าสุด:** 21 กรกฎาคม 2569
 
 ---
 
@@ -22,6 +22,7 @@
 | 9 | [09-Platform-Accounts.md](./09-Platform-Accounts.md) | อีเมล / แพลตฟอร์ม / Billing — ชื่อส่งมอบจริง |
 | 10 | [10-Open-Items-Registration.md](./10-Open-Items-Registration.md) | รายการค้างจากลูกค้าก่อนเปิดรับสมัคร (บัญชีธนาคาร, ค่าธรรมเนียม, LIFF Endpoint, staff IDs) |
 | 11 | [11-Legacy-Member-Import-Plan.md](./11-Legacy-Member-Import-Plan.md) | แผนนำเข้าสมาชิกเก่าจาก Excel + ตัดสินใจ SQL vs Firestore |
+| 12 | [12-Scope-Update-2026-07-21.md](./12-Scope-Update-2026-07-21.md) | อัปเดตขอบเขตจากแชท 21 ก.ค. (แจ้งเตือน 45/15, รายงานสามัญ+Active, Broadcast กำลังทำล่วงหน้า · สิ่งที่ยังขาดข้อมูล) |
 
 ---
 
