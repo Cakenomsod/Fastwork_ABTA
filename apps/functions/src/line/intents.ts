@@ -3,7 +3,14 @@
  * Thai + English variants, tolerant of spaces/casing.
  */
 
-export type Intent = "status" | "register" | "help" | "greeting" | "unknown";
+export type Intent =
+  | "status"
+  | "register"
+  | "renew"
+  | "seminar"
+  | "help"
+  | "greeting"
+  | "unknown";
 
 function normalize(text: string): string {
   return text.trim().toLowerCase().replace(/\s+/g, "");
@@ -31,6 +38,10 @@ const REGISTER_KEYS = [
   "join",
 ];
 
+const RENEW_KEYS = ["ต่ออายุ", "renew", "renewal"];
+
+const SEMINAR_KEYS = ["สัมมนา", "seminar", "seminarregister"];
+
 const HELP_KEYS = [
   "ช่วยเหลือ",
   "เมนู",
@@ -56,6 +67,8 @@ export function detectIntent(rawText: string): Intent {
   const text = normalize(rawText);
   if (!text) return "unknown";
 
+  if (RENEW_KEYS.some((k) => text === k || text.includes(k))) return "renew";
+  if (SEMINAR_KEYS.some((k) => text === k || text.includes(k))) return "seminar";
   // Register before status so "สถานะ" in longer phrases still works,
   // but "สมัครสมาชิก" must not fall through to help.
   if (REGISTER_KEYS.some((k) => text === k || text.includes(k))) return "register";

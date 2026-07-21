@@ -25,6 +25,11 @@ import {
 } from "../members/id-registry";
 import { allocatePermanentMemberId } from "../members/ids";
 import {
+  MEMBER_TYPE_LABEL,
+  applyExpiryToMemberStatus,
+} from "../members/membership";
+import { renewalExpiryUpdates } from "../members/renew";
+import {
   MEMBERS_COLLECTION,
   PAYMENTS_COLLECTION,
   findLatestPayment,
@@ -50,6 +55,8 @@ export interface QueueMemberItem {
   buildingName?: string;
   linkType?: string;
   status: string;
+  memberType?: string;
+  memberTypeLabel?: string;
   dataReviewStatus?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -63,6 +70,7 @@ export interface QueueMemberItem {
   receiptStatus?: string;
   paymentStatus?: string;
   hasSlip: boolean;
+  expiryDate?: string;
 }
 
 /** Display-status filter aligned with admin StatusBadge labels + Phase 1 member statuses. */
@@ -72,7 +80,8 @@ export type MemberListStatusFilter =
   | "temporary"
   | "active"
   | "near_expiry"
-  | "expired";
+  | "expired"
+  | "ordinary_active";
 
 /** Filter on receipt number form: RC-T-… vs RC-… (or none). */
 export type ReceiptIdTFilter = "with_t" | "without_t";
@@ -139,6 +148,8 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
     buildingName: member.buildingName,
     linkType: member.linkType,
     status: member.status,
+    memberType: member.memberType,
+    memberTypeLabel: member.memberTypeLabel,
     dataReviewStatus: member.dataReviewStatus,
     createdAt: isoFromTs(member.createdAt),
     updatedAt: isoFromTs(member.updatedAt),
@@ -150,6 +161,7 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
     receiptStatus: payment?.receiptStatus,
     paymentStatus: payment?.status,
     hasSlip: Boolean(payment?.slipUrl),
+    expiryDate: isoFromTs(member.expiryDate)?.slice(0, 10),
   };
 }
 
@@ -264,10 +276,30 @@ function sortMemberItems(
   return sorted;
 }
 
+function matchesOrdinaryActive(member: MemberDoc): boolean {
+  const type = member.memberType ?? "ordinary";
+  if (type !== "ordinary") return false;
+  if (member.status === "expired") return false;
+  if (
+    member.status !== "active" &&
+    member.status !== "near_expiry" &&
+    member.status !== "temporary"
+  ) {
+    return false;
+  }
+  const expiry = member.expiryDate?.toDate?.();
+  if (expiry && expiry.getTime() < Date.now()) return false;
+  return true;
+}
+
 function matchesStatusFilter(
   item: QueueMemberItem,
   status: MemberListStatusFilter,
+  member?: MemberDoc,
 ): boolean {
+  if (status === "ordinary_active") {
+    return member ? matchesOrdinaryActive(member) : false;
+  }
   return memberDisplayStatus(item) === status;
 }
 
@@ -462,7 +494,7 @@ export async function listMembers(
     const item = toQueueItem(m, payment);
     if (receiptIdT === "with_t" && !receiptIdHasT(item.receiptNumber)) continue;
     if (receiptIdT === "without_t" && receiptIdHasT(item.receiptNumber)) continue;
-    if (status && !matchesStatusFilter(item, status)) continue;
+    if (status && !matchesStatusFilter(item, status, m)) continue;
     results.push(item);
   }
 
@@ -573,12 +605,19 @@ export async function approveDataReview(
       // Bump the permanent counter so auto-allocation cannot collide later.
       await ensureMemberCounterForIdInTx(tx, permanentId);
 
+      const expiryDate = live.expiryDate?.toDate?.();
+      const nextStatus = applyExpiryToMemberStatus("active", expiryDate);
+      const memberType = live.memberType ?? "ordinary";
+
       const updatedMember: MemberDoc = {
         ...live,
         memberId: permanentId,
         // Temporary number is preserved as-is for reference.
         tempMemberId: live.tempMemberId ?? live.memberId,
-        status: "active",
+        status: nextStatus,
+        memberType,
+        memberTypeLabel:
+          live.memberTypeLabel?.trim() || MEMBER_TYPE_LABEL[memberType],
         dataReviewStatus: "approved",
         memberCardUrl,
         updatedAt: now,
@@ -801,9 +840,13 @@ export async function approveSlipReview(
         },
         { merge: true },
       );
+      const memberPatch =
+        pay.paymentKind === "renewal"
+          ? renewalExpiryUpdates(member)
+          : { updatedAt: now };
       tx.set(
         db.collection(MEMBERS_COLLECTION).doc(member.memberId),
-        { updatedAt: now },
+        { ...memberPatch, updatedAt: now },
         { merge: true },
       );
     });
@@ -898,6 +941,7 @@ export async function rejectSlipReview(
           reason: trimmed,
           nextReceiptNumber,
           statusUrl,
+          slipUploadUrl: `${WEB_ORIGIN}/slip`,
         }),
       ]);
     } catch (err) {

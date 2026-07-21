@@ -17,6 +17,10 @@ import {
   findLatestPayment,
   findMemberByLineUserId,
 } from "./repository";
+import {
+  MEMBER_TYPE_LABEL,
+  membershipExpiryDec31,
+} from "./membership";
 import type { MemberDoc, PaymentDoc } from "./types";
 
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
@@ -65,12 +69,6 @@ export type RegisterDraftResult =
 
 function publicToken(): string {
   return randomBytes(6).toString("hex");
-}
-
-function addOneCalendarYear(from: Date): Date {
-  const d = new Date(from);
-  d.setFullYear(d.getFullYear() + 1);
-  return d;
 }
 
 function staffIds(): string[] {
@@ -324,7 +322,7 @@ async function resubmitRejectedMember(
     });
   }
 
-  const expiry = existing.expiryDate?.toDate?.() ?? addOneCalendarYear(now);
+  const expiry = existing.expiryDate?.toDate?.() ?? membershipExpiryDec31(now);
   return {
     ok: true,
     memberId,
@@ -373,7 +371,7 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
   const now = new Date();
   const memberId = await allocateTempMemberId(now);
   const token = publicToken();
-  const expiry = addOneCalendarYear(now);
+  const expiry = membershipExpiryDec31(now);
   const memberCardUrl = `${WEB_ORIGIN}/card?m=${encodeURIComponent(memberId)}&t=${token}`;
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(memberId)}&t=${token}`;
 
@@ -402,6 +400,8 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
     lineLinkedAt: ts,
     linkType: "new_registration",
     status: "temporary",
+    memberType: "ordinary",
+    memberTypeLabel: MEMBER_TYPE_LABEL.ordinary,
     memberCardUrl,
     expiryDate: expiryTs,
     dataReviewStatus: "pending",

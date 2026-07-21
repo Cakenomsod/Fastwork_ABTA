@@ -21,6 +21,11 @@ import {
   MEMBERS_COLLECTION,
   findMemberByLineUserId,
 } from "./repository";
+import {
+  MEMBER_TYPE_LABEL,
+  applyExpiryToMemberStatus,
+  type MemberType,
+} from "./membership";
 import type { MemberDoc, MemberStatus } from "./types";
 
 export type LegacySearchResult =
@@ -107,12 +112,20 @@ function mapLegacyStatusToMember(legacy: LegacyMemberDoc): MemberStatus {
   }
   if (legacy.status === "expired") return "expired";
   const expiry = legacy.expiryDate?.toDate?.();
-  if (expiry && expiry.getTime() < Date.now()) return "expired";
-  if (expiry) {
-    const days = (expiry.getTime() - Date.now()) / 86_400_000;
-    if (days <= 30) return "near_expiry";
-  }
-  return "active";
+  const base: MemberStatus = "active";
+  return applyExpiryToMemberStatus(base, expiry);
+}
+
+function resolveMemberType(legacy: LegacyMemberDoc): {
+  memberType: MemberType;
+  memberTypeLabel: string;
+} {
+  const memberType = legacy.memberType ?? "ordinary";
+  return {
+    memberType,
+    memberTypeLabel:
+      legacy.memberTypeLabel?.trim() || MEMBER_TYPE_LABEL[memberType],
+  };
 }
 
 export async function searchLegacyMembers(input: {
@@ -183,6 +196,7 @@ export async function bindLegacyMember(input: {
   const token = publicToken();
   const now = Timestamp.now();
   const status = mapLegacyStatusToMember(legacy);
+  const { memberType, memberTypeLabel } = resolveMemberType(legacy);
   const memberCardUrl = `${WEB_ORIGIN}/card?m=${encodeURIComponent(memberId)}&t=${token}`;
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(memberId)}&t=${token}`;
 
@@ -200,6 +214,8 @@ export async function bindLegacyMember(input: {
     lineLinkedAt: now,
     linkType: "legacy_bind",
     status,
+    memberType,
+    memberTypeLabel,
     memberCardUrl,
     expiryDate: legacy.expiryDate,
     dataReviewStatus: "approved",

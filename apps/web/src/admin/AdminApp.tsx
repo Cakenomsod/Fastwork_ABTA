@@ -27,6 +27,7 @@ const SlipReviewPage = lazy(() => import("./pages/SlipReviewPage"));
 const LegacyMembersPage = lazy(() => import("./pages/LegacyMembersPage"));
 const LegacyImportPage = lazy(() => import("./pages/LegacyImportPage"));
 const StaffPage = lazy(() => import("./pages/StaffPage"));
+const SeminarsPage = lazy(() => import("./pages/SeminarsPage"));
 import "./admin.css";
 
 type AdminRoute =
@@ -35,6 +36,7 @@ type AdminRoute =
   | "slips"
   | "legacy"
   | "legacy-import"
+  | "seminars"
   | "staff";
 
 function parseRoute(pathname: string): AdminRoute {
@@ -45,6 +47,7 @@ function parseRoute(pathname: string): AdminRoute {
     return "legacy-import";
   }
   if (p.endsWith("/legacy") || p.endsWith("/legacy/members")) return "legacy";
+  if (p.endsWith("/seminars")) return "seminars";
   if (p.endsWith("/staff")) return "staff";
   return "dashboard";
 }
@@ -56,6 +59,7 @@ function navigate(route: AdminRoute) {
     slips: "/admin/slips",
     legacy: "/admin/legacy",
     "legacy-import": "/admin/legacy/import",
+    seminars: "/admin/seminars",
     staff: "/admin/staff",
   };
   window.history.pushState({}, "", map[route]);
@@ -259,6 +263,7 @@ export default function AdminApp() {
     slips: "ตรวจสลิป / ใบเสร็จ",
     legacy: "สมาชิกเก่า",
     "legacy-import": "นำเข้าสมาชิกเก่า",
+    seminars: "สัมมนา",
     staff: "จัดการเจ้าหน้าที่",
   };
 
@@ -275,6 +280,8 @@ export default function AdminApp() {
     page = <LegacyMembersPage />;
   } else if (route === "legacy-import" && canImportLegacy) {
     page = <LegacyImportPage me={me} />;
+  } else if (route === "seminars" && canSeeData) {
+    page = <SeminarsPage />;
   } else if (route === "staff" && me.canManageStaff) {
     page = <StaffPage />;
   } else if (route !== "dashboard") {
@@ -352,6 +359,13 @@ export default function AdminApp() {
                 onClick={() => go("slips")}
                 label="ตรวจสลิป"
                 count={counts.slips}
+              />
+            )}
+            {canSeeData && (
+              <NavBtn
+                active={route === "seminars"}
+                onClick={() => go("seminars")}
+                label="สัมมนา"
               />
             )}
 

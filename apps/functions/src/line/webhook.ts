@@ -12,6 +12,8 @@ import {
   helpMessage,
   notLinkedFlex,
   registerInviteFlex,
+  renewInviteText,
+  seminarInviteText,
 } from "./messages";
 
 interface LineEvent {
@@ -82,6 +84,12 @@ async function handleEvent(event: LineEvent): Promise<void> {
       }
       case "register":
         await replyMessages(replyToken, [registerInviteFlex()]);
+        return;
+      case "renew":
+        await replyMessages(replyToken, [renewInviteText()]);
+        return;
+      case "seminar":
+        await replyMessages(replyToken, [seminarInviteText()]);
         return;
       case "help":
         await replyMessages(replyToken, [helpMessage()]);

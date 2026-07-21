@@ -316,6 +316,7 @@ const STATUS_FILTERS = new Set<MemberListStatusFilter>([
   "active",
   "near_expiry",
   "expired",
+  "ordinary_active",
 ]);
 const RECEIPT_ID_T_FILTERS = new Set<ReceiptIdTFilter>(["with_t", "without_t"]);
 const MEMBER_SORTS = new Set<MemberListSort>([

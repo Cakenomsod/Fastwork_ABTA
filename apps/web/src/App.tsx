@@ -2,6 +2,9 @@ import { firebaseConfig } from "./lib/firebase";
 import AdminApp from "./admin/AdminApp";
 import ReceiptPage from "./pages/ReceiptPage";
 import RegisterPage from "./pages/RegisterPage";
+import RenewPage from "./pages/RenewPage";
+import SeminarPage from "./pages/SeminarPage";
+import SlipResubmitPage from "./pages/SlipResubmitPage";
 import StatusPage from "./pages/StatusPage";
 import "./App.css";
 
@@ -19,6 +22,18 @@ function App() {
 
   if (path === "/register") {
     return <RegisterPage />;
+  }
+
+  if (path === "/renew") {
+    return <RenewPage />;
+  }
+
+  if (path === "/slip") {
+    return <SlipResubmitPage />;
+  }
+
+  if (path === "/seminar") {
+    return <SeminarPage />;
   }
 
   if (path === "/admin" || path.startsWith("/admin/")) {

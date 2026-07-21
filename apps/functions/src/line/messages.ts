@@ -14,6 +14,28 @@ function registerUri(): string {
   return isConfiguredLiffUrl() ? LIFF_URL : `${WEB_ORIGIN}/register`;
 }
 
+export function renewInviteText(): LineMessage {
+  return textMessage(
+    [
+      "ต่ออายุสมาชิก ABTA",
+      "",
+      "กดลิงก์ด้านล่างเพื่อแนบสลิปและส่งคำขอต่ออายุครับ",
+      `${WEB_ORIGIN}/renew`,
+    ].join("\n"),
+  );
+}
+
+export function seminarInviteText(): LineMessage {
+  return textMessage(
+    [
+      "สมัครสัมมนา ABTA",
+      "",
+      "เลือกรายการและกรอกฟอร์มได้ที่",
+      `${WEB_ORIGIN}/seminar`,
+    ].join("\n"),
+  );
+}
+
 export function helpMessage(): LineMessage {
   return textMessage(
     [
@@ -22,6 +44,8 @@ export function helpMessage(): LineMessage {
       "พิมพ์คำสั่งเพื่อใช้งาน:",
       "• เช็คสถานะ — ดูสถานะสมาชิก บัตรสมาชิก และใบเสร็จ",
       "• สมัครสมาชิก — เปิดฟอร์มสมัคร / ลงทะเบียน",
+      "• ต่ออายุ — ต่ออายุสมาชิกพร้อมแนบสลิป",
+      "• สัมมนา — สมัครงานสัมมนา",
       "• ช่วยเหลือ — แสดงเมนูคำสั่งนี้",
       "",
       "หากยังไม่ได้ผูกบัญชี LINE กับสมาชิก พิมพ์ “สมัครสมาชิก” เพื่อเริ่มต้นครับ",
@@ -424,6 +448,7 @@ export function slipReviewRejectedText(opts: {
   reason: string;
   nextReceiptNumber: string;
   statusUrl: string;
+  slipUploadUrl?: string;
 }): LineMessage {
   return textMessage(
     [
@@ -434,8 +459,28 @@ export function slipReviewRejectedText(opts: {
       `เหตุผล: ${opts.reason}`,
       `เลขใบเสร็จใหม่ (รอส่งสลิป): ${opts.nextReceiptNumber}`,
       "",
-      "กรุณาส่งสลิปใหม่ผ่าน LINE OA",
+      opts.slipUploadUrl
+        ? `ส่งสลิปใหม่: ${opts.slipUploadUrl}`
+        : "กรุณาส่งสลิปใหม่ผ่าน LINE OA",
       `ดูสถานะ: ${opts.statusUrl}`,
+    ].join("\n"),
+  );
+}
+
+export function expiryReminderText(opts: {
+  firstName: string;
+  daysLeft: 45 | 15;
+  expiryLabel: string;
+  renewUrl: string;
+}): LineMessage {
+  return textMessage(
+    [
+      `⏰ แจ้งเตือนต่ออายุสมาชิก (อีก ${opts.daysLeft} วัน)`,
+      `คุณ${opts.firstName}`,
+      `วันหมดอายุ: ${opts.expiryLabel}`,
+      "",
+      "กรุณาต่ออายุสมาชิกเพื่อรักษาสิทธิ์ครับ",
+      `ต่ออายุ: ${opts.renewUrl}`,
     ].join("\n"),
   );
 }

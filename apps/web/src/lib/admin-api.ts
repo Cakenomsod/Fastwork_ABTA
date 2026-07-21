@@ -41,6 +41,9 @@ export interface QueueItem {
   receiptStatus?: string;
   paymentStatus?: string;
   hasSlip: boolean;
+  memberType?: string;
+  memberTypeLabel?: string;
+  expiryDate?: string;
 }
 
 /** Display-status filter (matches admin StatusBadge labels + Phase 1 statuses). */
@@ -50,7 +53,8 @@ export type MemberListStatusFilter =
   | "temporary"
   | "active"
   | "near_expiry"
-  | "expired";
+  | "expired"
+  | "ordinary_active";
 
 export type ReceiptIdTFilter = "with_t" | "without_t";
 
@@ -125,6 +129,7 @@ export const MEMBER_STATUS_FILTER_OPTIONS: {
   { value: "pending_slip", label: "รอตรวจสลิป" },
   { value: "temporary", label: "สมาชิกชั่วคราว" },
   { value: "active", label: "สมาชิกสมบูรณ์" },
+  { value: "ordinary_active", label: "สามัญ · Active" },
   { value: "near_expiry", label: "ใกล้หมดอายุ" },
   { value: "expired", label: "หมดอายุ" },
 ];
@@ -602,3 +607,39 @@ export const ROLE_LABEL: Record<StaffRole, string> = {
   registrar: "นายทะเบียน",
   treasurer: "เหรัญญิก",
 };
+
+export async function fetchAdminSeminars() {
+  return adminFetch<{ items: Array<Record<string, unknown>> }>("/admin/seminars");
+}
+
+export async function createAdminSeminar(input: {
+  title: string;
+  publicPaid?: number;
+  memberFree?: number;
+  memberPaid?: number;
+}) {
+  return adminFetch<{ item: Record<string, unknown> }>("/admin/seminars", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchAdminSeminarRegistrations(seminarId?: string) {
+  const q = seminarId
+    ? `?seminarId=${encodeURIComponent(seminarId)}`
+    : "";
+  return adminFetch<{ items: Array<Record<string, unknown>> }>(
+    `/admin/seminars/registrations${q}`,
+  );
+}
+
+export async function decideSeminarRegistration(input: {
+  registrationId: string;
+  approve: boolean;
+  reason?: string;
+}) {
+  return adminFetch("/admin/seminars/registrations/decide", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}

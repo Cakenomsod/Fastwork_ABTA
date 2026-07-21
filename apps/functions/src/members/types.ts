@@ -5,6 +5,10 @@
  */
 
 import { Timestamp } from "firebase-admin/firestore";
+import type { MemberType } from "./membership";
+
+export type { MemberType } from "./membership";
+export { MEMBER_TYPE_LABEL } from "./membership";
 
 export type MemberStatus =
   | "registered" // สมัครแล้ว
@@ -57,8 +61,13 @@ export interface MemberDoc {
   lineLinkedAt?: Timestamp;
   linkType?: LinkType;
   status: MemberStatus;
+  /** สามัญ / วิสามัญ / กิตติมาศักดิ์ — used for reports + broadcast filters. */
+  memberType?: MemberType;
+  memberTypeLabel?: string;
   memberCardUrl?: string;
   expiryDate?: Timestamp;
+  /** Reminder offsets already sent for the current expiryDate (e.g. 45, 15). */
+  expiryRemindersSent?: number[];
   dataReviewStatus?: DataReviewStatus;
   seminarStatus?: SeminarStatus;
   seminarTitle?: string;
@@ -87,11 +96,14 @@ export interface PaymentDoc {
   receiptUrl?: string;
   slipUrl?: string;
   amount?: number;
+  /** registration | renewal | seminar */
+  paymentKind?: "registration" | "renewal" | "seminar";
   status: PaymentStatus;
   verifiedBy?: string;
   verifiedAt?: Timestamp;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  rejectReason?: string;
 }
 
 // ---------------------------------------------------------------------------

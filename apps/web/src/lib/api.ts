@@ -228,3 +228,90 @@ export async function bindLegacyMember(input: {
     status: data.status,
   };
 }
+
+export async function resubmitSlip(input: {
+  idToken: string;
+  slipContentType: string;
+  slipBase64: string;
+}): Promise<{ memberId: string; statusUrl: string; receiptNumber?: string }> {
+  const res = await fetch(`${apiBase()}/api/members/slip/resubmit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    const err = new Error(data?.error ?? `request_failed_${res.status}`);
+    (err as Error & { code?: string }).code = data?.error ?? String(res.status);
+    throw err;
+  }
+  return {
+    memberId: data.memberId,
+    statusUrl: data.statusUrl,
+    receiptNumber: data.receiptNumber,
+  };
+}
+
+export type RenewDraft = {
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  status: string;
+  expiryDate?: string;
+  feeThb: number;
+  pendingRenewal: boolean;
+};
+
+export async function fetchRenewDraft(idToken: string): Promise<RenewDraft> {
+  const res = await fetch(`${apiBase()}/api/members/renew/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    const err = new Error(data?.error ?? `request_failed_${res.status}`);
+    (err as Error & { code?: string }).code = data?.error ?? String(res.status);
+    throw err;
+  }
+  return {
+    memberId: data.memberId,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    status: data.status,
+    expiryDate: data.expiryDate,
+    feeThb: data.feeThb,
+    pendingRenewal: Boolean(data.pendingRenewal),
+  };
+}
+
+export async function submitRenewal(input: {
+  idToken: string;
+  slipContentType: string;
+  slipBase64: string;
+}): Promise<{
+  memberId: string;
+  statusUrl: string;
+  receiptNumber: string;
+  feeThb: number;
+  expiryDate?: string;
+}> {
+  const res = await fetch(`${apiBase()}/api/members/renew`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    const err = new Error(data?.error ?? `request_failed_${res.status}`);
+    (err as Error & { code?: string }).code = data?.error ?? String(res.status);
+    throw err;
+  }
+  return {
+    memberId: data.memberId,
+    statusUrl: data.statusUrl,
+    receiptNumber: data.receiptNumber,
+    feeThb: data.feeThb,
+    expiryDate: data.expiryDate,
+  };
+}
