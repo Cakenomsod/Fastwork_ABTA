@@ -7,6 +7,8 @@ export default defineConfig({
   envDir: "../../",
   server: {
     port: 5173,
+    // Bind all interfaces so LAN / Tailscale devices can reach the dev server
+    host: true,
   },
   build: {
     rollupOptions: {
