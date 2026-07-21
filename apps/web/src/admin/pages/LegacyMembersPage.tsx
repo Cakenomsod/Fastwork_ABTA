@@ -3,20 +3,29 @@ import {
   LEGACY_BIND_FILTER_OPTIONS,
   LEGACY_STATUS_FILTER_OPTIONS,
   LEGACY_STATUS_LABEL,
+  LIST_PAGE_SIZE_OPTIONS,
   searchLegacyMembersAdmin,
   type LegacyBindFilter,
   type LegacyMemberListRow,
   type LegacyStatusFilter,
+  type ListPageSize,
 } from "../../lib/admin-api";
+import { ListPager } from "../ListPager";
+
+const DEFAULT_PAGE_SIZE: ListPageSize = 10;
 
 export default function LegacyMembersPage() {
   const [query, setQuery] = useState("");
   const [bindStatus, setBindStatus] = useState<LegacyBindFilter>("all");
   const [statusFilter, setStatusFilter] = useState<"" | LegacyStatusFilter>("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<ListPageSize>(DEFAULT_PAGE_SIZE);
   const [items, setItems] = useState<LegacyMemberListRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [matched, setMatched] = useState(0);
   const [boundCount, setBoundCount] = useState(0);
   const [unboundCount, setUnboundCount] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
   const [truncated, setTruncated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +35,11 @@ export default function LegacyMembersPage() {
       q?: string;
       bindStatus?: LegacyBindFilter;
       status?: "" | LegacyStatusFilter;
+      page?: number;
+      pageSize?: ListPageSize;
     }) => {
+      const nextPage = opts?.page ?? page;
+      const nextSize = opts?.pageSize ?? pageSize;
       setLoading(true);
       setError(null);
       try {
@@ -34,52 +47,96 @@ export default function LegacyMembersPage() {
           q: opts?.q ?? query,
           bindStatus: opts?.bindStatus ?? bindStatus,
           status: opts?.status ?? statusFilter,
+          page: nextPage,
+          pageSize: nextSize,
         });
         setItems(out.items);
         setTotal(out.total);
+        setMatched(out.matched ?? out.items.length);
         setBoundCount(out.boundCount);
         setUnboundCount(out.unboundCount);
         setTruncated(out.truncated);
+        setPageCount(out.pageCount ?? 1);
+        setPage(out.page ?? nextPage);
+        setPageSize(
+          (LIST_PAGE_SIZE_OPTIONS.includes(out.pageSize as ListPageSize)
+            ? out.pageSize
+            : nextSize) as ListPageSize,
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "โหลดไม่สำเร็จ");
         setItems([]);
+        setMatched(0);
       } finally {
         setLoading(false);
       }
     },
-    [bindStatus, query, statusFilter],
+    [bindStatus, page, pageSize, query, statusFilter],
   );
 
   useEffect(() => {
-    void load({ q: "", bindStatus: "all", status: "" });
+    void load({
+      q: "",
+      bindStatus: "all",
+      status: "",
+      page: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+    });
     // initial load only
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function onSearch(e: FormEvent) {
     e.preventDefault();
-    void load();
+    setPage(1);
+    void load({ page: 1 });
   }
 
   function onBindChange(next: LegacyBindFilter) {
     setBindStatus(next);
-    void load({ bindStatus: next });
+    setPage(1);
+    void load({ bindStatus: next, page: 1 });
   }
 
   function onStatusChange(next: "" | LegacyStatusFilter) {
     setStatusFilter(next);
-    void load({ status: next });
+    setPage(1);
+    void load({ status: next, page: 1 });
+  }
+
+  function onPageSizeChange(next: ListPageSize) {
+    setPageSize(next);
+    setPage(1);
+    void load({ page: 1, pageSize: next });
   }
 
   function clearFilters() {
     setQuery("");
     setBindStatus("all");
     setStatusFilter("");
-    void load({ q: "", bindStatus: "all", status: "" });
+    setPage(1);
+    void load({ q: "", bindStatus: "all", status: "", page: 1 });
+  }
+
+  function goPrev() {
+    if (page <= 1 || loading) return;
+    const next = page - 1;
+    setPage(next);
+    void load({ page: next });
+  }
+
+  function goNext() {
+    if (page >= pageCount || loading) return;
+    const next = page + 1;
+    setPage(next);
+    void load({ page: next });
   }
 
   const filtersActive =
     Boolean(query.trim()) || bindStatus !== "all" || Boolean(statusFilter);
+
+  const rangeStart = matched === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, matched);
 
   return (
     <div className="bo-legacy-page">
@@ -188,7 +245,9 @@ export default function LegacyMembersPage() {
         <div className="bo-panel-head">
           <h2>รายชื่อสมาชิกเก่า</h2>
           <span style={{ fontSize: "0.8rem", color: "var(--bo-muted)" }}>
-            {items.length.toLocaleString("th-TH")} รายการ
+            {matched === 0
+              ? "0 รายการ"
+              : `${rangeStart.toLocaleString("th-TH")}–${rangeEnd.toLocaleString("th-TH")} จาก ${matched.toLocaleString("th-TH")}`}
           </span>
         </div>
         <div className="bo-table-wrap">
@@ -233,7 +292,9 @@ export default function LegacyMembersPage() {
                     </td>
                     <td data-label="ประเภท">{row.memberTypeLabel || "—"}</td>
                     <td data-label="สถานะ">
-                      <span className={`bo-badge ${legacyStatusClass(row.status)}`}>
+                      <span
+                        className={`bo-badge ${legacyStatusClass(row.status)}`}
+                      >
                         {LEGACY_STATUS_LABEL[row.status] ?? row.status}
                       </span>
                     </td>
@@ -257,6 +318,18 @@ export default function LegacyMembersPage() {
             </table>
           )}
         </div>
+
+        {matched > 0 ? (
+          <ListPager
+            page={page}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            disabled={loading}
+            onPrev={goPrev}
+            onNext={goNext}
+            onPageSizeChange={onPageSizeChange}
+          />
+        ) : null}
       </div>
     </div>
   );

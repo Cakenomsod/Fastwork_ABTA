@@ -10,6 +10,7 @@ import {
 import {
   fetchDashboard,
   fetchMemberDetail,
+  LIST_PAGE_SIZE_OPTIONS,
   MEMBER_SORT_OPTIONS,
   MEMBER_STATUS_FILTER_OPTIONS,
   RECEIPT_ID_T_FILTER_OPTIONS,
@@ -17,6 +18,7 @@ import {
   searchAdminMembers,
   type AdminMe,
   type DashboardData,
+  type ListPageSize,
   type MemberDetail,
   type MemberListSort,
   type MemberListStatusFilter,
@@ -24,8 +26,10 @@ import {
   type ReceiptIdTFilter,
 } from "../../lib/admin-api";
 import MemberDetailDrawer from "../MemberDetailDrawer";
+import { ListPager } from "../ListPager";
 
 const DEFAULT_SORT: MemberListSort = "updated_desc";
+const DEFAULT_PAGE_SIZE: ListPageSize = 10;
 
 export default function DashboardPage(props: {
   me: AdminMe;
@@ -43,6 +47,10 @@ export default function DashboardPage(props: {
     "",
   );
   const [sort, setSort] = useState<MemberListSort>(DEFAULT_SORT);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<ListPageSize>(DEFAULT_PAGE_SIZE);
+  const [pageCount, setPageCount] = useState(1);
+  const [matched, setMatched] = useState(0);
 
   const [listRows, setListRows] = useState<QueueItem[]>([]);
   const [listMode, setListMode] = useState<"recent" | "filtered">("recent");
@@ -54,7 +62,8 @@ export default function DashboardPage(props: {
   const filtersActive =
     Boolean(statusFilter) ||
     Boolean(receiptIdTFilter) ||
-    sort !== DEFAULT_SORT;
+    sort !== DEFAULT_SORT ||
+    Boolean(query.trim());
 
   const reloadDashboard = useCallback(async () => {
     const d = await fetchDashboard();
@@ -66,15 +75,79 @@ export default function DashboardPage(props: {
     return d;
   }, [props.onCounts]);
 
+  const loadMemberList = useCallback(
+    async (opts: {
+      q?: string;
+      status?: "" | MemberListStatusFilter;
+      receiptIdT?: "" | ReceiptIdTFilter;
+      sort: MemberListSort;
+      page?: number;
+      pageSize?: ListPageSize;
+    }) => {
+      const q = opts.q?.trim() ?? "";
+      const nextPage = opts.page ?? 1;
+      const nextSize = opts.pageSize ?? pageSize;
+      const filtered =
+        Boolean(q) ||
+        Boolean(opts.status) ||
+        Boolean(opts.receiptIdT) ||
+        opts.sort !== DEFAULT_SORT;
+
+      setSearching(true);
+      setError(null);
+      try {
+        const out = await searchAdminMembers({
+          q: q || undefined,
+          status: opts.status || undefined,
+          receiptIdT: opts.receiptIdT || undefined,
+          sort: opts.sort,
+          page: nextPage,
+          pageSize: nextSize,
+        });
+        setListRows(out.items);
+        setMatched(out.matched);
+        setPageCount(out.pageCount);
+        setPage(out.page);
+        setPageSize(
+          (LIST_PAGE_SIZE_OPTIONS.includes(out.pageSize as ListPageSize)
+            ? out.pageSize
+            : nextSize) as ListPageSize,
+        );
+        setListMode(filtered ? "filtered" : "recent");
+        if (q && out.matched === 1 && out.items[0]) {
+          setSelectedId(out.items[0].memberId);
+          setError(null);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "search_failed");
+        setListRows([]);
+        setMatched(0);
+      } finally {
+        setSearching(false);
+      }
+    },
+    [pageSize],
+  );
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    reloadDashboard()
-      .then((d) => {
-        if (!cancelled) {
-          setListRows(d.recent);
-          setListMode("recent");
-        }
+    Promise.all([
+      reloadDashboard(),
+      searchAdminMembers({
+        sort: DEFAULT_SORT,
+        page: 1,
+        pageSize: DEFAULT_PAGE_SIZE,
+      }),
+    ])
+      .then(([d, list]) => {
+        if (cancelled) return;
+        setData(d);
+        setListRows(list.items);
+        setMatched(list.matched);
+        setPageCount(list.pageCount);
+        setPage(list.page);
+        setListMode("recent");
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -120,53 +193,19 @@ export default function DashboardPage(props: {
     setDetail(null);
   }
 
-  async function loadMemberList(opts: {
-    q?: string;
-    status?: "" | MemberListStatusFilter;
-    receiptIdT?: "" | ReceiptIdTFilter;
-    sort: MemberListSort;
-  }) {
-    const q = opts.q?.trim() ?? "";
-    const useApi =
-      Boolean(q) ||
-      Boolean(opts.status) ||
-      Boolean(opts.receiptIdT) ||
-      opts.sort !== DEFAULT_SORT;
-
-    if (!useApi) {
-      const d = data ?? (await reloadDashboard());
-      setListRows(d.recent);
-      setListMode("recent");
-      return;
-    }
-
-    setSearching(true);
-    setError(null);
-    try {
-      const items = await searchAdminMembers({
-        q: q || undefined,
-        status: opts.status || undefined,
-        receiptIdT: opts.receiptIdT || undefined,
-        sort: opts.sort,
-        limit: q ? 30 : 50,
-      });
-      setListRows(items);
-      setListMode("filtered");
-      if (q && items.length === 1) {
-        openMember(items[0].memberId);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "search_failed");
-    } finally {
-      setSearching(false);
-    }
-  }
-
   async function onMemberDeleted(memberId: string) {
     closeDrawer();
     setListRows((prev) => prev.filter((row) => row.memberId !== memberId));
     try {
       await reloadDashboard();
+      await loadMemberList({
+        q: query,
+        status: statusFilter,
+        receiptIdT: receiptIdTFilter,
+        sort,
+        page,
+        pageSize,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "reload_failed");
     }
@@ -174,41 +213,94 @@ export default function DashboardPage(props: {
 
   async function onSearch(e: FormEvent) {
     e.preventDefault();
+    setPage(1);
     await loadMemberList({
       q: query,
       status: statusFilter,
       receiptIdT: receiptIdTFilter,
       sort,
+      page: 1,
+      pageSize,
     });
   }
 
   async function onStatusChange(value: "" | MemberListStatusFilter) {
     setStatusFilter(value);
+    setPage(1);
     await loadMemberList({
       q: query,
       status: value,
       receiptIdT: receiptIdTFilter,
       sort,
+      page: 1,
+      pageSize,
     });
   }
 
   async function onReceiptIdTChange(value: "" | ReceiptIdTFilter) {
     setReceiptIdTFilter(value);
+    setPage(1);
     await loadMemberList({
       q: query,
       status: statusFilter,
       receiptIdT: value,
       sort,
+      page: 1,
+      pageSize,
     });
   }
 
   async function onSortChange(value: MemberListSort) {
     setSort(value);
+    setPage(1);
     await loadMemberList({
       q: query,
       status: statusFilter,
       receiptIdT: receiptIdTFilter,
       sort: value,
+      page: 1,
+      pageSize,
+    });
+  }
+
+  async function onPageSizeChange(value: ListPageSize) {
+    setPageSize(value);
+    setPage(1);
+    await loadMemberList({
+      q: query,
+      status: statusFilter,
+      receiptIdT: receiptIdTFilter,
+      sort,
+      page: 1,
+      pageSize: value,
+    });
+  }
+
+  async function goPrev() {
+    if (page <= 1 || searching) return;
+    const next = page - 1;
+    setPage(next);
+    await loadMemberList({
+      q: query,
+      status: statusFilter,
+      receiptIdT: receiptIdTFilter,
+      sort,
+      page: next,
+      pageSize,
+    });
+  }
+
+  async function goNext() {
+    if (page >= pageCount || searching) return;
+    const next = page + 1;
+    setPage(next);
+    await loadMemberList({
+      q: query,
+      status: statusFilter,
+      receiptIdT: receiptIdTFilter,
+      sort,
+      page: next,
+      pageSize,
     });
   }
 
@@ -217,17 +309,15 @@ export default function DashboardPage(props: {
     setStatusFilter("");
     setReceiptIdTFilter("");
     setSort(DEFAULT_SORT);
-    setSearching(true);
-    setError(null);
-    try {
-      const d = await reloadDashboard();
-      setListRows(d.recent);
-      setListMode("recent");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "reload_failed");
-    } finally {
-      setSearching(false);
-    }
+    setPage(1);
+    await loadMemberList({
+      q: "",
+      status: "",
+      receiptIdT: "",
+      sort: DEFAULT_SORT,
+      page: 1,
+      pageSize,
+    });
   }
 
   if (loading) {
@@ -244,6 +334,9 @@ export default function DashboardPage(props: {
         ? "ผลการค้นหา"
         : "รายการที่กรอง"
       : "รายการล่าสุด";
+
+  const rangeStart = matched === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, matched);
 
   return (
     <>
@@ -269,7 +362,6 @@ export default function DashboardPage(props: {
       <div className="bo-panel bo-panel--has-menu" style={{ marginBottom: "1.25rem" }}>
         <div className="bo-panel-head">
           <h2>ค้นหาสมาชิก</h2>
-
         </div>
         <form
           className="bo-form-grid"
@@ -325,7 +417,7 @@ export default function DashboardPage(props: {
             <button
               type="button"
               className="bo-btn bo-btn-ghost"
-              disabled={searching || (!filtersActive && !query.trim())}
+              disabled={searching || !filtersActive}
               onClick={() => void clearFilters()}
             >
               ล้างตัวกรอง
@@ -346,7 +438,10 @@ export default function DashboardPage(props: {
           <span style={{ fontSize: "0.8rem", color: "var(--bo-muted)" }}>
             {listMode === "recent"
               ? `ชั่วคราว ${data.temporaryMembers} ราย · `
-              : `${listRows.length} รายการ · `}
+              : null}
+            {matched === 0
+              ? "0 รายการ"
+              : `${rangeStart.toLocaleString("th-TH")}–${rangeEnd.toLocaleString("th-TH")} จาก ${matched.toLocaleString("th-TH")}`}
           </span>
         </div>
         <div className="bo-table-wrap">
@@ -408,6 +503,18 @@ export default function DashboardPage(props: {
             </table>
           )}
         </div>
+
+        {matched > 0 ? (
+          <ListPager
+            page={page}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            disabled={searching}
+            onPrev={() => void goPrev()}
+            onNext={() => void goNext()}
+            onPageSizeChange={(v) => void onPageSizeChange(v)}
+          />
+        ) : null}
       </div>
 
       <MemberDetailDrawer
@@ -438,11 +545,7 @@ function FilterSegGroup<T extends string>(props: {
       <span className="bo-filter-label" id={labelId}>
         {props.label}
       </span>
-      <div
-        className="bo-seg"
-        role="radiogroup"
-        aria-labelledby={labelId}
-      >
+      <div className="bo-seg" role="radiogroup" aria-labelledby={labelId}>
         {props.options.map((opt) => {
           const active = props.value === opt.value;
           return (

@@ -2142,6 +2142,76 @@
   color: var(--bo-muted);
 }
 
+.bo-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 1rem 1.1rem;
+  border-top: 1px solid var(--bo-line);
+}
+
+.bo-pager-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.bo-page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.bo-page-size-label {
+  font-size: 0.8rem;
+  color: var(--bo-muted);
+  white-space: nowrap;
+}
+
+.bo-seg--compact .bo-seg-btn {
+  min-width: 2.2rem;
+  padding-inline: 0.45rem;
+}
+
+.bo-pager-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid var(--bo-line);
+  border-radius: 10px;
+  background: var(--bo-card);
+  color: var(--bo-text);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.bo-pager-btn:hover:not(:disabled) {
+  border-color: rgb(15 76 54 / 0.35);
+  background: #eef6f1;
+  color: var(--bo-green);
+}
+
+.bo-pager-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.bo-pager-label {
+  min-width: 7.5rem;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--bo-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .bo-staff-form {
   background: var(--bo-card);
   border: 1px solid var(--bo-line);

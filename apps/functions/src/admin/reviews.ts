@@ -90,8 +90,19 @@ export interface ListMembersOpts {
   status?: MemberListStatusFilter | "";
   receiptIdT?: ReceiptIdTFilter | "";
   sort?: MemberListSort;
+  /** @deprecated Prefer pageSize — kept for older callers. */
   limit?: number;
+  page?: number;
+  pageSize?: number;
 }
+
+export type ListMembersResult = {
+  items: QueueMemberItem[];
+  matched: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
 
 export interface MemberDetail extends QueueMemberItem {
   legacyMemberId?: string;
@@ -409,21 +420,20 @@ export async function getDashboardStats(): Promise<{
 /**
  * List / search members with optional status + receipt-T filters and sort.
  * Scans the members collection (same as prior search) then filters in memory.
+ * Returns one page of results (default pageSize 10).
  */
 export async function listMembers(
   opts: ListMembersOpts = {},
-): Promise<QueueMemberItem[]> {
+): Promise<ListMembersResult> {
   const q = (opts.q ?? "").trim().toLowerCase();
   const status = opts.status || undefined;
   const receiptIdT = opts.receiptIdT || undefined;
   const sort: MemberListSort = opts.sort ?? "updated_desc";
-  const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
-
-  // Empty search with no filters/sort: return nothing (dashboard uses recent).
-  // Empty search WITH filters or explicit sort: browse mode over all members.
-  if (!q && !status && !receiptIdT && !opts.sort) {
-    return [];
-  }
+  const pageSize = Math.min(
+    Math.max(opts.pageSize ?? opts.limit ?? 10, 1),
+    50,
+  );
+  const page = Math.max(opts.page ?? 1, 1);
 
   const snap = await getFirestore().collection(MEMBERS_COLLECTION).get();
   const results: QueueMemberItem[] = [];
@@ -456,14 +466,27 @@ export async function listMembers(
     results.push(item);
   }
 
-  return sortMemberItems(results, sort).slice(0, limit);
+  const sorted = sortMemberItems(results, sort);
+  const matched = sorted.length;
+  const pageCount = Math.max(1, Math.ceil(matched / pageSize) || 1);
+  const safePage = Math.min(page, pageCount);
+  const start = (safePage - 1) * pageSize;
+
+  return {
+    items: sorted.slice(start, start + pageSize),
+    matched,
+    page: safePage,
+    pageSize,
+    pageCount,
+  };
 }
 
 /** @deprecated Prefer listMembers — kept for call sites that only pass a query. */
 export async function searchMembers(query: string): Promise<QueueMemberItem[]> {
   const q = query.trim();
   if (!q) return [];
-  return listMembers({ q, sort: "updated_desc", limit: 30 });
+  const out = await listMembers({ q, sort: "updated_desc", pageSize: 30 });
+  return out.items;
 }
 
 type ActionResult =

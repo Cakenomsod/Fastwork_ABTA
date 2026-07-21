@@ -67,8 +67,22 @@ export interface MemberListQuery {
   status?: MemberListStatusFilter | "";
   receiptIdT?: ReceiptIdTFilter | "";
   sort?: MemberListSort | "";
+  /** @deprecated Prefer pageSize */
   limit?: number;
+  page?: number;
+  pageSize?: number;
 }
+
+export const LIST_PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50] as const;
+export type ListPageSize = (typeof LIST_PAGE_SIZE_OPTIONS)[number];
+
+export type MemberListResult = {
+  items: QueueItem[];
+  matched: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
 
 /** Temp IDs are ABTA-T-{YYYY}-{####}; "ABTA" alone must not count as having T. */
 export function memberIdHasT(memberId: string): boolean {
@@ -249,7 +263,7 @@ export async function fetchMemberDetail(memberId: string): Promise<MemberDetail>
 
 export async function searchAdminMembers(
   query: string | MemberListQuery,
-): Promise<QueueItem[]> {
+): Promise<MemberListResult> {
   const opts: MemberListQuery =
     typeof query === "string" ? { q: query } : query;
   const params = new URLSearchParams();
@@ -258,11 +272,19 @@ export async function searchAdminMembers(
   if (opts.status) params.set("status", opts.status);
   if (opts.receiptIdT) params.set("receiptIdT", opts.receiptIdT);
   if (opts.sort) params.set("sort", opts.sort);
-  if (opts.limit != null) params.set("limit", String(opts.limit));
-  const data = await adminFetch<{ items: QueueItem[] }>(
+  if (opts.page != null) params.set("page", String(opts.page));
+  if (opts.pageSize != null) params.set("pageSize", String(opts.pageSize));
+  else if (opts.limit != null) params.set("pageSize", String(opts.limit));
+  const data = await adminFetch<MemberListResult>(
     `/admin/members/search?${params}`,
   );
-  return data.items;
+  return {
+    items: data.items ?? [],
+    matched: data.matched ?? data.items?.length ?? 0,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? opts.pageSize ?? opts.limit ?? 10,
+    pageCount: data.pageCount ?? 1,
+  };
 }
 
 /** Correct member / receipt numbers (transactional + counter bump). */
@@ -449,9 +471,13 @@ export interface LegacyMemberListRow {
 
 export interface LegacyMemberListResult {
   total: number;
+  matched: number;
   boundCount: number;
   unboundCount: number;
   truncated: boolean;
+  page: number;
+  pageSize: number;
+  pageCount: number;
   items: LegacyMemberListRow[];
 }
 
@@ -460,7 +486,8 @@ export async function searchLegacyMembersAdmin(input: {
   q?: string;
   bindStatus?: LegacyBindFilter;
   status?: "" | LegacyStatusFilter;
-  limit?: number;
+  page?: number;
+  pageSize?: number;
 }): Promise<LegacyMemberListResult> {
   const params = new URLSearchParams();
   if (input.q?.trim()) params.set("q", input.q.trim());
@@ -468,7 +495,8 @@ export async function searchLegacyMembersAdmin(input: {
     params.set("bindStatus", input.bindStatus);
   }
   if (input.status) params.set("status", input.status);
-  if (input.limit) params.set("limit", String(input.limit));
+  if (input.page) params.set("page", String(input.page));
+  if (input.pageSize) params.set("pageSize", String(input.pageSize));
   const qs = params.toString();
   return adminFetch<LegacyMemberListResult>(
     `/admin/legacy/members${qs ? `?${qs}` : ""}`,

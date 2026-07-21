@@ -340,7 +340,10 @@ export async function handleAdminMemberSearch(
   const statusRaw = String(req.query.status ?? "").trim();
   const receiptIdTRaw = String(req.query.receiptIdT ?? "").trim();
   const sortRaw = String(req.query.sort ?? "").trim();
-  const limitRaw = Number(req.query.limit ?? 30);
+  const pageRaw = Number(req.query.page ?? 1);
+  const pageSizeRaw = Number(
+    req.query.pageSize ?? req.query.limit ?? 10,
+  );
 
   const status = STATUS_FILTERS.has(statusRaw as MemberListStatusFilter)
     ? (statusRaw as MemberListStatusFilter)
@@ -350,22 +353,17 @@ export async function handleAdminMemberSearch(
     : undefined;
   const sort = MEMBER_SORTS.has(sortRaw as MemberListSort)
     ? (sortRaw as MemberListSort)
-    : undefined;
+    : "updated_desc";
 
-  // Require at least a query or a filter/sort so we don't dump the full DB by accident.
-  if (!q && !status && !receiptIdT && !sort) {
-    res.status(200).json({ ok: true, items: [] });
-    return;
-  }
-
-  const items = await listMembers({
+  const result = await listMembers({
     q,
     status,
     receiptIdT,
-    sort: sort ?? (q ? "updated_desc" : undefined),
-    limit: Number.isFinite(limitRaw) ? limitRaw : 30,
+    sort,
+    page: Number.isFinite(pageRaw) ? pageRaw : 1,
+    pageSize: Number.isFinite(pageSizeRaw) ? pageSizeRaw : 10,
   });
-  res.status(200).json({ ok: true, items });
+  res.status(200).json({ ok: true, ...result });
 }
 
 /** PATCH member / receipt numbers (admin correction). */
@@ -596,7 +594,8 @@ function matchesLegacyQuery(haystack: string, q: string): boolean {
 
 /**
  * GET /admin/legacy/members
- * Query: q, bindStatus (all|bound|unbound), status (active|…), limit
+ * Query: q, bindStatus (all|bound|unbound), status (active|…),
+ *        page (1-based), pageSize (default 10)
  * Any authenticated staff can browse (import remains admin-only).
  */
 export async function handleAdminListLegacyMembers(
@@ -617,17 +616,23 @@ export async function handleAdminListLegacyMembers(
   const statusFilter = LEGACY_STATUS_SET.has(statusRaw as LegacyMemberStatus)
     ? (statusRaw as LegacyMemberStatus)
     : "";
-  const limit = Math.min(
-    Math.max(Number(req.query.limit) || 500, 1),
-    2000,
+  const pageSize = Math.min(
+    Math.max(Number(req.query.pageSize) || 10, 1),
+    50,
+  );
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  /** Cap how many docs we scan server-side for browse/search. */
+  const scanLimit = Math.min(
+    Math.max(Number(req.query.limit) || 2000, pageSize),
+    5000,
   );
 
   const [legacyRows, boundMap] = await Promise.all([
-    listLegacyMembers(limit),
+    listLegacyMembers(scanLimit),
     findBoundLegacyLinks(),
   ]);
 
-  let items = legacyRows.map((m) => {
+  let filtered = legacyRows.map((m) => {
     const bound = boundMap.get(m.legacyMemberId);
     return {
       legacyMemberId: m.legacyMemberId,
@@ -650,15 +655,15 @@ export async function handleAdminListLegacyMembers(
   });
 
   if (statusFilter) {
-    items = items.filter((r) => r.status === statusFilter);
+    filtered = filtered.filter((r) => r.status === statusFilter);
   }
   if (bindStatus === "bound") {
-    items = items.filter((r) => r.lineBound);
+    filtered = filtered.filter((r) => r.lineBound);
   } else if (bindStatus === "unbound") {
-    items = items.filter((r) => !r.lineBound);
+    filtered = filtered.filter((r) => !r.lineBound);
   }
   if (q) {
-    items = items.filter((r) => {
+    filtered = filtered.filter((r) => {
       const blob = [
         r.legacyMemberId,
         r.fullName,
@@ -676,9 +681,15 @@ export async function handleAdminListLegacyMembers(
     });
   }
 
-  items.sort((a, b) =>
+  filtered.sort((a, b) =>
     a.legacyMemberId.localeCompare(b.legacyMemberId, "th"),
   );
+
+  const matched = filtered.length;
+  const pageCount = Math.max(1, Math.ceil(matched / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const start = (safePage - 1) * pageSize;
+  const items = filtered.slice(start, start + pageSize);
 
   const boundCount = legacyRows.reduce(
     (n, m) => n + (boundMap.has(m.legacyMemberId) ? 1 : 0),
@@ -688,9 +699,13 @@ export async function handleAdminListLegacyMembers(
   res.status(200).json({
     ok: true,
     total: legacyRows.length,
+    matched,
     boundCount,
     unboundCount: legacyRows.length - boundCount,
-    truncated: legacyRows.length >= limit,
+    truncated: legacyRows.length >= scanLimit,
+    page: safePage,
+    pageSize,
+    pageCount,
     items,
   });
 }
