@@ -3,7 +3,7 @@
  * Professional Thai copy for a trade association (สมาคมการค้า).
  */
 
-import { BRAND, LIFF_URL, WEB_ORIGIN, isConfiguredLiffUrl } from "../config";
+import { BRAND, LIFF_URL, WEB_ORIGIN, isConfiguredLiffUrl, liffPageUri } from "../config";
 import type { LineMessage } from "./client";
 
 export function textMessage(text: string): LineMessage {
@@ -23,7 +23,7 @@ export function renewInviteText(): LineMessage {
       "ต่ออายุสมาชิก ABTA",
       "",
       "กดลิงก์ด้านล่างเพื่อแนบสลิปและส่งคำขอต่ออายุครับ",
-      `${WEB_ORIGIN}/renew`,
+      liffPageUri("/renew"),
     ].join("\n"),
   );
 }
@@ -34,7 +34,7 @@ export function seminarInviteText(): LineMessage {
       "สมัครสัมมนา ABTA",
       "",
       "เลือกรายการและกรอกฟอร์มได้ที่",
-      `${WEB_ORIGIN}/seminar`,
+      liffPageUri("/seminar"),
     ].join("\n"),
   );
 }

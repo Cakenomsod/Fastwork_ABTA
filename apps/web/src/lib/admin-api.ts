@@ -627,6 +627,35 @@ export async function createAdminSeminar(input: {
   });
 }
 
+export async function updateAdminSeminar(input: {
+  seminarId: string;
+  title: string;
+  description?: string;
+  eventDate?: string;
+  location?: string;
+  publicPaid?: number;
+  memberFree?: number;
+  memberPaid?: number;
+}) {
+  return adminFetch<{ item: Record<string, unknown> }>(
+    "/admin/seminars/update",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function deactivateAdminSeminar(seminarId: string) {
+  return adminFetch<{ item: Record<string, unknown> }>(
+    "/admin/seminars/deactivate",
+    {
+      method: "POST",
+      body: JSON.stringify({ seminarId }),
+    },
+  );
+}
+
 export async function fetchAdminSeminarRegistrations(seminarId?: string) {
   const q = seminarId
     ? `?seminarId=${encodeURIComponent(seminarId)}`

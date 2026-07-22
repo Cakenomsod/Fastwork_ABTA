@@ -37,9 +37,11 @@ import { getStatusViewByMemberId } from "./members/repository";
 import { toPublicStatus } from "./members/status-view";
 import {
   adminCreateSeminar,
+  adminDeactivateSeminar,
   adminDecideRegistration,
   adminListRegistrations,
   adminListSeminars,
+  adminUpdateSeminar,
   publicListSeminars,
   registerForSeminar,
 } from "./seminars/register";
@@ -222,6 +224,14 @@ export const api = onRequest(
     }
     if (path === "/admin/seminars" && req.method === "POST") {
       await handleAdminSeminarsCreate(req, res);
+      return;
+    }
+    if (path === "/admin/seminars/update" && req.method === "POST") {
+      await handleAdminSeminarsUpdate(req, res);
+      return;
+    }
+    if (path === "/admin/seminars/deactivate" && req.method === "POST") {
+      await handleAdminSeminarsDeactivate(req, res);
       return;
     }
     if (path === "/admin/seminars/registrations" && req.method === "GET") {
@@ -546,6 +556,73 @@ async function handleAdminSeminarsCreate(req: Request, res: Response): Promise<v
   } catch (err) {
     const status = (err as { status?: number }).status ?? 500;
     console.error("admin seminars create error", err);
+    res.status(status).json({
+      ok: false,
+      error: err instanceof Error ? err.message : "server_error",
+    });
+  }
+}
+
+async function handleAdminSeminarsUpdate(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { authenticateAdmin, requireRoles } = await import("./admin/auth");
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
+    return;
+  }
+  const role = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!role.ok) {
+    res.status(role.status).json({ ok: false, error: role.error });
+    return;
+  }
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const item = await adminUpdateSeminar({
+      seminarId: String(body.seminarId ?? ""),
+      title: String(body.title ?? ""),
+      description: body.description != null ? String(body.description) : undefined,
+      eventDate: body.eventDate != null ? String(body.eventDate) : undefined,
+      location: body.location != null ? String(body.location) : undefined,
+      publicPaid: body.publicPaid != null ? Number(body.publicPaid) : undefined,
+      memberFree: body.memberFree != null ? Number(body.memberFree) : undefined,
+      memberPaid: body.memberPaid != null ? Number(body.memberPaid) : undefined,
+    });
+    res.status(200).json({ ok: true, item });
+  } catch (err) {
+    const status = (err as { status?: number }).status ?? 500;
+    console.error("admin seminars update error", err);
+    res.status(status).json({
+      ok: false,
+      error: err instanceof Error ? err.message : "server_error",
+    });
+  }
+}
+
+async function handleAdminSeminarsDeactivate(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { authenticateAdmin, requireRoles } = await import("./admin/auth");
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
+    return;
+  }
+  const role = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!role.ok) {
+    res.status(role.status).json({ ok: false, error: role.error });
+    return;
+  }
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const item = await adminDeactivateSeminar(String(body.seminarId ?? ""));
+    res.status(200).json({ ok: true, item });
+  } catch (err) {
+    const status = (err as { status?: number }).status ?? 500;
+    console.error("admin seminars deactivate error", err);
     res.status(status).json({
       ok: false,
       error: err instanceof Error ? err.message : "server_error",

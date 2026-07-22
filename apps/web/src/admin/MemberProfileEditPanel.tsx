@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   canEditMemberProfile,
   updateMemberProfile,
@@ -14,6 +14,45 @@ const ERROR_LABEL: Record<string, string> = {
   forbidden_role: "ไม่มีสิทธิ์แก้ไขโปรไฟล์",
 };
 
+type ProfileForm = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  legalEntityName: string;
+  buildingName: string;
+  organization: string;
+  expiryDate: string;
+};
+
+function formFromDetail(detail: MemberDetail): ProfileForm {
+  return {
+    firstName: detail.firstName ?? "",
+    lastName: detail.lastName ?? "",
+    phone: detail.phone ?? "",
+    email: detail.email ?? "",
+    legalEntityName: detail.legalEntityName ?? "",
+    buildingName: detail.buildingName ?? "",
+    organization: detail.organization ?? "",
+    expiryDate: detail.expiryDate?.slice(0, 10) ?? "",
+  };
+}
+
+const FIELDS: ReadonlyArray<{
+  key: keyof ProfileForm;
+  label: string;
+  type?: "text" | "email" | "tel" | "date";
+}> = [
+  { key: "firstName", label: "ชื่อ" },
+  { key: "lastName", label: "นามสกุล" },
+  { key: "phone", label: "โทร", type: "tel" },
+  { key: "email", label: "อีเมล", type: "email" },
+  { key: "legalEntityName", label: "นิติบุคคล" },
+  { key: "buildingName", label: "ชื่อตึก" },
+  { key: "organization", label: "หน่วยงาน" },
+  { key: "expiryDate", label: "วันหมดอายุ", type: "date" },
+];
+
 export interface MemberProfileEditPanelProps {
   detail: MemberDetail;
   me: AdminMe;
@@ -22,19 +61,19 @@ export interface MemberProfileEditPanelProps {
 
 export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
   const canEdit = canEditMemberProfile(props.me);
+  const formId = useId();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    firstName: props.detail.firstName ?? "",
-    lastName: props.detail.lastName ?? "",
-    phone: props.detail.phone ?? "",
-    email: props.detail.email ?? "",
-    legalEntityName: props.detail.legalEntityName ?? "",
-    buildingName: props.detail.buildingName ?? "",
-    organization: props.detail.organization ?? "",
-    expiryDate: props.detail.expiryDate?.slice(0, 10) ?? "",
-  });
+  const [form, setForm] = useState<ProfileForm>(() =>
+    formFromDetail(props.detail),
+  );
+
+  useEffect(() => {
+    setForm(formFromDetail(props.detail));
+    setEditing(false);
+    setError(null);
+  }, [props.detail.memberId]);
 
   if (!canEdit) return null;
 
@@ -64,24 +103,22 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
   }
 
   return (
-    <section className="bo-panel" style={{ marginTop: "1rem" }}>
-      <div className="bo-panel-head">
-        <h3 style={{ margin: 0, fontSize: "1rem" }}>แก้ไขข้อมูลสมาชิก</h3>
+    <section className="bo-panel-nested bo-profile-edit">
+      <div className="bo-panel-head bo-profile-edit__head">
+        <div className="bo-profile-edit__titles">
+          <h2>แก้ไขข้อมูลสมาชิก</h2>
+          {!editing ? (
+            <p className="bo-profile-edit__lead">
+              แก้ชื่อ ติดต่อ หน่วยงาน และวันหมดอายุได้จากปุ่มแก้ไข
+            </p>
+          ) : null}
+        </div>
         {!editing ? (
           <button
             type="button"
-            className="bo-btn bo-btn-ghost"
+            className="bo-btn bo-btn-ghost bo-btn-sm bo-profile-edit__trigger"
             onClick={() => {
-              setForm({
-                firstName: props.detail.firstName ?? "",
-                lastName: props.detail.lastName ?? "",
-                phone: props.detail.phone ?? "",
-                email: props.detail.email ?? "",
-                legalEntityName: props.detail.legalEntityName ?? "",
-                buildingName: props.detail.buildingName ?? "",
-                organization: props.detail.organization ?? "",
-                expiryDate: props.detail.expiryDate?.slice(0, 10) ?? "",
-              });
+              setForm(formFromDetail(props.detail));
               setEditing(true);
               setError(null);
             }}
@@ -91,42 +128,44 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
         ) : null}
       </div>
 
-      {error ? <div className="bo-error">{error}</div> : null}
+      {error ? (
+        <div className="bo-error bo-profile-edit__error">{error}</div>
+      ) : null}
 
       {editing ? (
-        <div
-          style={{
-            display: "grid",
-            gap: "0.65rem",
-            padding: "0.75rem 1rem 1rem",
-            gridTemplateColumns: "1fr 1fr",
-          }}
-        >
-          {(
-            [
-              ["firstName", "ชื่อ"],
-              ["lastName", "นามสกุล"],
-              ["phone", "โทร"],
-              ["email", "อีเมล"],
-              ["legalEntityName", "นิติบุคคล"],
-              ["buildingName", "ชื่อตึก"],
-              ["organization", "หน่วยงาน"],
-              ["expiryDate", "วันหมดอายุ"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key}>
-              {label}
-              <input
-                type={key === "expiryDate" ? "date" : "text"}
-                value={form[key]}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, [key]: e.target.value }))
-                }
-                style={{ width: "100%", display: "block", marginTop: 4 }}
-              />
-            </label>
-          ))}
-          <div style={{ gridColumn: "1 / -1", display: "flex", gap: "0.5rem" }}>
+        <div className="bo-profile-edit__body">
+          <div className="bo-profile-edit__grid">
+            {FIELDS.map((field) => {
+              const inputId = `${formId}-${field.key}`;
+              return (
+                <div key={field.key} className="bo-field">
+                  <label htmlFor={inputId}>{field.label}</label>
+                  <input
+                    id={inputId}
+                    type={field.type ?? "text"}
+                    value={form[field.key]}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, [field.key]: e.target.value }))
+                    }
+                    autoComplete="off"
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="bo-profile-edit__actions">
+            <button
+              type="button"
+              className="bo-btn bo-btn-ghost"
+              disabled={busy}
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+                setForm(formFromDetail(props.detail));
+              }}
+            >
+              ยกเลิก
+            </button>
             <button
               type="button"
               className="bo-btn bo-btn-primary"
@@ -135,28 +174,9 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
             >
               {busy ? "กำลังบันทึก…" : "บันทึก"}
             </button>
-            <button
-              type="button"
-              className="bo-btn bo-btn-ghost"
-              disabled={busy}
-              onClick={() => setEditing(false)}
-            >
-              ยกเลิก
-            </button>
           </div>
         </div>
-      ) : (
-        <p
-          style={{
-            margin: 0,
-            padding: "0 1rem 1rem",
-            color: "var(--bo-muted)",
-            fontSize: "0.9rem",
-          }}
-        >
-          แก้ชื่อ ติดต่อ หน่วยงาน และวันหมดอายุได้จากปุ่มแก้ไข
-        </p>
-      )}
+      ) : null}
     </section>
   );
 }

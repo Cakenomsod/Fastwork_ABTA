@@ -3,7 +3,7 @@
  */
 
 import { randomBytes } from "node:crypto";
-import { Timestamp, getFirestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { WEB_ORIGIN, getLoginChannelId } from "../config";
 import { verifyLineIdToken } from "../line/verify-id-token";
@@ -23,6 +23,7 @@ import {
   upsertSeminar,
 } from "./repository";
 import {
+  SEMINARS_COLLECTION,
   SEMINAR_PRICING_LABEL,
   type SeminarDoc,
   type SeminarPricingType,
@@ -83,7 +84,15 @@ function resolveApplicantType(
 
 export async function publicListSeminars() {
   const items = await listActiveSeminars();
-  return items.map(publicSeminar);
+  const visible: SeminarDoc[] = [];
+  for (const s of items) {
+    if (isAutoSeededDemoSeminar(s)) {
+      await upsertSeminar({ ...s, active: false });
+      continue;
+    }
+    visible.push(s);
+  }
+  return visible.map(publicSeminar);
 }
 
 function publicSeminar(s: SeminarDoc) {
@@ -224,8 +233,23 @@ export async function registerForSeminar(input: {
   };
 }
 
+function isAutoSeededDemoSeminar(s: SeminarDoc): boolean {
+  return (
+    /-DEMO$/i.test(s.seminarId) ||
+    s.title.includes("สัมมนาตัวอย่าง") ||
+    (s.description?.includes("งานตัวอย่างสำหรับทดสอบ") ?? false)
+  );
+}
+
+/** Active seminars only; deactivates leftover auto-seeded demo events. */
 export async function adminListSeminars() {
-  return listAllSeminars();
+  const all = await listAllSeminars();
+  for (const s of all) {
+    if (!s.active || !isAutoSeededDemoSeminar(s)) continue;
+    await upsertSeminar({ ...s, active: false });
+    s.active = false;
+  }
+  return all.filter((s) => s.active);
 }
 
 export async function adminCreateSeminar(input: {
@@ -239,14 +263,8 @@ export async function adminCreateSeminar(input: {
 }): Promise<SeminarDoc> {
   const title = input.title.trim();
   if (!title) throw Object.assign(new Error("title_required"), { status: 400 });
+  const pricing = buildSeminarPricing(input);
   const seminarId = `SEM-${new Date().getFullYear()}-${randomBytes(3).toString("hex").toUpperCase()}`;
-  const pricing: SeminarDoc["pricing"] = {};
-  if (input.publicPaid != null) pricing.public_paid = Number(input.publicPaid) || 0;
-  if (input.memberFree != null) pricing.member_free = Number(input.memberFree) || 0;
-  if (input.memberPaid != null) pricing.member_paid = Number(input.memberPaid) || 0;
-  if (Object.keys(pricing).length === 0) {
-    throw Object.assign(new Error("pricing_required"), { status: 400 });
-  }
   const doc: SeminarDoc = {
     seminarId,
     title,
@@ -256,6 +274,84 @@ export async function adminCreateSeminar(input: {
     pricing,
     active: true,
   };
+  await upsertSeminar(doc);
+  return doc;
+}
+
+export async function adminUpdateSeminar(input: {
+  seminarId: string;
+  title: string;
+  description?: string;
+  eventDate?: string;
+  location?: string;
+  publicPaid?: number;
+  memberFree?: number;
+  memberPaid?: number;
+}): Promise<SeminarDoc> {
+  const seminarId = input.seminarId.trim();
+  if (!seminarId) {
+    throw Object.assign(new Error("seminar_id_required"), { status: 400 });
+  }
+  const existing = await getSeminar(seminarId);
+  if (!existing) {
+    throw Object.assign(new Error("seminar_not_found"), { status: 404 });
+  }
+  if (!existing.active) {
+    throw Object.assign(new Error("seminar_closed"), { status: 400 });
+  }
+  const title = input.title.trim();
+  if (!title) throw Object.assign(new Error("title_required"), { status: 400 });
+  const pricing = buildSeminarPricing(input);
+  const doc: SeminarDoc = {
+    ...existing,
+    seminarId,
+    title,
+    description: input.description?.trim() || undefined,
+    eventDate: input.eventDate?.trim() || undefined,
+    location: input.location?.trim() || undefined,
+    pricing,
+    active: true,
+  };
+  await upsertSeminar(doc);
+  // Clear optional fields that were emptied (merge keeps old values otherwise).
+  const clears: Record<string, ReturnType<typeof FieldValue.delete>> = {};
+  if (!doc.description) clears.description = FieldValue.delete();
+  if (!doc.eventDate) clears.eventDate = FieldValue.delete();
+  if (!doc.location) clears.location = FieldValue.delete();
+  if (Object.keys(clears).length > 0) {
+    await getFirestore()
+      .collection(SEMINARS_COLLECTION)
+      .doc(seminarId)
+      .update(clears);
+  }
+  return doc;
+}
+
+function buildSeminarPricing(input: {
+  publicPaid?: number;
+  memberFree?: number;
+  memberPaid?: number;
+}): SeminarDoc["pricing"] {
+  const pricing: SeminarDoc["pricing"] = {};
+  if (input.publicPaid != null) pricing.public_paid = Number(input.publicPaid) || 0;
+  if (input.memberFree != null) pricing.member_free = Number(input.memberFree) || 0;
+  if (input.memberPaid != null) pricing.member_paid = Number(input.memberPaid) || 0;
+  if (Object.keys(pricing).length === 0) {
+    throw Object.assign(new Error("pricing_required"), { status: 400 });
+  }
+  return pricing;
+}
+
+export async function adminDeactivateSeminar(
+  seminarId: string,
+): Promise<SeminarDoc> {
+  const id = seminarId.trim();
+  if (!id) throw Object.assign(new Error("seminar_id_required"), { status: 400 });
+  const existing = await getSeminar(id);
+  if (!existing) {
+    throw Object.assign(new Error("seminar_not_found"), { status: 404 });
+  }
+  const doc: SeminarDoc = { ...existing, active: false };
   await upsertSeminar(doc);
   return doc;
 }

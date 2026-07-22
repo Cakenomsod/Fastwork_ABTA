@@ -8,7 +8,7 @@ import {
   getFirestore,
   type QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
-import { WEB_ORIGIN } from "../config";
+import { liffPageUri } from "../config";
 import { pushMessages } from "../line/client";
 import { expiryReminderText } from "../line/messages";
 import {
@@ -21,7 +21,7 @@ import { MEMBERS_COLLECTION } from "./repository";
 import type { MemberDoc } from "./types";
 
 function renewUrl(): string {
-  return `${WEB_ORIGIN}/renew`;
+  return liffPageUri("/renew");
 }
 
 function formatExpiryTh(d: Date): string {

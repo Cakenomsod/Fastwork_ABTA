@@ -7,6 +7,7 @@ import {
   type LegacyMatch,
   type RegisterDraft,
 } from "../lib/api";
+import { memberStatusHrefFromUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import PhoneDigitInput, { isValidThaiMobile } from "./PhoneDigitInput";
 import "./register.css";
@@ -494,7 +495,10 @@ export default function RegisterPage() {
             {draftState.phase === "blocked" &&
               draftState.code === "already_registered" &&
               (draftState.statusUrl ? (
-                <a className="reg-btn reg-btn--primary" href={draftState.statusUrl}>
+                <a
+                  className="reg-btn reg-btn--primary"
+                  href={memberStatusHrefFromUrl(draftState.statusUrl)}
+                >
                   เปิดหน้าสถานะ
                 </a>
               ) : (
@@ -520,7 +524,10 @@ export default function RegisterPage() {
                 ? "ส่งกลับเข้าคิวนายทะเบียนแล้ว · ใช้สิทธิ์สมาชิกชั่วคราวได้ตามเดิม"
                 : "คุณเป็นสมาชิกชั่วคราวแล้ว ใช้สิทธิ์ได้ทันที · ใบเสร็จชั่วคราวจะออกหลังนายทะเบียนอนุมัติข้อมูล"}
             </p>
-            <a className="reg-btn reg-btn--primary" href={submit.statusUrl}>
+            <a
+              className="reg-btn reg-btn--primary"
+              href={memberStatusHrefFromUrl(submit.statusUrl)}
+            >
               ดูสถานะสมาชิก
             </a>
             <p className="reg-foot">ตรวจสอบสถานะได้ทุกเมื่อด้วยคำว่า “เช็คสถานะ” ใน LINE OA</p>
@@ -542,7 +549,10 @@ export default function RegisterPage() {
             <p className="reg-lead">
               เลขสมาชิกเก่า {legacyBind.legacyMemberId} · ใช้สิทธิ์สมาชิกได้ทันทีตามสถานะเดิม
             </p>
-            <a className="reg-btn reg-btn--legacy" href={legacyBind.statusUrl}>
+            <a
+              className="reg-btn reg-btn--legacy"
+              href={memberStatusHrefFromUrl(legacyBind.statusUrl)}
+            >
               ดูสถานะสมาชิก
             </a>
             <p className="reg-foot">ตรวจสอบสถานะได้ทุกเมื่อด้วยคำว่า “เช็คสถานะ” ใน LINE OA</p>

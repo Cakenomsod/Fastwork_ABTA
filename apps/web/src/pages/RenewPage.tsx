@@ -4,6 +4,7 @@ import {
   submitRenewal,
   type RenewDraft,
 } from "../lib/api";
+import { liffPageUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import "./register.css";
 
@@ -130,7 +131,7 @@ export default function RenewPage() {
               <div className="reg-error__badge">ABTA</div>
               <h1 className="reg-error__title">ต่ออายุสมาชิก</h1>
               <p className="reg-error__detail">{errorCopy(draftError)}</p>
-              <a className="reg-btn reg-btn--primary" href="/register">
+              <a className="reg-btn reg-btn--primary" href={liffPageUrl("/register")}>
                 ไปหน้าสมัคร / ยืนยันสมาชิกเก่า
               </a>
             </div>
@@ -225,6 +226,8 @@ function errorCopy(code: string): string {
       return "ข้อมูลสมาชิกถูกปฏิเสธ — แก้ไขข้อมูลก่อนต่ออายุ";
     case "renewal_pending":
       return "มีคำขอต่ออายุรอตรวจอยู่แล้ว";
+    case "id_token_required":
+      return "เซสชัน LINE หมดอายุ กรุณาเปิดจาก LINE OA อีกครั้ง";
     case "invalid_id_token":
       return "เซสชัน LINE หมดอายุ กรุณาเปิดจาก LINE OA อีกครั้ง";
     default:

@@ -49,3 +49,11 @@ export function getLoginChannelId(): string | undefined {
 export function isConfiguredLiffUrl(url: string = LIFF_URL): boolean {
   return /^https:\/\/liff\.line\.me\/\d+-\w+/i.test(url);
 }
+
+/** LIFF deep link for auth pages (/renew, /seminar, …) when Endpoint URL is /register. */
+export function liffPageUri(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (!isConfiguredLiffUrl()) return `${WEB_ORIGIN}${normalized}`;
+  const base = LIFF_URL.replace(/\/+$/, "");
+  return normalized === "/" ? base : `${base}${normalized}`;
+}

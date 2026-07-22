@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchMemberStatus, type PublicStatus } from "../lib/api";
+import { liffPageUrl, readMemberStatusParams } from "../lib/member-links";
 import "./status.css";
 
 type LoadState =
@@ -45,9 +46,7 @@ export default function StatusPage() {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const memberId = params.get("m") ?? params.get("memberId") ?? "";
-    const token = params.get("t") ?? params.get("token") ?? "";
+    const { memberId, token } = readMemberStatusParams();
 
     if (!memberId) {
       setState({ phase: "error", code: "member_id_required" });
@@ -170,7 +169,7 @@ function StatusCard({ data }: { data: PublicStatus }) {
               เหตุผลที่สลิปไม่ผ่าน: {data.rejectReason}
             </p>
           )}
-          <a className="btn btn--primary" href="/slip">
+          <a className="btn btn--primary" href={liffPageUrl("/slip")}>
             ส่งสลิปใหม่
           </a>
         </section>
@@ -179,7 +178,7 @@ function StatusCard({ data }: { data: PublicStatus }) {
       {!data.canResubmit && !data.canResubmitSlip && (
         <section className="actions">
           {showRenew && (
-            <a className="btn btn--primary" href="/renew">
+            <a className="btn btn--primary" href={liffPageUrl("/renew")}>
               ต่ออายุสมาชิก
             </a>
           )}

@@ -4,7 +4,7 @@
  * status badge, and action buttons. Aligned with 05-Status-and-SLA.md.
  */
 
-import { BRAND, WEB_ORIGIN } from "../config";
+import { BRAND, WEB_ORIGIN, liffPageUri } from "../config";
 import type { StatusView } from "../members/status-view";
 import type { StatusTone } from "../members/types";
 import type { LineMessage } from "./client";
@@ -145,7 +145,7 @@ export function buildStatusFlex(view: StatusView, publicToken?: string): LineMes
     hasPrimaryCta = true;
   } else if (view.canResubmitSlip) {
     footerContents.push(
-      actionButton("ส่งสลิปใหม่", `${WEB_ORIGIN}/slip`, "primary", BRAND.green),
+      actionButton("ส่งสลิปใหม่", liffPageUri("/slip"), "primary", BRAND.green),
     );
     hasPrimaryCta = true;
   } else if (
@@ -153,7 +153,7 @@ export function buildStatusFlex(view: StatusView, publicToken?: string): LineMes
     (view.statusKey === "near_expiry" || view.statusKey === "expired")
   ) {
     footerContents.push(
-      actionButton("ต่ออายุสมาชิก", `${WEB_ORIGIN}/renew`, "primary", BRAND.green),
+      actionButton("ต่ออายุสมาชิก", liffPageUri("/renew"), "primary", BRAND.green),
     );
     hasPrimaryCta = true;
   }

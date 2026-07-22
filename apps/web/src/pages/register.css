@@ -470,6 +470,19 @@
   border-color: rgba(238, 243, 239, 0.35);
 }
 
+/* Secondary actions inside the white legacy form card — not on the dark page bg */
+.reg-form--legacy .reg-btn--ghost-light {
+  color: #4a5c52;
+  border-color: #b7c9bf;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.reg-form--legacy .reg-btn--ghost-light:hover {
+  color: #2f3f36;
+  border-color: #8fa89a;
+  background: #fff;
+}
+
 .reg-field-hint {
   font-size: 0.78rem;
   color: var(--abta-muted);

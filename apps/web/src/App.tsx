@@ -1,3 +1,4 @@
+import { effectiveAppPath } from "./lib/member-links";
 import { firebaseConfig } from "./lib/firebase";
 import AdminApp from "./admin/AdminApp";
 import ReceiptPage from "./pages/ReceiptPage";
@@ -9,7 +10,7 @@ import StatusPage from "./pages/StatusPage";
 import "./App.css";
 
 function App() {
-  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  const path = effectiveAppPath();
 
   // Digital member card + full status share the status view; receipt is its own printable page.
   if (path === "/status" || path === "/card") {
