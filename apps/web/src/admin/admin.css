@@ -3029,3 +3029,123 @@
     animation: none;
   }
 }
+
+/* ── Broadcast ─────────────────────────────────────────────────────────── */
+
+.bo-broadcast {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bo-broadcast .bo-muted,
+.bo-broadcast-stats .bo-muted {
+  color: var(--bo-muted);
+  font-size: 0.88rem;
+}
+
+.bo-broadcast .bo-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--bo-muted);
+}
+
+.bo-broadcast .bo-success {
+  margin: 0.75rem 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: var(--bo-success-soft);
+  color: var(--bo-success);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.bo-broadcast-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.bo-broadcast-fieldset {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--bo-line, #dce6e0);
+  border-radius: 10px;
+}
+
+.bo-broadcast-fieldset legend {
+  padding: 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--bo-green);
+}
+
+.bo-broadcast-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+}
+
+.bo-broadcast-board {
+  font-weight: 600;
+}
+
+.bo-broadcast-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.1rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.9rem;
+}
+
+.bo-broadcast-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.bo-broadcast-compose textarea {
+  width: 100%;
+  min-height: 8rem;
+  resize: vertical;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--bo-line, #dce6e0);
+  border-radius: 10px;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.bo-broadcast-compose-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bo-broadcast-col-check {
+  width: 2.5rem;
+}
+
+.bo-broadcast-preview {
+  max-width: 22rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+}
+
+.bo-profile-edit__board {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .bo-broadcast-compose-actions {
+    justify-content: stretch;
+  }
+
+  .bo-broadcast-compose-actions .bo-btn {
+    width: 100%;
+  }
+}

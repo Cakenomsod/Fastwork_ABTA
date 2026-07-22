@@ -20,6 +20,9 @@ import {
   handleAdminStaffUpsert,
   handleAdminUpdateMemberIds,
   handleAdminUpdateMemberProfile,
+  handleAdminBroadcastRecipients,
+  handleAdminBroadcastSend,
+  handleAdminBroadcastLogs,
   handleApproveData,
   handleApproveSlip,
   handlePendingDataReviews,
@@ -240,6 +243,21 @@ export const api = onRequest(
     }
     if (path === "/admin/seminars/registrations/decide" && req.method === "POST") {
       await handleAdminSeminarDecide(req, res);
+      return;
+    }
+
+    if (path === "/admin/broadcast/recipients" && req.method === "GET") {
+      await handleAdminBroadcastRecipients(req, res);
+      return;
+    }
+
+    if (path === "/admin/broadcast/send" && req.method === "POST") {
+      await handleAdminBroadcastSend(req, res);
+      return;
+    }
+
+    if (path === "/admin/broadcast/logs" && req.method === "GET") {
+      await handleAdminBroadcastLogs(req, res);
       return;
     }
 

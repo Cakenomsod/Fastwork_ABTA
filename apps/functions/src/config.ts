@@ -5,6 +5,8 @@
 
 export const LINE_REPLY_ENDPOINT = "https://api.line.me/v2/bot/message/reply";
 export const LINE_PUSH_ENDPOINT = "https://api.line.me/v2/bot/message/push";
+export const LINE_MULTICAST_ENDPOINT =
+  "https://api.line.me/v2/bot/message/multicast";
 
 /** Public web origin used for member card / status deep links. */
 export const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "https://abta-member.web.app";

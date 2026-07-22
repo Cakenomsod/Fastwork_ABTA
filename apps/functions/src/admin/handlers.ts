@@ -30,6 +30,13 @@ import {
   updateMemberProfile,
 } from "./member-profile";
 import {
+  listBroadcastLogs,
+  listBroadcastRecipients,
+  sendBroadcast,
+  filtersFromQuery,
+  filtersFromBody,
+} from "./broadcast";
+import {
   findBoundLegacyLinks,
   findLegacyPaymentsByMemberId,
   listLegacyMembers,
@@ -504,6 +511,10 @@ export async function handleAdminUpdateMemberProfile(
         body.organization != null ? String(body.organization) : undefined,
       expiryDate:
         body.expiryDate != null ? String(body.expiryDate) : undefined,
+      isBoardMember:
+        body.isBoardMember != null
+          ? Boolean(body.isBoardMember)
+          : undefined,
     },
     actorEmail: auth.session.email,
   });
@@ -895,4 +906,97 @@ export async function handleRejectSlip(
     return;
   }
   res.status(200).json(result);
+}
+
+// ── Broadcast (group LINE messaging) ──────────────────────────────────────
+
+/** GET /admin/broadcast/recipients */
+export async function handleAdminBroadcastRecipients(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const filters = filtersFromQuery({
+    memberTypes: req.query.memberTypes,
+    statuses: req.query.statuses,
+    boardOnly: req.query.boardOnly,
+  });
+  const result = await listBroadcastRecipients(filters);
+  res.status(200).json({ ok: true, ...result });
+}
+
+/** POST /admin/broadcast/send */
+export async function handleAdminBroadcastSend(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const message = String(body.message ?? "");
+  const selectAll = Boolean(body.selectAll);
+  const memberIds = Array.isArray(body.memberIds)
+    ? (body.memberIds as unknown[]).map((id) => String(id))
+    : undefined;
+
+  const filterSource =
+    body.filters && typeof body.filters === "object"
+      ? (body.filters as Record<string, unknown>)
+      : body;
+  const filters = filtersFromBody(filterSource);
+
+  const result = await sendBroadcast({
+    message,
+    actorEmail: auth.session.email,
+    filters,
+    memberIds,
+    selectAll,
+  });
+  if (!result.ok) {
+    jsonError(res, result.status, result.error);
+    return;
+  }
+  res.status(200).json(result);
+}
+
+/** GET /admin/broadcast/logs */
+export async function handleAdminBroadcastLogs(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const limitRaw = Number(req.query.limit ?? 20);
+  const logs = await listBroadcastLogs(
+    Number.isFinite(limitRaw) ? limitRaw : 20,
+  );
+  res.status(200).json({ ok: true, logs });
 }

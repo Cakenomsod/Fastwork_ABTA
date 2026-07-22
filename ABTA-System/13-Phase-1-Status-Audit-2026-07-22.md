@@ -56,7 +56,7 @@
 
 | รายการ | เฟส | สถานะทีม |
 |--------|------|----------|
-| Broadcast ส่งข้อความกลุ่ม | Phase 3–4 | ⏸️ เลื่อนทำหลัง Phase 1 |
+| Broadcast ส่งข้อความกลุ่ม | Phase 3–4 | ✅ ทำในโค้ดแล้ว (22 ก.ค.) — ยังอยู่งบ P3–4 |
 | Export Excel / OCR / QR / Self-Service / PDF เต็ม | P2–P4 | ❌ ยังไม่ทำ |
 
 ---
@@ -108,4 +108,4 @@
 1. ขอข้อมูล go-live จากลูกค้า (ธนาคาร / ค่าธรรมเนียม / staff LINE ID)
 2. ตั้ง LIFF + Rich Menu + Google Sign-In
 3. ปิด `ADMIN_OPEN_ACCESS` → deploy → ทดสอบใน LINE จริง
-4. หลัง Phase 1 เสร็จ → ค่อยทำ Broadcast (Phase 3–4)
+4. ใช้ Broadcast ที่ `/admin/broadcast` เมื่อต้องการส่งข้อความกลุ่ม (อยู่งบ Phase 3–4)

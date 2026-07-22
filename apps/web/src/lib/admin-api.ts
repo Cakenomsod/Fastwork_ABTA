@@ -43,6 +43,7 @@ export interface QueueItem {
   hasSlip: boolean;
   memberType?: string;
   memberTypeLabel?: string;
+  isBoardMember?: boolean;
   expiryDate?: string;
 }
 
@@ -401,6 +402,7 @@ export async function updateMemberProfile(input: {
   buildingName?: string;
   organization?: string;
   expiryDate?: string;
+  isBoardMember?: boolean;
 }): Promise<MemberDetail> {
   const { memberId, ...patch } = input;
   const data = await adminFetch<{ member: MemberDetail }>(
@@ -674,4 +676,160 @@ export async function decideSeminarRegistration(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+// ── Broadcast ─────────────────────────────────────────────────────────────
+
+export type BroadcastMemberType =
+  | "ordinary"
+  | "extraordinary"
+  | "honorary"
+  | "other";
+
+export type BroadcastMemberStatus =
+  | "registered"
+  | "pending_review"
+  | "temporary"
+  | "active"
+  | "near_expiry"
+  | "expired";
+
+export const BROADCAST_TYPE_OPTIONS: {
+  value: BroadcastMemberType;
+  label: string;
+}[] = [
+  { value: "ordinary", label: "สามัญ" },
+  { value: "extraordinary", label: "วิสามัญ" },
+  { value: "honorary", label: "กิตติมาศักดิ์" },
+  { value: "other", label: "อื่น ๆ" },
+];
+
+export const BROADCAST_STATUS_OPTIONS: {
+  value: BroadcastMemberStatus;
+  label: string;
+}[] = [
+  { value: "temporary", label: "สมาชิกชั่วคราว" },
+  { value: "active", label: "สมาชิกสมบูรณ์" },
+  { value: "near_expiry", label: "ใกล้หมดอายุ" },
+  { value: "expired", label: "หมดอายุ" },
+  { value: "pending_review", label: "รอตรวจสอบเอกสาร" },
+  { value: "registered", label: "สมัครแล้ว" },
+];
+
+export type BroadcastRecipient = {
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone?: string;
+  memberType?: string;
+  memberTypeLabel?: string;
+  status: string;
+  isBoardMember?: boolean;
+  hasLine: boolean;
+};
+
+export type BroadcastLogItem = {
+  logId: string;
+  message: string;
+  messagePreview?: string;
+  actorEmail?: string;
+  createdBy?: string;
+  targetCount?: number;
+  recipientCount?: number;
+  sent: number;
+  failed: number;
+  skipped?: number;
+  skippedNoLine?: number;
+  selectAll: boolean;
+  filters?: {
+    memberTypes?: string[];
+    statuses?: string[];
+    boardOnly?: boolean;
+  };
+  createdAt?: string;
+};
+
+export function canSendBroadcast(me: AdminMe): boolean {
+  return (
+    me.isSuperAdmin ||
+    me.roles.includes("admin") ||
+    me.roles.includes("registrar")
+  );
+}
+
+export async function fetchBroadcastRecipients(filters: {
+  memberTypes?: BroadcastMemberType[];
+  statuses?: BroadcastMemberStatus[];
+  boardOnly?: boolean;
+}): Promise<{
+  recipients: BroadcastRecipient[];
+  skippedNoLine: number;
+  totalMatched: number;
+}> {
+  const params = new URLSearchParams();
+  if (filters.memberTypes?.length) {
+    params.set("memberTypes", filters.memberTypes.join(","));
+  }
+  if (filters.statuses?.length) {
+    params.set("statuses", filters.statuses.join(","));
+  }
+  if (filters.boardOnly) params.set("boardOnly", "1");
+  const qs = params.toString();
+  return adminFetch(`/admin/broadcast/recipients${qs ? `?${qs}` : ""}`);
+}
+
+export async function sendBroadcast(input: {
+  message: string;
+  memberIds?: string[];
+  selectAll?: boolean;
+  memberTypes?: BroadcastMemberType[];
+  statuses?: BroadcastMemberStatus[];
+  boardOnly?: boolean;
+}): Promise<{
+  sent: number;
+  failed: number;
+  skipped: number;
+  skippedNoLine: number;
+  targetCount: number;
+  logId: string;
+}> {
+  const { memberTypes, statuses, boardOnly, ...rest } = input;
+  const data = await adminFetch<{
+    sent: number;
+    failed: number;
+    skipped: number;
+    logId: string;
+  }>("/admin/broadcast/send", {
+    method: "POST",
+    body: JSON.stringify({
+      ...rest,
+      filters: {
+        memberTypes,
+        statuses,
+        boardOnly,
+      },
+    }),
+  });
+  return {
+    sent: data.sent,
+    failed: data.failed,
+    skipped: data.skipped,
+    skippedNoLine: data.skipped,
+    targetCount: data.sent + data.failed,
+    logId: data.logId,
+  };
+}
+
+export async function fetchBroadcastLogs(limit = 20): Promise<BroadcastLogItem[]> {
+  const data = await adminFetch<{ logs: BroadcastLogItem[] }>(
+    `/admin/broadcast/logs?limit=${limit}`,
+  );
+  return (data.logs ?? []).map((log) => ({
+    ...log,
+    messagePreview: log.messagePreview ?? (log.message ?? "").slice(0, 120),
+    actorEmail: log.actorEmail ?? log.createdBy ?? "",
+    targetCount: log.targetCount ?? log.recipientCount ?? log.sent + log.failed,
+    skippedNoLine: log.skippedNoLine ?? log.skipped ?? 0,
+  }));
 }

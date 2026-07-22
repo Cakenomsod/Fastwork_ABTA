@@ -23,6 +23,7 @@ type ProfileForm = {
   buildingName: string;
   organization: string;
   expiryDate: string;
+  isBoardMember: boolean;
 };
 
 function formFromDetail(detail: MemberDetail): ProfileForm {
@@ -35,11 +36,12 @@ function formFromDetail(detail: MemberDetail): ProfileForm {
     buildingName: detail.buildingName ?? "",
     organization: detail.organization ?? "",
     expiryDate: detail.expiryDate?.slice(0, 10) ?? "",
+    isBoardMember: Boolean(detail.isBoardMember),
   };
 }
 
 const FIELDS: ReadonlyArray<{
-  key: keyof ProfileForm;
+  key: Exclude<keyof ProfileForm, "isBoardMember">;
   label: string;
   type?: "text" | "email" | "tel" | "date";
 }> = [
@@ -91,6 +93,7 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
         buildingName: form.buildingName || undefined,
         organization: form.organization || undefined,
         expiryDate: form.expiryDate || undefined,
+        isBoardMember: form.isBoardMember,
       });
       props.onUpdated(updated);
       setEditing(false);
@@ -152,6 +155,16 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
                 </div>
               );
             })}
+            <label className="bo-check bo-profile-edit__board">
+              <input
+                type="checkbox"
+                checked={form.isBoardMember}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, isBoardMember: e.target.checked }))
+                }
+              />
+              กรรมการสมาคม
+            </label>
           </div>
           <div className="bo-profile-edit__actions">
             <button

@@ -46,6 +46,7 @@ export async function updateMemberProfile(opts: {
       | "legalEntityName"
       | "buildingName"
       | "organization"
+      | "isBoardMember"
     >
   > & { expiryDate?: string };
   actorEmail: string;
@@ -84,8 +85,16 @@ export async function updateMemberProfile(opts: {
     }
   }
 
+  if (opts.patch.isBoardMember !== undefined) {
+    updates.isBoardMember = Boolean(opts.patch.isBoardMember);
+  }
+
   const hasFieldChange = EDITABLE_FIELDS.some((k) => opts.patch[k] !== undefined);
-  if (!hasFieldChange && opts.patch.expiryDate === undefined) {
+  if (
+    !hasFieldChange &&
+    opts.patch.expiryDate === undefined &&
+    opts.patch.isBoardMember === undefined
+  ) {
     return { ok: false, error: "nothing_to_update", status: 400 };
   }
 

@@ -57,6 +57,7 @@ export interface QueueMemberItem {
   status: string;
   memberType?: string;
   memberTypeLabel?: string;
+  isBoardMember?: boolean;
   dataReviewStatus?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -150,6 +151,7 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
     status: member.status,
     memberType: member.memberType,
     memberTypeLabel: member.memberTypeLabel,
+    isBoardMember: Boolean(member.isBoardMember),
     dataReviewStatus: member.dataReviewStatus,
     createdAt: isoFromTs(member.createdAt),
     updatedAt: isoFromTs(member.updatedAt),

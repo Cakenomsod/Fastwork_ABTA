@@ -64,6 +64,8 @@ export interface MemberDoc {
   /** สามัญ / วิสามัญ / กิตติมาศักดิ์ — used for reports + broadcast filters. */
   memberType?: MemberType;
   memberTypeLabel?: string;
+  /** Board / committee member — used for broadcast filters (กรรมการ). */
+  isBoardMember?: boolean;
   memberCardUrl?: string;
   expiryDate?: Timestamp;
   /** Reminder offsets already sent for the current expiryDate (e.g. 45, 15). */
