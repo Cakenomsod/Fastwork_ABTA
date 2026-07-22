@@ -30,6 +30,9 @@ const LegacyImportPage = lazy(() => import("./pages/LegacyImportPage"));
 const StaffPage = lazy(() => import("./pages/StaffPage"));
 const SeminarsPage = lazy(() => import("./pages/SeminarsPage"));
 const BroadcastPage = lazy(() => import("./pages/BroadcastPage"));
+const MessageTemplatesPage = lazy(
+  () => import("./pages/MessageTemplatesPage"),
+);
 const AgmReportPage = lazy(() => import("./pages/AgmReportPage"));
 import "./admin.css";
 
@@ -41,6 +44,7 @@ type AdminRoute =
   | "legacy-import"
   | "seminars"
   | "broadcast"
+  | "message-templates"
   | "agm"
   | "staff";
 
@@ -53,6 +57,13 @@ function parseRoute(pathname: string): AdminRoute {
   }
   if (p.endsWith("/legacy") || p.endsWith("/legacy/members")) return "legacy";
   if (p.endsWith("/seminars")) return "seminars";
+  if (
+    p.endsWith("/message-templates") ||
+    p.endsWith("/templates") ||
+    p.endsWith("/broadcast/templates")
+  ) {
+    return "message-templates";
+  }
   if (p.endsWith("/broadcast")) return "broadcast";
   if (p.endsWith("/agm") || p.endsWith("/agm-report")) return "agm";
   if (p.endsWith("/staff")) return "staff";
@@ -68,6 +79,7 @@ function navigate(route: AdminRoute) {
     "legacy-import": "/admin/legacy/import",
     seminars: "/admin/seminars",
     broadcast: "/admin/broadcast",
+    "message-templates": "/admin/message-templates",
     agm: "/admin/agm",
     staff: "/admin/staff",
   };
@@ -278,6 +290,7 @@ export default function AdminApp() {
     "legacy-import": "นำเข้าสมาชิกเก่า",
     seminars: "สัมมนา",
     broadcast: "ส่งข้อความแบบกลุ่ม",
+    "message-templates": "แม่แบบข้อความ",
     agm: "สิทธิ์ประชุมใหญ่",
     staff: "จัดการเจ้าหน้าที่",
   };
@@ -299,6 +312,8 @@ export default function AdminApp() {
     page = <SeminarsPage />;
   } else if (route === "broadcast" && canBroadcast) {
     page = <BroadcastPage />;
+  } else if (route === "message-templates" && canBroadcast) {
+    page = <MessageTemplatesPage />;
   } else if (route === "agm" && canSeeData) {
     page = <AgmReportPage me={me} />;
   } else if (route === "staff" && me.canManageStaff) {
@@ -416,14 +431,23 @@ export default function AdminApp() {
               />
             ) : null}
 
-            {me.canManageStaff ? (
+            {canBroadcast || me.canManageStaff ? (
               <>
                 <p className="bo-nav-section">ระบบ</p>
-                <NavBtn
-                  active={route === "staff"}
-                  onClick={() => go("staff")}
-                  label="เจ้าหน้าที่"
-                />
+                {canBroadcast ? (
+                  <NavBtn
+                    active={route === "message-templates"}
+                    onClick={() => go("message-templates")}
+                    label="แม่แบบข้อความ"
+                  />
+                ) : null}
+                {me.canManageStaff ? (
+                  <NavBtn
+                    active={route === "staff"}
+                    onClick={() => go("staff")}
+                    label="เจ้าหน้าที่"
+                  />
+                ) : null}
               </>
             ) : null}
           </nav>
