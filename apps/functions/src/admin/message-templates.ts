@@ -1,5 +1,5 @@
 /**
- * Editable LINE broadcast templates (e.g. AGM invite).
+ * Editable LINE broadcast templates (e.g. AGM invite + custom templates).
  */
 
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
@@ -61,6 +61,17 @@ function toTemplate(id: string, data: TemplateDoc | undefined): MessageTemplate 
   };
 }
 
+function sortTemplates(list: MessageTemplate[]): MessageTemplate[] {
+  return [...list].sort((a, b) => {
+    if (a.id === AGM_INVITE_TEMPLATE_ID) return -1;
+    if (b.id === AGM_INVITE_TEMPLATE_ID) return 1;
+    const at = a.updatedAt ?? "";
+    const bt = b.updatedAt ?? "";
+    if (at !== bt) return bt.localeCompare(at);
+    return a.title.localeCompare(b.title, "th");
+  });
+}
+
 export async function getMessageTemplate(
   id: string,
 ): Promise<MessageTemplate> {
@@ -71,9 +82,25 @@ export async function getMessageTemplate(
   return toTemplate(id, snap.exists ? (snap.data() as TemplateDoc) : undefined);
 }
 
+/** List every saved template; always include seeded AGM invite. */
 export async function listMessageTemplates(): Promise<MessageTemplate[]> {
-  const agm = await getMessageTemplate(AGM_INVITE_TEMPLATE_ID);
-  return [agm];
+  const snap = await getFirestore()
+    .collection(MESSAGE_TEMPLATES_COLLECTION)
+    .get();
+
+  const byId = new Map<string, MessageTemplate>();
+  for (const doc of snap.docs) {
+    byId.set(doc.id, toTemplate(doc.id, doc.data() as TemplateDoc));
+  }
+
+  if (!byId.has(AGM_INVITE_TEMPLATE_ID)) {
+    byId.set(
+      AGM_INVITE_TEMPLATE_ID,
+      toTemplate(AGM_INVITE_TEMPLATE_ID, undefined),
+    );
+  }
+
+  return sortTemplates([...byId.values()]);
 }
 
 export async function upsertMessageTemplate(opts: {
@@ -121,4 +148,45 @@ export async function upsertMessageTemplate(opts: {
     updatedBy: opts.actorEmail,
     updatedAt: now.toDate().toISOString(),
   };
+}
+
+/** Create a new template with a generated Firestore id. */
+export async function createMessageTemplate(opts: {
+  title: string;
+  body: string;
+  actorEmail: string;
+}): Promise<MessageTemplate> {
+  const title = opts.title.trim();
+  if (!title) {
+    throw Object.assign(new Error("title_required"), { status: 400 });
+  }
+  const ref = getFirestore().collection(MESSAGE_TEMPLATES_COLLECTION).doc();
+  return upsertMessageTemplate({
+    id: ref.id,
+    title,
+    body: opts.body,
+    actorEmail: opts.actorEmail,
+  });
+}
+
+/** Hard-delete a custom template. System AGM invite cannot be removed. */
+export async function deleteMessageTemplate(id: string): Promise<void> {
+  const templateId = id.trim();
+  if (!templateId) {
+    throw Object.assign(new Error("template_id_required"), { status: 400 });
+  }
+  if (templateId === AGM_INVITE_TEMPLATE_ID) {
+    throw Object.assign(new Error("cannot_delete_system_template"), {
+      status: 400,
+    });
+  }
+
+  const ref = getFirestore()
+    .collection(MESSAGE_TEMPLATES_COLLECTION)
+    .doc(templateId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw Object.assign(new Error("not_found"), { status: 404 });
+  }
+  await ref.delete();
 }

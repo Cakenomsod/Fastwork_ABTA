@@ -26,7 +26,9 @@ import {
   handleAdminBroadcastTags,
   handleAdminListMessageTemplates,
   handleAdminGetMessageTemplate,
+  handleAdminCreateMessageTemplate,
   handleAdminUpsertMessageTemplate,
+  handleAdminDeleteMessageTemplate,
   handleApproveData,
   handleApproveSlip,
   handlePendingDataReviews,
@@ -277,6 +279,11 @@ export const api = onRequest(
       return;
     }
 
+    if (path === "/admin/message-templates" && req.method === "POST") {
+      await handleAdminCreateMessageTemplate(req, res);
+      return;
+    }
+
     if (path.startsWith("/admin/message-templates/") && req.method === "GET") {
       const id = decodeURIComponent(path.slice("/admin/message-templates/".length));
       await handleAdminGetMessageTemplate(req, res, id);
@@ -289,7 +296,18 @@ export const api = onRequest(
       return;
     }
 
-    res.status(404).json({ ok: false, error: "not_found" });
+    if (path.startsWith("/admin/message-templates/") && req.method === "DELETE") {
+      const id = decodeURIComponent(path.slice("/admin/message-templates/".length));
+      await handleAdminDeleteMessageTemplate(req, res, id);
+      return;
+    }
+
+    res.status(404).json({
+      ok: false,
+      error: "route_not_found",
+      method: req.method,
+      path,
+    });
   },
 );
 

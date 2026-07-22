@@ -862,6 +862,23 @@ export async function fetchMessageTemplates(): Promise<MessageTemplate[]> {
   return data.templates ?? [];
 }
 
+export async function createMessageTemplate(input: {
+  title: string;
+  body: string;
+}): Promise<MessageTemplate> {
+  const data = await adminFetch<{ template: MessageTemplate }>(
+    "/admin/message-templates",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        title: input.title,
+        body: input.body,
+      }),
+    },
+  );
+  return data.template;
+}
+
 export async function saveMessageTemplate(input: {
   id: string;
   title?: string;
@@ -878,4 +895,10 @@ export async function saveMessageTemplate(input: {
     },
   );
   return data.template;
+}
+
+export async function deleteMessageTemplate(id: string): Promise<void> {
+  await adminFetch(`/admin/message-templates/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }

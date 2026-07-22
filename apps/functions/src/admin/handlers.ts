@@ -38,6 +38,8 @@ import {
   filtersFromBody,
 } from "./broadcast";
 import {
+  createMessageTemplate,
+  deleteMessageTemplate,
   getMessageTemplate,
   listMessageTemplates,
   upsertMessageTemplate,
@@ -1011,6 +1013,36 @@ export async function handleAdminGetMessageTemplate(
   res.status(200).json({ ok: true, template });
 }
 
+/** POST /admin/message-templates — create a new template */
+export async function handleAdminCreateMessageTemplate(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  try {
+    const template = await createMessageTemplate({
+      title: String(body.title ?? ""),
+      body: String(body.body ?? ""),
+      actorEmail: auth.session.email,
+    });
+    res.status(201).json({ ok: true, template });
+  } catch (err) {
+    const e = err as Error & { status?: number };
+    jsonError(res, e.status ?? 500, e.message || "create_failed");
+  }
+}
+
 /** PUT /admin/message-templates/:id */
 export async function handleAdminUpsertMessageTemplate(
   req: Request,
@@ -1040,6 +1072,32 @@ export async function handleAdminUpsertMessageTemplate(
   } catch (err) {
     const e = err as Error & { status?: number };
     jsonError(res, e.status ?? 500, e.message || "save_failed");
+  }
+}
+
+/** DELETE /admin/message-templates/:id */
+export async function handleAdminDeleteMessageTemplate(
+  req: Request,
+  res: Response,
+  templateId: string,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  try {
+    await deleteMessageTemplate(templateId);
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    const e = err as Error & { status?: number };
+    jsonError(res, e.status ?? 500, e.message || "delete_failed");
   }
 }
 
