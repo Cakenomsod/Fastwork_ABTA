@@ -1,9 +1,9 @@
 # ระบบบริหารจัดการสมาชิก ABTA
 
-เอกสารสรุปโครงการสำหรับทีมงาน — อ่านจาก [Note.txt](./Note.txt) แล้วจัดระเบียบใหม่
+เอกสารสรุปโครงการสำหรับทีมงาน
 
-**เวอร์ชัน:** 1.1  
-**อัปเดตล่าสุด:** 21 กรกฎาคม 2569
+**เวอร์ชัน:** 1.2  
+**อัปเดตล่าสุด:** 22 กรกฎาคม 2569
 
 ---
 
@@ -12,17 +12,18 @@
 | ลำดับ | เอกสาร | เนื้อหา |
 |------|--------|---------|
 | 1 | [01-Project-Overview.md](./01-Project-Overview.md) | ภาพรวมโครงการ ผู้เกี่ยวข้อง เป้าหมาย |
-| 2 | [02-Phase-1-Confirmed.md](./02-Phase-1-Confirmed.md) | ขอบเขตงาน Phase 1 ที่ยืนยันแล้ว (งานปัจจุบัน) |
-| 3 | [03-Development-Plan.md](./03-Development-Plan.md) | ลำดับพัฒนา ไทม์ไลน์ การชำระเงิน |
-| 4 | [04-Workflows.md](./04-Workflows.md) | Flow ฝั่งสมาชิกและเจ้าหน้าที่ |
-| 5 | [05-Status-and-SLA.md](./05-Status-and-SLA.md) | สถานะในระบบ และ SLA |
-| 6 | [06-Phase-2-4-Roadmap.md](./06-Phase-2-4-Roadmap.md) | แผนอนาคต (ยังไม่ยืนยัน) |
-| 7 | [07-Tech-Stack.md](./07-Tech-Stack.md) | เทคโนโลยีและค่าใช้จ่ายรายเดือน |
-| 8 | [08-Fastwork-Quotation.md](./08-Fastwork-Quotation.md) | ใบเสนอราคา Fastwork แบ่งชำระ 3 งวด |
-| 9 | [09-Platform-Accounts.md](./09-Platform-Accounts.md) | อีเมล / แพลตฟอร์ม / Billing — ชื่อส่งมอบจริง |
-| 10 | [10-Open-Items-Registration.md](./10-Open-Items-Registration.md) | รายการค้างจากลูกค้าก่อนเปิดรับสมัคร (บัญชีธนาคาร, ค่าธรรมเนียม, LIFF Endpoint, staff IDs) |
-| 11 | [11-Legacy-Member-Import-Plan.md](./11-Legacy-Member-Import-Plan.md) | แผนนำเข้าสมาชิกเก่าจาก Excel + ตัดสินใจ SQL vs Firestore |
-| 12 | [12-Scope-Update-2026-07-21.md](./12-Scope-Update-2026-07-21.md) | อัปเดตขอบเขตจากแชท 21 ก.ค. (แจ้งเตือน 45/15, รายงานสามัญ+Active, Broadcast กำลังทำล่วงหน้า · สิ่งที่ยังขาดข้อมูล) |
+| 2 | [02-Phase-1-Confirmed.md](./02-Phase-1-Confirmed.md) | ขอบเขตงาน Phase 1 ที่ยืนยันแล้ว |
+| 3 | [13-Phase-1-Status-Audit-2026-07-22.md](./13-Phase-1-Status-Audit-2026-07-22.md) | **สถานะโค้ด Phase 1 ล่าสุด** (ไม่รวม Broadcast) |
+| 4 | [03-Development-Plan.md](./03-Development-Plan.md) | ลำดับพัฒนา ไทม์ไลน์ การชำระเงิน |
+| 5 | [04-Workflows.md](./04-Workflows.md) | Flow ฝั่งสมาชิกและเจ้าหน้าที่ |
+| 6 | [05-Status-and-SLA.md](./05-Status-and-SLA.md) | สถานะในระบบ และ SLA |
+| 7 | [06-Phase-2-4-Roadmap.md](./06-Phase-2-4-Roadmap.md) | แผนอนาคต (ยังไม่ยืนยัน) |
+| 8 | [07-Tech-Stack.md](./07-Tech-Stack.md) | เทคโนโลยีและค่าใช้จ่ายรายเดือน |
+| 9 | [08-Fastwork-Quotation.md](./08-Fastwork-Quotation.md) | ใบเสนอราคา Fastwork แบ่งชำระ 3 งวด |
+| 10 | [09-Platform-Accounts.md](./09-Platform-Accounts.md) | อีเมล / แพลตฟอร์ม / Billing — ชื่อส่งมอบจริง |
+| 11 | [10-Open-Items-Registration.md](./10-Open-Items-Registration.md) | รายการค้างก่อน go-live (ธนาคาร, ค่าธรรมเนียม, LIFF, staff IDs) |
+| 12 | [11-Legacy-Member-Import-Plan.md](./11-Legacy-Member-Import-Plan.md) | แผน/อ้างอิงนำเข้าสมาชิกเก่าจาก Excel (implement ครบแล้ว) |
+| 13 | [12-Scope-Update-2026-07-21.md](./12-Scope-Update-2026-07-21.md) | อัปเดตขอบเขตจากแชท 21 ก.ค. (45/15, สามัญ+Active, Broadcast เลื่อนหลัง P1) |
 
 ---
 
@@ -31,20 +32,20 @@
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **ลูกค้า** | สมาคมการค้าผู้ประกอบการธุรกิจห้องเช่า (ABTA) |
-| **Phase ปัจจุบัน** | Phase 1 — ✅ ยืนยันแล้ว |
+| **Phase ปัจจุบัน** | Phase 1 — ✅ ยืนยันแล้ว · โค้ดเกือบครบ |
 | **งบ Phase 1** | 9,000 บาท (ผ่าน Fastwork) |
 | **ระยะเวลา** | 20–25 วัน นับจากได้รับมัดจำงวดแรก |
-| **งานด่วนที่สุด** | ระบบเช็คสถานะผ่าน LINE OA (ลูกค้าขอให้ทำก่อน) |
-| **สถานะโครงการ** | มัดจำงวดแรกแล้ว — กำลัง Setup แพลตฟอร์ม (ชื่อส่งมอบ) |
+| **สถานะโครงการ** | โค้ด Phase 1 พร้อม Demo/รีวิว — รอ go-live config จากลูกค้า |
+| **สถานะละเอียด** | [13-Phase-1-Status-Audit-2026-07-22.md](./13-Phase-1-Status-Audit-2026-07-22.md) |
 
 ---
 
 ## สถานะ Phase ทั้งหมด
 
 ```
-✅ Phase 1 — ยืนยันและตกลงขอบเขตแล้ว (กำลังดำเนินการ)
+✅ Phase 1 — โค้ดครบเกือบหมด · รอ go-live (ธนาคาร / LIFF / ปิด open access)
 🔶 Phase 2 — แนวทางเพิ่มเติม (ยังไม่ยืนยัน)
-🔶 Phase 3–4 — แผนระยะยาว (ยังไม่ยืนยัน)
+🔶 Phase 3–4 — แผนระยะยาว (Broadcast เลื่อนทำหลัง Phase 1)
 ```
 
 ---

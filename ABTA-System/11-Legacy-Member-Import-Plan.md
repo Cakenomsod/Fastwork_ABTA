@@ -3,7 +3,9 @@
 > แหล่งข้อมูล: [`Data/NewMemDatabase.xlsx`](./Data/NewMemDatabase.xlsx)  
 > อ้างอิง Flow: [02-Phase-1-Confirmed.md](./02-Phase-1-Confirmed.md), [04-Workflows.md](./04-Workflows.md)  
 > อ้างอิง Schema: [07-Tech-Stack.md](./07-Tech-Stack.md)  
-> วันที่จัดทำ: 19 ก.ค. 2569
+> วันที่จัดทำ: 19 ก.ค. 2569  
+> **สถานะ implement (22 ก.ค. 2569):** Phase A–C ทำครบแล้ว — มีหน้า import ใน Back Office + LIFF ยืนยันสมาชิกเก่า + bind LINE  
+> เก็บเอกสารนี้ไว้เป็นอ้างอิง mapping คอลัมน์ / กฎ match — ไม่ใช่แผนค้าง
 
 ---
 
@@ -178,7 +180,7 @@ NewMemDatabase.xlsx
 3. รันกับไฟล์ตัวอย่าง → ตรวจใน Console
 4. เอกสารวิธีรันเมื่อได้ Excel จริงชุดเต็มจากลูกค้า
 
-**ผลลัพธ์:** collection พร้อม · ยังไม่มี UI สมาชิก
+**ผลลัพธ์:** ✅ collection พร้อม · มี UI import ที่ `/admin/legacy/import`
 
 ### Phase B — Flow ยืนยันสมาชิกเก่า + ผูก LINE
 
@@ -249,12 +251,17 @@ NewMemDatabase.xlsx
 
 ---
 
-## 9. ลำดับแนะนำให้เริ่มทันที
+## 9. สถานะปัจจุบัน
 
-1. **ยืนยันใช้ Firestore** สำหรับ legacy (เอกสารนี้)  
-2. Implement **Phase A** — สคริปต์ import + `legacyMembers`  
-3. ต่อด้วย **Phase B** เมื่อ LIFF / register flow พร้อมต่อยอด  
-4. **Phase C** เมื่อมีไฟล์ Transaction ครบและต้องการแสดงประวัติ
+| Phase | สถานะ |
+|-------|--------|
+| A — Import + `legacyMembers` | ✅ ทำแล้ว |
+| B — ยืนยันตัวตน + ผูก LINE | ✅ ทำแล้ว |
+| C — Transaction / ประวัติ | ✅ ทำแล้ว |
+
+งานที่เหลือ: รอ Excel ชุดจริงจากลูกค้า → อัปโหลดผ่าน `/admin/legacy/import`
+
+ดูสถานะรวม: [13-Phase-1-Status-Audit-2026-07-22.md](./13-Phase-1-Status-Audit-2026-07-22.md)
 
 ---
 
@@ -263,7 +270,12 @@ NewMemDatabase.xlsx
 | ส่วน | พาธโดยประมาณ |
 |------|----------------|
 | Member types ปัจจุบัน | `apps/functions/src/members/types.ts` |
-| Seed ตัวอย่าง | `apps/functions/scripts/seed-demo-members.ts` |
-| สคริปต์ import (ใหม่) | `apps/functions/scripts/import-legacy-from-xlsx.ts` |
+| Legacy types / repository | `apps/functions/src/legacy/` |
+| Import handler (API) | `apps/functions/src/legacy/import-xlsx.ts` |
+| สคริปต์ import (CLI) | `apps/functions/scripts/import-legacy-from-xlsx.ts` |
+| Legacy bind API | `apps/functions/src/members/legacy-bind.ts` |
+| Back Office import UI | `apps/web/src/admin/pages/LegacyImportPage.tsx` |
+| LIFF ยืนยันสมาชิกเก่า | `apps/web/src/pages/RegisterPage.tsx` (แท็บ legacy) |
 | Schema เอกสาร | `ABTA-System/07-Tech-Stack.md` → ตาราง LegacyMembers |
 | ข้อมูลต้นทาง | `ABTA-System/Data/NewMemDatabase.xlsx` |
+| สถานะ Phase 1 | `ABTA-System/13-Phase-1-Status-Audit-2026-07-22.md` |

@@ -1,8 +1,8 @@
-# รายการค้าง — สมัครสมาชิกใหม่ (รอข้อมูลจากลูกค้า / ตั้งค่า)
+# รายการค้างก่อนเปิดรับสมัครจริง (Go-live)
 
-> สร้างเมื่อ: 18 ก.ค. 2569  
-> ใช้คู่กับ: [04-Workflows.md](./04-Workflows.md), [07-Tech-Stack.md](./07-Tech-Stack.md), [09-Platform-Accounts.md](./09-Platform-Accounts.md), mockup  
-> **สถานะโค้ด:** มี vertical slice สมัครใหม่แล้ว (`/register` + `POST /api/members/register`) — รายการด้านล่างยังต้องยืนยันก่อน go-live
+> สร้างเมื่อ: 18 ก.ค. 2569 · **อัปเดตสถานะโค้ด:** 22 ก.ค. 2569  
+> ใช้คู่กับ: [13-Phase-1-Status-Audit-2026-07-22.md](./13-Phase-1-Status-Audit-2026-07-22.md), [04-Workflows.md](./04-Workflows.md), [07-Tech-Stack.md](./07-Tech-Stack.md), [09-Platform-Accounts.md](./09-Platform-Accounts.md)  
+> **สถานะโค้ด:** ฟีเจอร์สมัคร / ผูก LINE สมาชิกเก่า / ต่ออายุ / สัมมนา / Back Office ทำครบแล้ว — รายการด้านล่างยังต้องยืนยันก่อน go-live
 
 ---
 
@@ -52,7 +52,7 @@
 | `VITE_LIFF_ID` | มี · รูปแบบ `channelId-xxxx` · prefix ตรง Login Channel |
 | `VITE_LIFF_URL` | มี · เป็น `https://liff.line.me/...` |
 | Messaging API token | มี (ใช้ push ยืนยันหลังสมัคร) |
-| ยืนยัน ID token จริงกับ LINE | ⬜ ต้องทดสอบใน LIFF (ต้องมี user login) — API verify ของ LINE เข้าถึงได้ |
+| ยืนยัน ID token จริงกับ LINE | ⬜ ต้องทดสอบใน LIFF (ต้องมี user login) |
 
 > **หมายเหตุ:** การมีค่าใน `.env` ไม่เท่ากับ Endpoint ใน Console ตั้งถูกแล้ว — ต้องเช็คข้อ 3 เป็นพิเศษ
 
@@ -63,7 +63,8 @@
 | รายการ | สถานะ | หมายเหตุ |
 |--------|--------|----------|
 | LINE User ID ของเจ้าหน้าที่ | ⬜ รอลูกค้า | ใส่ใน env `STAFF_LINE_USER_IDS` คั่นด้วย comma เช่น `Uaaa,Ubbb` |
-| ว่างไว้ | ✅ รองรับแล้ว | ถ้าว่าง ระบบ**ข้าม**การ push หา staff (ไม่ error) |
+| โค้ดรองรับแล้ว | ✅ | ถ้าว่าง ระบบ**ข้าม**การ push หา staff (ไม่ error) |
+| ครอบคลุมเหตุการณ์ | ✅ | สมัครสมาชิก / ต่ออายุ / ส่งสลิปใหม่ / สมัครสัมมนา |
 
 วิธีหา userId: ให้เจ้าหน้าที่เพิ่มเพื่อน OA แล้วพิมพ์ข้อความ → ดู `source.userId` ใน Cloud Functions logs หรือจาก LIFF `liff.getProfile()`
 
@@ -73,21 +74,26 @@
 
 | รายการ | สถานะ |
 |--------|--------|
-| ปุ่ม “สมัครสมาชิก” → `VITE_LIFF_URL` (หรือ deep link LIFF) | ⬜ ตั้งใน LINE Official Account Manager |
-| ปุ่ม “ยืนยันสมาชิกเก่า” | ⬜ Phase ถัดไป (ตอนนี้บนฟอร์มมีแค่ปุ่ม stub) |
+| ปุ่ม “สมัครสมาชิก” → LIFF `/register` | ⬜ ตั้งใน LINE Official Account Manager |
+| ปุ่ม “ยืนยันสมาชิกเก่า” → LIFF `/register?flow=legacy` | ⬜ โค้ดพร้อมแล้ว — รอตั้งเมนู |
+| ปุ่ม “ต่ออายุ” → LIFF `/renew` | ⬜ |
+| ปุ่ม “สมัครสัมมนา” → LIFF `/seminar` | ⬜ |
+| เช็คสถานะ (พิมพ์คำสั่ง / ปุ่ม) | ⬜ บอทตอบ Flex แล้ว — ตั้งปุ่มตามต้องการ |
 
 ---
 
-## 6. อื่น ๆ ที่ยังไม่บล็อกโค้ด แต่ต้องก่อน go-live
+## 6. อื่น ๆ ที่ต้องก่อน go-live
 
 | รายการ | สถานะ |
 |--------|--------|
 | นโยบายใบเสร็จ / เลขที่ใบเสร็จชั่วคราว | ✅ ออกอัตโนมัติ `RC-T-YYYY-####` / `RC-YYYY-####` ตอนอนุมัติ |
-| รายชื่อนายทะเบียน / เหรัญญิกใน Back Office | ✅ มี `/admin` + หน้าจัดการเจ้าหน้าที่ — ต้องเปิด Google Sign-In ใน Console |
-| ฐานข้อมูลสมาชิกเก่า (legacy bind) | ⬜ ยังเป็น stub CTA |
-| ยืนยันข้อความไทยบนฟอร์ม / Flex หลังสมัคร | ⬜ ปรับตามลูกค้าได้ |
+| รายชื่อนายทะเบียน / เหรัญญิกใน Back Office | ✅ มี `/admin` + หน้าจัดการเจ้าหน้าที่ |
+| ผูก LINE สมาชิกเก่า (legacy bind) | ✅ ค้นหา + ยืนยัน + bind ครบแล้ว |
+| นำเข้า Excel สมาชิกเก่า | ✅ มีหน้า `/admin/legacy/import` — รอไฟล์ชุดจริงจากลูกค้า |
+| สมาชิกส่งใหม่หลังถูกปฏิเสธ (LIFF) | ✅ หลัง data reject เปิด `/register` (prefill) |
 | Firebase Auth Google provider | ⬜ ดูขั้นตอนใน [09-Platform-Accounts.md](./09-Platform-Accounts.md) |
-| สมาชิกส่งใหม่หลังถูกปฏิเสธ (LIFF) | ✅ หลัง data reject เปิด `/register` (prefill) → อัปเดต doc เดิม · `dataReviewStatus: pending` |
+| ปิด `ADMIN_OPEN_ACCESS` | ⬜ ตั้ง `false` ใน web + functions ก่อน production |
+| ยืนยันข้อความไทยบนฟอร์ม / Flex | ⬜ ปรับตามลูกค้าได้ (ไม่บล็อกเปิดระบบ) |
 
 ---
 
@@ -109,7 +115,7 @@ npx firebase deploy --only functions,hosting
 2. เปิด LIFF จาก LINE → กรอกฟอร์ม + สลิปทดสอบ
 3. ตรวจ Firestore `members` / `payments` + Storage `slips/`
 4. ตรวจข้อความยืนยันในแชท OA
-5. เปิด Google Sign-In ใน Firebase Auth → ทดสอบ `https://abta-member.web.app/admin` ด้วย `phetklaowork01@gmail.com`
+5. ปิด `ADMIN_OPEN_ACCESS` → เปิด Google Sign-In → ทดสอบ `https://abta-member.web.app/admin`
 
 ---
 

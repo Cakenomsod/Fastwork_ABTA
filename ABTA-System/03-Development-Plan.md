@@ -61,23 +61,29 @@ gantt
 
 ---
 
-## สิ่งที่ต้องเตรียมก่อนเริ่มพัฒนา
+## สิ่งที่ต้องเตรียมก่อนเริ่มพัฒนา / ก่อน go-live
+
+> สถานะโค้ดล่าสุด: [13-Phase-1-Status-Audit-2026-07-22.md](./13-Phase-1-Status-Audit-2026-07-22.md)
 
 ### ฝั่งลูกค้า (ABTA)
 
-- [ ] ชำระมัดจำงวดแรก 30% (2,700 บาท)
-- [ ] สร้าง Gmail ใหม่ชื่อสมาคม (สำหรับ LINE OA)
-- [ ] สมัคร LINE Official Account + ตั้งค่า Messaging API + Webhook URL
-- [ ] สร้าง LINE Login channel + ลงทะเบียน LIFF app (ดู [07-Tech-Stack.md](./07-Tech-Stack.md))
+- [x] ชำระมัดจำงวดแรก 30% (2,700 บาท)
+- [x] สร้าง Gmail ใหม่ชื่อสมาคม (สำหรับ LINE OA)
+- [x] สมัคร LINE Official Account + ตั้งค่า Messaging API + Webhook URL
+- [x] สร้าง LINE Login channel + ลงทะเบียน LIFF app (ดู [07-Tech-Stack.md](./07-Tech-Stack.md))
+- [ ] ยืนยัน LIFF Endpoint ใน Console ชี้ถูกหน้า
 - [ ] ข้อมูลบัญชีธนาคารสำหรับรับโอน
-- [ ] ข้อมูลสมาชิกเดิม (ถ้ามี) สำหรับ import
+- [ ] ข้อมูลสมาชิกเดิมชุดเต็ม สำหรับ import (มีตัวอย่างแล้ว)
+- [ ] LINE User ID เจ้าหน้าที่ (`STAFF_LINE_USER_IDS`) — ถ้าต้องการรับแจ้ง
 
 ### ฝั่งผู้พัฒนา (เพชร)
 
-- [ ] Setup Firebase project
-- [ ] ออกแบบ Database schema
-- [ ] ส่ง UX/UI Flow (ส่งแล้ว 30 มิ.ย. 2569)
-- [ ] พัฒนาระบบเช็คสถานะ LINE OA เป็นอันดับแรก
+- [x] Setup Firebase project
+- [x] ออกแบบ Database schema
+- [x] ส่ง UX/UI Flow (ส่งแล้ว 30 มิ.ย. 2569)
+- [x] พัฒนาระบบเช็คสถานะ LINE OA เป็นอันดับแรก
+- [x] สมัครสมาชิก / ผูก LINE เก่า / ต่ออายุ / สัมมนา / Back Office
+- [ ] ปิด `ADMIN_OPEN_ACCESS` + ทดสอบ production
 
 ---
 

@@ -13,6 +13,8 @@ import {
   MEMBERS_COLLECTION,
   findMemberByLineUserId,
 } from "../members/repository";
+import { notifyStaff } from "../members/staff-notify";
+import type { SeminarStatus } from "../members/types";
 import {
   getRegistration,
   getSeminar,
@@ -206,6 +208,25 @@ export async function registerForSeminar(input: {
   };
   await saveRegistration(reg);
 
+  const memberSeminarStatus: SeminarStatus = needsSlip ? "paid" : "registered";
+  if (member?.memberId) {
+    try {
+      await getFirestore()
+        .collection(MEMBERS_COLLECTION)
+        .doc(member.memberId)
+        .set(
+          {
+            seminarStatus: memberSeminarStatus,
+            seminarTitle: seminar.title,
+            updatedAt: now,
+          },
+          { merge: true },
+        );
+    } catch (err) {
+      console.error("seminar status mirror failed", err);
+    }
+  }
+
   if (lineUserId) {
     try {
       await pushMessages(lineUserId, [
@@ -224,6 +245,16 @@ export async function registerForSeminar(input: {
       console.error("seminar register notify failed", err);
     }
   }
+
+  void notifyStaff([
+    "🎓 สมัครสัมมนาใหม่",
+    seminar.title,
+    `ชื่อ: ${reg.firstName} ${reg.lastName}`,
+    member?.memberId ? `เลขสมาชิก: ${member.memberId}` : "ผู้สมัครทั่วไป",
+    `ประเภท: ${SEMINAR_PRICING_LABEL[applicantType]}`,
+    feeThb > 0 ? `ค่าลงทะเบียน: ${feeThb} บาท · สลิปแนบแล้ว` : "ไม่เสียค่าลงทะเบียน",
+    "รอคิวยืนยันสิทธิ์",
+  ]);
 
   return {
     ok: true,
@@ -415,6 +446,21 @@ export async function adminDecideRegistration(input: {
     reg.rejectReason = reason;
     reg.updatedAt = now;
     await saveRegistration(reg);
+
+    if (reg.memberId) {
+      await getFirestore()
+        .collection(MEMBERS_COLLECTION)
+        .doc(reg.memberId)
+        .set(
+          {
+            seminarStatus: "none",
+            seminarTitle: FieldValue.delete(),
+            updatedAt: now,
+          },
+          { merge: true },
+        );
+    }
+
     if (reg.lineUserId) {
       try {
         await pushMessages(reg.lineUserId, [
