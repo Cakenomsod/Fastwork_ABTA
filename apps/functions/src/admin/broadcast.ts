@@ -26,6 +26,8 @@ export type BroadcastFilters = {
   memberTypes?: MemberType[];
   statuses?: MemberStatus[];
   boardOnly?: boolean;
+  /** Match members that have ANY of these tags (case-insensitive). */
+  tags?: string[];
 };
 
 export type BroadcastRecipient = {
@@ -38,6 +40,7 @@ export type BroadcastRecipient = {
   memberTypeLabel?: string;
   status: MemberStatus;
   isBoardMember?: boolean;
+  tags?: string[];
   hasLine: boolean;
   lineUserId?: string;
 };
@@ -80,6 +83,15 @@ export type BroadcastLogItem = {
   createdAt: string;
 };
 
+function normalizeTag(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+function memberTags(m: MemberDoc): string[] {
+  if (!Array.isArray(m.tags)) return [];
+  return m.tags.map((t) => normalizeTag(String(t))).filter(Boolean);
+}
+
 function matchesFilters(m: MemberDoc, filters: BroadcastFilters): boolean {
   const types = filters.memberTypes;
   if (types && types.length > 0) {
@@ -93,6 +105,12 @@ function matchesFilters(m: MemberDoc, filters: BroadcastFilters): boolean {
 
   if (filters.boardOnly) {
     if (m.isBoardMember !== true) return false;
+  }
+
+  const wantTags = filters.tags?.map(normalizeTag).filter(Boolean);
+  if (wantTags && wantTags.length > 0) {
+    const have = new Set(memberTags(m));
+    if (!wantTags.some((t) => have.has(t))) return false;
   }
 
   return true;
@@ -112,6 +130,7 @@ function toRecipient(m: MemberDoc): BroadcastRecipient {
     memberTypeLabel: m.memberTypeLabel,
     status: m.status,
     isBoardMember: m.isBoardMember,
+    tags: memberTags(m),
     hasLine: Boolean(lineUserId),
     lineUserId,
   };
@@ -336,6 +355,7 @@ export function filtersFromQuery(query: {
   memberTypes?: unknown;
   statuses?: unknown;
   boardOnly?: unknown;
+  tags?: unknown;
 }): BroadcastFilters {
   const memberTypes = parseCommaList(query.memberTypes).filter(
     (t): t is MemberType => KNOWN_MEMBER_TYPES.has(t as MemberType),
@@ -344,10 +364,12 @@ export function filtersFromQuery(query: {
     KNOWN_MEMBER_STATUSES.has(s as MemberStatus),
   );
   const boardOnly = parseBoardOnly(query.boardOnly);
+  const tags = parseCommaList(query.tags).map(normalizeTag).filter(Boolean);
   return {
     memberTypes: memberTypes.length > 0 ? memberTypes : undefined,
     statuses: statuses.length > 0 ? statuses : undefined,
     boardOnly: boardOnly || undefined,
+    tags: tags.length > 0 ? tags : undefined,
   };
 }
 
@@ -355,6 +377,7 @@ export function filtersFromQuery(query: {
 export function filtersFromBody(body: Record<string, unknown>): BroadcastFilters {
   const typesRaw = body.memberTypes;
   const statusesRaw = body.statuses;
+  const tagsRaw = body.tags;
   const memberTypes = Array.isArray(typesRaw)
     ? typesRaw
         .map((t) => String(t).trim())
@@ -371,10 +394,46 @@ export function filtersFromBody(body: Record<string, unknown>): BroadcastFilters
     : parseCommaList(statusesRaw).filter((s): s is MemberStatus =>
         KNOWN_MEMBER_STATUSES.has(s as MemberStatus),
       );
+  const tags = (
+    Array.isArray(tagsRaw)
+      ? tagsRaw.map((t) => String(t))
+      : parseCommaList(tagsRaw)
+  )
+    .map(normalizeTag)
+    .filter(Boolean);
   const boardOnly = parseBoardOnly(body.boardOnly);
   return {
     memberTypes: memberTypes.length > 0 ? memberTypes : undefined,
     statuses: statuses.length > 0 ? statuses : undefined,
     boardOnly: boardOnly || undefined,
+    tags: tags.length > 0 ? tags : undefined,
   };
+}
+
+/** Distinct tags across all members (for admin filter chips). */
+export async function listBroadcastTags(): Promise<string[]> {
+  const db = getFirestore();
+  const found = new Set<string>();
+  let lastDoc: QueryDocumentSnapshot | undefined;
+
+  for (;;) {
+    let query = db
+      .collection(MEMBERS_COLLECTION)
+      .orderBy("__name__")
+      .limit(PAGE_SIZE);
+    if (lastDoc) query = query.startAfter(lastDoc);
+
+    const snap = await query.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      const m = doc.data() as MemberDoc;
+      for (const t of memberTags(m)) found.add(t);
+    }
+
+    lastDoc = snap.docs[snap.docs.length - 1];
+    if (snap.size < PAGE_SIZE) break;
+  }
+
+  return [...found].sort((a, b) => a.localeCompare(b, "th"));
 }

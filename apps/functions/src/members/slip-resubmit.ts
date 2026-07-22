@@ -2,13 +2,13 @@
  * Member re-uploads slip after treasurer reject (receiptStatus === rejected).
  */
 
-import { randomBytes } from "node:crypto";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { WEB_ORIGIN, getLoginChannelId } from "../config";
 import { verifyLineIdToken } from "../line/verify-id-token";
 import { pushMessages } from "../line/client";
 import { textMessage } from "../line/messages";
+import { resolvePublicToken } from "./public-token";
 import {
   MEMBERS_COLLECTION,
   PAYMENTS_COLLECTION,
@@ -113,7 +113,7 @@ export async function resubmitSlip(input: {
   const uploaded = await uploadSlip(member.memberId, contentType, slipBuf);
   if (!uploaded.ok) return uploaded;
 
-  const token = member.publicToken ?? randomBytes(6).toString("hex");
+  const token = resolvePublicToken(member.publicToken);
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
   const now = Timestamp.now();
   const db = getFirestore();

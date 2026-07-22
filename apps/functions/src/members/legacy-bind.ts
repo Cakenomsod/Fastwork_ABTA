@@ -3,7 +3,6 @@
  * No slip required — identity verification against legacyMembers.
  */
 
-import { randomBytes } from "node:crypto";
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
 import { WEB_ORIGIN, getLoginChannelId } from "../config";
 import { verifyLineIdToken } from "../line/verify-id-token";
@@ -17,6 +16,7 @@ import {
 import type { LegacyMemberDoc, LegacyMemberStatus } from "../legacy/types";
 import { writeMemberRegistryInTx } from "./id-registry";
 import { allocatePermanentMemberId } from "./ids";
+import { resolvePublicToken } from "./public-token";
 import {
   MEMBERS_COLLECTION,
   findMemberByLineUserId,
@@ -55,10 +55,6 @@ export type LegacyBindResult =
       status: MemberStatus;
     }
   | { ok: false; error: string; status: number };
-
-function publicToken(): string {
-  return randomBytes(6).toString("hex");
-}
 
 async function verifyLineUser(idToken: string): Promise<
   | { ok: true; lineUserId: string }
@@ -222,7 +218,7 @@ export async function bindLegacyMember(input: {
   }
 
   const memberId = await allocatePermanentMemberId();
-  const token = publicToken();
+  const token = resolvePublicToken();
   const now = Timestamp.now();
   const status = mapLegacyStatusToMember(legacy);
   const { memberType, memberTypeLabel } = resolveMemberType(legacy);

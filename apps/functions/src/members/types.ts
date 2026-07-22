@@ -66,10 +66,17 @@ export interface MemberDoc {
   memberTypeLabel?: string;
   /** Board / committee member — used for broadcast filters (กรรมการ). */
   isBoardMember?: boolean;
+  /**
+   * Free-form admin tags for broadcast grouping (multiple allowed).
+   * Example: ["agm2026", "bangkok", "volunteer"]
+   */
+  tags?: string[];
   memberCardUrl?: string;
   expiryDate?: Timestamp;
   /** Reminder offsets already sent for the current expiryDate (e.g. 45, 15). */
   expiryRemindersSent?: number[];
+  /** Calendar year when board mid-March renewal reminder was last sent. */
+  boardRenewalReminderYear?: number;
   dataReviewStatus?: DataReviewStatus;
   seminarStatus?: SeminarStatus;
   seminarTitle?: string;

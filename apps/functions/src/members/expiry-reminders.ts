@@ -17,6 +17,10 @@ import {
   daysUntilExpiry,
   type ExpiryReminderOffset,
 } from "./membership";
+import {
+  memberCardUrls,
+  resolvePublicToken,
+} from "./public-token";
 import { MEMBERS_COLLECTION } from "./repository";
 import type { MemberDoc } from "./types";
 
@@ -49,6 +53,7 @@ export type ExpiryReminderRunResult = {
   scanned: number;
   statusUpdated: number;
   reminded: number;
+  tokensBackfilled: number;
   errors: number;
 };
 
@@ -59,6 +64,7 @@ export async function runExpiryReminderJob(
   let scanned = 0;
   let statusUpdated = 0;
   let reminded = 0;
+  let tokensBackfilled = 0;
   let errors = 0;
 
   let lastDoc: QueryDocumentSnapshot | undefined;
@@ -77,13 +83,34 @@ export async function runExpiryReminderJob(
     for (const doc of snap.docs) {
       scanned += 1;
       const m = doc.data() as MemberDoc;
-      const expiry = m.expiryDate?.toDate?.();
-      if (!expiry) continue;
-
       const updates: Record<string, unknown> = {
         updatedAt: Timestamp.fromDate(now),
       };
       let dirty = false;
+
+      // Harden card URLs: every member must have a non-empty publicToken.
+      const existingToken = (m.publicToken ?? "").trim();
+      if (!existingToken) {
+        const token = resolvePublicToken(m.publicToken);
+        const urls = memberCardUrls(m.memberId, token);
+        updates.publicToken = token;
+        updates.memberCardUrl = urls.memberCardUrl;
+        dirty = true;
+        tokensBackfilled += 1;
+      }
+
+      const expiry = m.expiryDate?.toDate?.();
+      if (!expiry) {
+        if (dirty) {
+          try {
+            await doc.ref.set(updates, { merge: true });
+          } catch (err) {
+            errors += 1;
+            console.error("token backfill update failed", m.memberId, err);
+          }
+        }
+        continue;
+      }
 
       const nextStatus = applyExpiryToMemberStatus(m.status, expiry, now);
       if (nextStatus !== m.status) {
@@ -145,5 +172,5 @@ export async function runExpiryReminderJob(
     if (snap.size < pageSize) break;
   }
 
-  return { scanned, statusUpdated, reminded, errors };
+  return { scanned, statusUpdated, reminded, tokensBackfilled, errors };
 }

@@ -32,10 +32,16 @@ import {
 import {
   listBroadcastLogs,
   listBroadcastRecipients,
+  listBroadcastTags,
   sendBroadcast,
   filtersFromQuery,
   filtersFromBody,
 } from "./broadcast";
+import {
+  getMessageTemplate,
+  listMessageTemplates,
+  upsertMessageTemplate,
+} from "./message-templates";
 import {
   findBoundLegacyLinks,
   findLegacyPaymentsByMemberId,
@@ -515,6 +521,14 @@ export async function handleAdminUpdateMemberProfile(
         body.isBoardMember != null
           ? Boolean(body.isBoardMember)
           : undefined,
+      tags: Array.isArray(body.tags)
+        ? (body.tags as unknown[]).map((t) => String(t))
+        : body.tags != null
+          ? String(body.tags)
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : undefined,
     },
     actorEmail: auth.session.email,
   });
@@ -930,9 +944,103 @@ export async function handleAdminBroadcastRecipients(
     memberTypes: req.query.memberTypes,
     statuses: req.query.statuses,
     boardOnly: req.query.boardOnly,
+    tags: req.query.tags,
   });
   const result = await listBroadcastRecipients(filters);
   res.status(200).json({ ok: true, ...result });
+}
+
+/** GET /admin/broadcast/tags */
+export async function handleAdminBroadcastTags(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const tags = await listBroadcastTags();
+  res.status(200).json({ ok: true, tags });
+}
+
+/** GET /admin/message-templates */
+export async function handleAdminListMessageTemplates(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const templates = await listMessageTemplates();
+  res.status(200).json({ ok: true, templates });
+}
+
+/** GET /admin/message-templates/:id */
+export async function handleAdminGetMessageTemplate(
+  req: Request,
+  res: Response,
+  templateId: string,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const template = await getMessageTemplate(templateId);
+  res.status(200).json({ ok: true, template });
+}
+
+/** PUT /admin/message-templates/:id */
+export async function handleAdminUpsertMessageTemplate(
+  req: Request,
+  res: Response,
+  templateId: string,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  try {
+    const template = await upsertMessageTemplate({
+      id: templateId,
+      title: body.title != null ? String(body.title) : undefined,
+      body: String(body.body ?? ""),
+      actorEmail: auth.session.email,
+    });
+    res.status(200).json({ ok: true, template });
+  } catch (err) {
+    const e = err as Error & { status?: number };
+    jsonError(res, e.status ?? 500, e.message || "save_failed");
+  }
 }
 
 /** POST /admin/broadcast/send */

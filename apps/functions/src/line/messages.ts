@@ -509,6 +509,25 @@ export function expiryReminderText(opts: {
   );
 }
 
+/** Mid-March nudge for board members before the April AGM. */
+export function boardRenewalReminderText(opts: {
+  firstName: string;
+  renewUrl: string;
+  year: number;
+}): LineMessage {
+  return textMessage(
+    [
+      "แจ้งเตือนต่ออายุสมาชิก (กรรมการสมาคม)",
+      `คุณ${opts.firstName}`,
+      "",
+      `เพื่อรักษาสิทธิ์ก่อนประชุมใหญ่สามัญประจำปี ${opts.year + 543}`,
+      "กรุณาต่ออายุสมาชิกภายในช่วงกลางเดือนมีนาคมครับ",
+      "",
+      `ต่ออายุ: ${opts.renewUrl}`,
+    ].join("\n"),
+  );
+}
+
 export function legacyBindSuccessText(opts: {
   fullName: string;
   memberId: string;

@@ -24,6 +24,7 @@ function errorCopy(code: string): { title: string; detail: string } {
         detail: "ไม่พบหมายเลขสมาชิกนี้ในระบบ กรุณาตรวจสอบลิงก์อีกครั้ง",
       };
     case "invalid_token":
+    case "forbidden":
     case "403":
       return {
         title: "ลิงก์ไม่ถูกต้อง",

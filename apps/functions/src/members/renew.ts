@@ -2,7 +2,6 @@
  * Membership renewal for LINE-linked members (slip → treasurer queue).
  */
 
-import { randomBytes } from "node:crypto";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { MEMBERSHIP_FEE_THB, WEB_ORIGIN, getLoginChannelId } from "../config";
@@ -14,6 +13,7 @@ import {
   applyExpiryToMemberStatus,
   nextMembershipExpiryDec31,
 } from "./membership";
+import { resolvePublicToken } from "./public-token";
 import {
   MEMBERS_COLLECTION,
   PAYMENTS_COLLECTION,
@@ -168,7 +168,7 @@ export async function renewMembership(input: {
 
   const paymentId = `pay_renew_${member.memberId}_${Date.now()}`;
   const receiptNumber = await allocateTempReceiptNumber(new Date(), paymentId);
-  const token = member.publicToken ?? randomBytes(6).toString("hex");
+  const token = resolvePublicToken(member.publicToken);
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
   const now = Timestamp.now();
   const receiptUrl = `${WEB_ORIGIN}/receipt?m=${encodeURIComponent(member.memberId)}&t=${token}`;

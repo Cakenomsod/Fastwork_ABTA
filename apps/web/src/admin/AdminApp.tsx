@@ -30,6 +30,7 @@ const LegacyImportPage = lazy(() => import("./pages/LegacyImportPage"));
 const StaffPage = lazy(() => import("./pages/StaffPage"));
 const SeminarsPage = lazy(() => import("./pages/SeminarsPage"));
 const BroadcastPage = lazy(() => import("./pages/BroadcastPage"));
+const AgmReportPage = lazy(() => import("./pages/AgmReportPage"));
 import "./admin.css";
 
 type AdminRoute =
@@ -40,6 +41,7 @@ type AdminRoute =
   | "legacy-import"
   | "seminars"
   | "broadcast"
+  | "agm"
   | "staff";
 
 function parseRoute(pathname: string): AdminRoute {
@@ -52,6 +54,7 @@ function parseRoute(pathname: string): AdminRoute {
   if (p.endsWith("/legacy") || p.endsWith("/legacy/members")) return "legacy";
   if (p.endsWith("/seminars")) return "seminars";
   if (p.endsWith("/broadcast")) return "broadcast";
+  if (p.endsWith("/agm") || p.endsWith("/agm-report")) return "agm";
   if (p.endsWith("/staff")) return "staff";
   return "dashboard";
 }
@@ -65,6 +68,7 @@ function navigate(route: AdminRoute) {
     "legacy-import": "/admin/legacy/import",
     seminars: "/admin/seminars",
     broadcast: "/admin/broadcast",
+    agm: "/admin/agm",
     staff: "/admin/staff",
   };
   window.history.pushState({}, "", map[route]);
@@ -274,6 +278,7 @@ export default function AdminApp() {
     "legacy-import": "นำเข้าสมาชิกเก่า",
     seminars: "สัมมนา",
     broadcast: "ส่งข้อความแบบกลุ่ม",
+    agm: "สิทธิ์ประชุมใหญ่",
     staff: "จัดการเจ้าหน้าที่",
   };
 
@@ -294,6 +299,8 @@ export default function AdminApp() {
     page = <SeminarsPage />;
   } else if (route === "broadcast" && canBroadcast) {
     page = <BroadcastPage />;
+  } else if (route === "agm" && canSeeData) {
+    page = <AgmReportPage me={me} />;
   } else if (route === "staff" && me.canManageStaff) {
     page = <StaffPage />;
   } else if (route !== "dashboard") {
@@ -385,6 +392,13 @@ export default function AdminApp() {
                 active={route === "broadcast"}
                 onClick={() => go("broadcast")}
                 label="ส่งข้อความแบบกลุ่ม"
+              />
+            )}
+            {canSeeData && (
+              <NavBtn
+                active={route === "agm"}
+                onClick={() => go("agm")}
+                label="สิทธิ์ประชุมใหญ่"
               />
             )}
 

@@ -3,7 +3,6 @@
  * Rejected applicants may edit and resubmit on the same temporary member record.
  */
 
-import { randomBytes } from "node:crypto";
 import { getStorage } from "firebase-admin/storage";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { MEMBERSHIP_FEE_THB, WEB_ORIGIN, getLoginChannelId } from "../config";
@@ -11,6 +10,7 @@ import { verifyLineIdToken } from "../line/verify-id-token";
 import { pushMessages } from "../line/client";
 import { registrationConfirmFlex, staffNewRegistrationText } from "../line/messages";
 import { allocateTempMemberId } from "./ids";
+import { resolvePublicToken } from "./public-token";
 import {
   MEMBERS_COLLECTION,
   PAYMENTS_COLLECTION,
@@ -67,10 +67,6 @@ export type RegisterDraftResult =
       buildingName?: string;
     }
   | { ok: false; error: string; status: number; statusUrl?: string };
-
-function publicToken(): string {
-  return randomBytes(6).toString("hex");
-}
 
 function decodeSlip(base64: string): Buffer {
   const cleaned = base64.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
@@ -237,7 +233,7 @@ async function resubmitRejectedMember(
   },
 ): Promise<RegisterResult> {
   const memberId = existing.memberId;
-  const token = existing.publicToken ?? publicToken();
+  const token = resolvePublicToken(existing.publicToken);
   const memberCardUrl =
     existing.memberCardUrl ??
     `${WEB_ORIGIN}/card?m=${encodeURIComponent(memberId)}&t=${token}`;
@@ -368,7 +364,7 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
 
   const now = new Date();
   const memberId = await allocateTempMemberId(now);
-  const token = publicToken();
+  const token = resolvePublicToken();
   const expiry = membershipExpiryDec31(now);
   const memberCardUrl = `${WEB_ORIGIN}/card?m=${encodeURIComponent(memberId)}&t=${token}`;
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(memberId)}&t=${token}`;

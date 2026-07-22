@@ -28,10 +28,15 @@ import {
   MEMBER_TYPE_LABEL,
   applyExpiryToMemberStatus,
 } from "../members/membership";
+import {
+  memberCardUrls,
+  resolvePublicToken,
+} from "../members/public-token";
 import { renewalExpiryUpdates } from "../members/renew";
 import {
   MEMBERS_COLLECTION,
   PAYMENTS_COLLECTION,
+  ensureMemberPublicToken,
   findLatestPayment,
   findMemberById,
 } from "../members/repository";
@@ -58,6 +63,7 @@ export interface QueueMemberItem {
   memberType?: string;
   memberTypeLabel?: string;
   isBoardMember?: boolean;
+  tags?: string[];
   dataReviewStatus?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -152,6 +158,9 @@ function toQueueItem(member: MemberDoc, payment?: PaymentDoc): QueueMemberItem {
     memberType: member.memberType,
     memberTypeLabel: member.memberTypeLabel,
     isBoardMember: Boolean(member.isBoardMember),
+    tags: Array.isArray(member.tags)
+      ? member.tags.map((t) => String(t).trim()).filter(Boolean)
+      : [],
     dataReviewStatus: member.dataReviewStatus,
     createdAt: isoFromTs(member.createdAt),
     updatedAt: isoFromTs(member.updatedAt),
@@ -389,6 +398,7 @@ export async function getAdminMemberDetail(
 ): Promise<MemberDetail | undefined> {
   const member = await findMemberById(memberId);
   if (!member) return undefined;
+  await ensureMemberPublicToken(member);
   const payment = await findLatestPayment(member.memberId);
   const base = toQueueItem(member, payment);
   const hasStoredSlip = Boolean(payment?.slipUrl);
@@ -589,10 +599,11 @@ export async function approveDataReview(
     payment.paymentId,
   );
   const now = Timestamp.now();
-  const token = member.publicToken ?? "";
-  const memberCardUrl = `${WEB_ORIGIN}/card?m=${encodeURIComponent(permanentId)}&t=${token}`;
-  const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(permanentId)}&t=${token}`;
-  const receiptUrl = `${WEB_ORIGIN}/receipt?m=${encodeURIComponent(permanentId)}&t=${token}`;
+  const token = resolvePublicToken(member.publicToken);
+  const { memberCardUrl, statusUrl, receiptUrl } = memberCardUrls(
+    permanentId,
+    token,
+  );
 
   const db = getFirestore();
   const oldRef = db.collection(MEMBERS_COLLECTION).doc(member.memberId);
@@ -627,6 +638,7 @@ export async function approveDataReview(
         memberTypeLabel:
           live.memberTypeLabel?.trim() || MEMBER_TYPE_LABEL[memberType],
         dataReviewStatus: "approved",
+        publicToken: token,
         memberCardUrl,
         updatedAt: now,
       };
@@ -707,8 +719,9 @@ export async function rejectDataReview(
 
   // Keep temporary memberId — member edits & resubmits on the same record.
   const now = Timestamp.now();
-  const token = member.publicToken ?? "";
-  const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
+  const token = resolvePublicToken(member.publicToken);
+  const urls = memberCardUrls(member.memberId, token);
+  const statusUrl = urls.statusUrl;
   const editUrl = isConfiguredLiffUrl() ? LIFF_URL : `${WEB_ORIGIN}/register`;
 
   const payment = await findLatestPayment(member.memberId);
@@ -724,6 +737,8 @@ export async function rejectDataReview(
       rejectedBy: actorEmail,
       // Staged number belongs to this review round — drop it.
       pendingMemberId: FieldValue.delete(),
+      publicToken: token,
+      memberCardUrl: urls.memberCardUrl,
       updatedAt: now,
     },
     { merge: true },
@@ -803,9 +818,8 @@ export async function approveSlipReview(
         : await allocateOfficialReceiptNumber(new Date(), payment.paymentId);
 
   const now = Timestamp.now();
-  const token = member.publicToken ?? "";
-  const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
-  const receiptUrl = `${WEB_ORIGIN}/receipt?m=${encodeURIComponent(member.memberId)}&t=${token}`;
+  const token = resolvePublicToken(member.publicToken);
+  const { statusUrl, receiptUrl } = memberCardUrls(member.memberId, token);
 
   const db = getFirestore();
   const payRef = db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId);
@@ -855,9 +869,15 @@ export async function approveSlipReview(
         pay.paymentKind === "renewal"
           ? renewalExpiryUpdates(member)
           : { updatedAt: now };
+      const urls = memberCardUrls(member.memberId, token);
       tx.set(
         db.collection(MEMBERS_COLLECTION).doc(member.memberId),
-        { ...memberPatch, updatedAt: now },
+        {
+          ...memberPatch,
+          publicToken: token,
+          memberCardUrl: urls.memberCardUrl,
+          updatedAt: now,
+        },
         { merge: true },
       );
     });
@@ -915,8 +935,8 @@ export async function rejectSlipReview(
     payment.paymentId,
   );
   const now = Timestamp.now();
-  const token = member.publicToken ?? "";
-  const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
+  const token = resolvePublicToken(member.publicToken);
+  const { statusUrl } = memberCardUrls(member.memberId, token);
 
   const db = getFirestore();
   const batch = db.batch();

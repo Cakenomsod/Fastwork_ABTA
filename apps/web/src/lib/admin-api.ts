@@ -44,6 +44,7 @@ export interface QueueItem {
   memberType?: string;
   memberTypeLabel?: string;
   isBoardMember?: boolean;
+  tags?: string[];
   expiryDate?: string;
 }
 
@@ -130,7 +131,7 @@ export const MEMBER_STATUS_FILTER_OPTIONS: {
   { value: "pending_slip", label: "รอตรวจสลิป" },
   { value: "temporary", label: "สมาชิกชั่วคราว" },
   { value: "active", label: "สมาชิกสมบูรณ์" },
-  { value: "ordinary_active", label: "สามัญ · Active" },
+  { value: "ordinary_active", label: "สิทธิ์ประชุมใหญ่ (สามัญ)" },
   { value: "near_expiry", label: "ใกล้หมดอายุ" },
   { value: "expired", label: "หมดอายุ" },
 ];
@@ -403,6 +404,7 @@ export async function updateMemberProfile(input: {
   organization?: string;
   expiryDate?: string;
   isBoardMember?: boolean;
+  tags?: string[];
 }): Promise<MemberDetail> {
   const { memberId, ...patch } = input;
   const data = await adminFetch<{ member: MemberDetail }>(
@@ -726,6 +728,7 @@ export type BroadcastRecipient = {
   memberTypeLabel?: string;
   status: string;
   isBoardMember?: boolean;
+  tags?: string[];
   hasLine: boolean;
 };
 
@@ -746,8 +749,17 @@ export type BroadcastLogItem = {
     memberTypes?: string[];
     statuses?: string[];
     boardOnly?: boolean;
+    tags?: string[];
   };
   createdAt?: string;
+};
+
+export type MessageTemplate = {
+  id: string;
+  title: string;
+  body: string;
+  updatedBy?: string;
+  updatedAt?: string;
 };
 
 export function canSendBroadcast(me: AdminMe): boolean {
@@ -762,6 +774,7 @@ export async function fetchBroadcastRecipients(filters: {
   memberTypes?: BroadcastMemberType[];
   statuses?: BroadcastMemberStatus[];
   boardOnly?: boolean;
+  tags?: string[];
 }): Promise<{
   recipients: BroadcastRecipient[];
   skippedNoLine: number;
@@ -775,8 +788,14 @@ export async function fetchBroadcastRecipients(filters: {
     params.set("statuses", filters.statuses.join(","));
   }
   if (filters.boardOnly) params.set("boardOnly", "1");
+  if (filters.tags?.length) params.set("tags", filters.tags.join(","));
   const qs = params.toString();
   return adminFetch(`/admin/broadcast/recipients${qs ? `?${qs}` : ""}`);
+}
+
+export async function fetchBroadcastTags(): Promise<string[]> {
+  const data = await adminFetch<{ tags: string[] }>("/admin/broadcast/tags");
+  return data.tags ?? [];
 }
 
 export async function sendBroadcast(input: {
@@ -786,6 +805,7 @@ export async function sendBroadcast(input: {
   memberTypes?: BroadcastMemberType[];
   statuses?: BroadcastMemberStatus[];
   boardOnly?: boolean;
+  tags?: string[];
 }): Promise<{
   sent: number;
   failed: number;
@@ -794,7 +814,7 @@ export async function sendBroadcast(input: {
   targetCount: number;
   logId: string;
 }> {
-  const { memberTypes, statuses, boardOnly, ...rest } = input;
+  const { memberTypes, statuses, boardOnly, tags, ...rest } = input;
   const data = await adminFetch<{
     sent: number;
     failed: number;
@@ -808,6 +828,7 @@ export async function sendBroadcast(input: {
         memberTypes,
         statuses,
         boardOnly,
+        tags,
       },
     }),
   });
@@ -832,4 +853,29 @@ export async function fetchBroadcastLogs(limit = 20): Promise<BroadcastLogItem[]
     targetCount: log.targetCount ?? log.recipientCount ?? log.sent + log.failed,
     skippedNoLine: log.skippedNoLine ?? log.skipped ?? 0,
   }));
+}
+
+export async function fetchMessageTemplates(): Promise<MessageTemplate[]> {
+  const data = await adminFetch<{ templates: MessageTemplate[] }>(
+    "/admin/message-templates",
+  );
+  return data.templates ?? [];
+}
+
+export async function saveMessageTemplate(input: {
+  id: string;
+  title?: string;
+  body: string;
+}): Promise<MessageTemplate> {
+  const data = await adminFetch<{ template: MessageTemplate }>(
+    `/admin/message-templates/${encodeURIComponent(input.id)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        title: input.title,
+        body: input.body,
+      }),
+    },
+  );
+  return data.template;
 }

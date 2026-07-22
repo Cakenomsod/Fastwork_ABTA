@@ -23,6 +23,10 @@ import {
   handleAdminBroadcastRecipients,
   handleAdminBroadcastSend,
   handleAdminBroadcastLogs,
+  handleAdminBroadcastTags,
+  handleAdminListMessageTemplates,
+  handleAdminGetMessageTemplate,
+  handleAdminUpsertMessageTemplate,
   handleApproveData,
   handleApproveSlip,
   handlePendingDataReviews,
@@ -32,7 +36,9 @@ import {
 } from "./admin/handlers";
 import { handleLineWebhook } from "./line/webhook";
 import { bindLegacyMember, searchLegacyMembers } from "./members/legacy-bind";
+import { runBoardRenewalReminderJob } from "./members/board-reminders";
 import { runExpiryReminderJob } from "./members/expiry-reminders";
+import { publicTokensEqual } from "./members/public-token";
 import { getRegisterDraft, registerNewMember } from "./members/register";
 import { getRenewDraft, renewMembership } from "./members/renew";
 import { resubmitSlip } from "./members/slip-resubmit";
@@ -251,6 +257,11 @@ export const api = onRequest(
       return;
     }
 
+    if (path === "/admin/broadcast/tags" && req.method === "GET") {
+      await handleAdminBroadcastTags(req, res);
+      return;
+    }
+
     if (path === "/admin/broadcast/send" && req.method === "POST") {
       await handleAdminBroadcastSend(req, res);
       return;
@@ -258,6 +269,23 @@ export const api = onRequest(
 
     if (path === "/admin/broadcast/logs" && req.method === "GET") {
       await handleAdminBroadcastLogs(req, res);
+      return;
+    }
+
+    if (path === "/admin/message-templates" && req.method === "GET") {
+      await handleAdminListMessageTemplates(req, res);
+      return;
+    }
+
+    if (path.startsWith("/admin/message-templates/") && req.method === "GET") {
+      const id = decodeURIComponent(path.slice("/admin/message-templates/".length));
+      await handleAdminGetMessageTemplate(req, res, id);
+      return;
+    }
+
+    if (path.startsWith("/admin/message-templates/") && req.method === "PUT") {
+      const id = decodeURIComponent(path.slice("/admin/message-templates/".length));
+      await handleAdminUpsertMessageTemplate(req, res, id);
       return;
     }
 
@@ -280,32 +308,44 @@ export const expiryReminderJob = onSchedule(
   },
 );
 
+/** 15 March 09:00 Asia/Bangkok — board members renew before April AGM. */
+export const boardRenewalReminderJob = onSchedule(
+  {
+    schedule: "0 9 15 3 *",
+    timeZone: "Asia/Bangkok",
+    region: "asia-southeast1",
+    memory: "512MiB",
+    timeoutSeconds: 540,
+  },
+  async () => {
+    const result = await runBoardRenewalReminderJob();
+    console.log("boardRenewalReminderJob", result);
+  },
+);
+
 /**
  * Public-safe member status for the web card page.
- * Requires memberId + matching short token to avoid exposing PII by enumeration.
+ * Requires memberId + matching capability token (`t`) — never enumerable by `m` alone.
  */
 async function handleMemberStatus(req: Request, res: Response): Promise<void> {
   const memberId = String(req.query.memberId ?? req.query.m ?? "").trim();
   const token = String(req.query.token ?? req.query.t ?? "").trim();
 
-  if (!memberId) {
-    res.status(400).json({ ok: false, error: "member_id_required" });
+  if (!memberId || !token) {
+    res.set("Cache-Control", "private, no-store");
+    res.status(403).json({ ok: false, error: "forbidden" });
     return;
   }
 
   const result = await getStatusViewByMemberId(memberId);
-  if (!result) {
-    res.status(404).json({ ok: false, error: "not_found" });
+  // Same response for missing member / wrong token — no existence oracle.
+  if (!result || !publicTokensEqual(result.publicToken, token)) {
+    res.set("Cache-Control", "private, no-store");
+    res.status(403).json({ ok: false, error: "forbidden" });
     return;
   }
 
-  // Token is required when the member has one configured.
-  if (result.publicToken && result.publicToken !== token) {
-    res.status(403).json({ ok: false, error: "invalid_token" });
-    return;
-  }
-
-  res.set("Cache-Control", "public, max-age=60");
+  res.set("Cache-Control", "private, no-store");
   res.status(200).json({ ok: true, status: toPublicStatus(result.view) });
 }
 

@@ -12,6 +12,8 @@ const ERROR_LABEL: Record<string, string> = {
   nothing_to_update: "ยังไม่ได้แก้ไขข้อมูล",
   not_found: "ไม่พบสมาชิก",
   forbidden_role: "ไม่มีสิทธิ์แก้ไขโปรไฟล์",
+  too_many_tags: "แท็กได้สูงสุด 30 ค่า",
+  tag_too_long: "แท็กยาวเกิน 40 ตัวอักษร",
 };
 
 type ProfileForm = {
@@ -24,6 +26,7 @@ type ProfileForm = {
   organization: string;
   expiryDate: string;
   isBoardMember: boolean;
+  tagsText: string;
 };
 
 function formFromDetail(detail: MemberDetail): ProfileForm {
@@ -37,11 +40,23 @@ function formFromDetail(detail: MemberDetail): ProfileForm {
     organization: detail.organization ?? "",
     expiryDate: detail.expiryDate?.slice(0, 10) ?? "",
     isBoardMember: Boolean(detail.isBoardMember),
+    tagsText: (detail.tags ?? []).join(", "),
   };
 }
 
+function parseTags(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .split(/[,，\n]/)
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+}
+
 const FIELDS: ReadonlyArray<{
-  key: Exclude<keyof ProfileForm, "isBoardMember">;
+  key: Exclude<keyof ProfileForm, "isBoardMember" | "tagsText">;
   label: string;
   type?: "text" | "email" | "tel" | "date";
 }> = [
@@ -94,6 +109,7 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
         organization: form.organization || undefined,
         expiryDate: form.expiryDate || undefined,
         isBoardMember: form.isBoardMember,
+        tags: parseTags(form.tagsText),
       });
       props.onUpdated(updated);
       setEditing(false);
@@ -105,6 +121,8 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
     }
   }
 
+  const viewTags = props.detail.tags ?? [];
+
   return (
     <section className="bo-panel-nested bo-profile-edit">
       <div className="bo-panel-head bo-profile-edit__head">
@@ -112,7 +130,7 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
           <h2>แก้ไขข้อมูลสมาชิก</h2>
           {!editing ? (
             <p className="bo-profile-edit__lead">
-              แก้ชื่อ ติดต่อ หน่วยงาน และวันหมดอายุได้จากปุ่มแก้ไข
+              แก้ชื่อ ติดต่อ หน่วยงาน แท็ก และวันหมดอายุได้จากปุ่มแก้ไข
             </p>
           ) : null}
         </div>
@@ -130,6 +148,12 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
           </button>
         ) : null}
       </div>
+
+      {!editing && viewTags.length > 0 ? (
+        <p className="bo-hint bo-profile-edit__tags-view">
+          แท็ก: {viewTags.join(", ")}
+        </p>
+      ) : null}
 
       {error ? (
         <div className="bo-error bo-profile-edit__error">{error}</div>
@@ -155,6 +179,19 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
                 </div>
               );
             })}
+            <div className="bo-field bo-profile-edit__tags-field">
+              <label htmlFor={`${formId}-tags`}>แท็ก (คั่นด้วยคอมมา)</label>
+              <input
+                id={`${formId}-tags`}
+                type="text"
+                value={form.tagsText}
+                placeholder="เช่น agm2026, bangkok"
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, tagsText: e.target.value }))
+                }
+                autoComplete="off"
+              />
+            </div>
             <label className="bo-check bo-profile-edit__board">
               <input
                 type="checkbox"

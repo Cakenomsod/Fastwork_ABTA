@@ -4,15 +4,28 @@ import {
   BROADCAST_TYPE_OPTIONS,
   fetchBroadcastLogs,
   fetchBroadcastRecipients,
+  fetchBroadcastTags,
+  fetchMessageTemplates,
+  saveMessageTemplate,
   sendBroadcast,
   type BroadcastLogItem,
   type BroadcastMemberStatus,
   type BroadcastMemberType,
   type BroadcastRecipient,
+  type MessageTemplate,
 } from "../../lib/admin-api";
 import { ConfirmDialog } from "../ConfirmDialog";
 
 const MAX_CHARS = 4500;
+
+const BOARD_MARCH_PRESET = [
+  "แจ้งเตือนต่ออายุสมาชิก (กรรมการสมาคม)",
+  "",
+  "เพื่อรักษาสิทธิ์ก่อนประชุมใหญ่สามัญประจำปี",
+  "กรุณาต่ออายุสมาชิกภายในช่วงกลางเดือนมีนาคมครับ",
+  "",
+  "ต่ออายุผ่าน LINE OA ของสมาคมได้เลยครับ",
+].join("\n");
 
 function toggleInList<T extends string>(list: T[], value: T): T[] {
   return list.includes(value)
@@ -48,6 +61,9 @@ export default function BroadcastPage() {
   const [memberTypes, setMemberTypes] = useState<BroadcastMemberType[]>([]);
   const [statuses, setStatuses] = useState<BroadcastMemberStatus[]>([]);
   const [boardOnly, setBoardOnly] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [knownTags, setKnownTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [recipients, setRecipients] = useState<BroadcastRecipient[]>([]);
   const [skippedNoLine, setSkippedNoLine] = useState(0);
   const [totalMatched, setTotalMatched] = useState(0);
@@ -60,10 +76,25 @@ export default function BroadcastPage() {
   const [result, setResult] = useState<string | null>(null);
   const [logs, setLogs] = useState<BroadcastLogItem[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const loadLogs = useCallback(async () => {
     try {
       setLogs(await fetchBroadcastLogs(15));
+    } catch {
+      /* non-blocking */
+    }
+  }, []);
+
+  const loadMeta = useCallback(async () => {
+    try {
+      const [tags, tpls] = await Promise.all([
+        fetchBroadcastTags(),
+        fetchMessageTemplates(),
+      ]);
+      setKnownTags(tags);
+      setTemplates(tpls);
     } catch {
       /* non-blocking */
     }
@@ -78,6 +109,7 @@ export default function BroadcastPage() {
         memberTypes: memberTypes.length ? memberTypes : undefined,
         statuses: statuses.length ? statuses : undefined,
         boardOnly: boardOnly || undefined,
+        tags: selectedTags.length ? selectedTags : undefined,
       });
       setRecipients(data.recipients);
       setSkippedNoLine(data.skippedNoLine);
@@ -89,15 +121,19 @@ export default function BroadcastPage() {
     } finally {
       setLoading(false);
     }
-  }, [memberTypes, statuses, boardOnly]);
+  }, [memberTypes, statuses, boardOnly, selectedTags]);
 
   useEffect(() => {
     void loadRecipients();
     void loadLogs();
-  }, [loadRecipients, loadLogs]);
+    void loadMeta();
+  }, [loadRecipients, loadLogs, loadMeta]);
 
   const filtersActive =
-    memberTypes.length > 0 || statuses.length > 0 || boardOnly;
+    memberTypes.length > 0 ||
+    statuses.length > 0 ||
+    boardOnly ||
+    selectedTags.length > 0;
 
   const filteredRecipients = useMemo(() => {
     const q = recipientQuery.trim().toLowerCase();
@@ -111,6 +147,7 @@ export default function BroadcastPage() {
         r.memberTypeLabel,
         r.memberType,
         r.phone,
+        ...(r.tags ?? []),
       ]
         .filter(Boolean)
         .join(" ")
@@ -156,13 +193,63 @@ export default function BroadcastPage() {
       parts.push("ทุกสถานภาพ");
     }
     if (boardOnly) parts.push("เฉพาะกรรมการ");
+    if (selectedTags.length) parts.push(`แท็ก: ${selectedTags.join(", ")}`);
     return parts;
-  }, [memberTypes, statuses, boardOnly]);
+  }, [memberTypes, statuses, boardOnly, selectedTags]);
 
   function clearFilters() {
     setMemberTypes([]);
     setStatuses([]);
     setBoardOnly(false);
+    setSelectedTags([]);
+    setTagDraft("");
+  }
+
+  function applyBoardMarchPreset() {
+    setMemberTypes([]);
+    setStatuses(["active", "near_expiry", "temporary"]);
+    setBoardOnly(true);
+    setSelectedTags([]);
+    setMessage(BOARD_MARCH_PRESET);
+  }
+
+  function applyAgmInvitePreset() {
+    const tpl =
+      templates.find((t) => t.id === "agm_invite") ?? templates[0];
+    setMemberTypes(["ordinary"]);
+    setStatuses(["active", "near_expiry", "temporary"]);
+    setBoardOnly(false);
+    setSelectedTags([]);
+    if (tpl?.body) setMessage(tpl.body);
+  }
+
+  function addTagFromDraft() {
+    const t = tagDraft.trim().toLowerCase();
+    if (!t) return;
+    setSelectedTags((list) => (list.includes(t) ? list : [...list, t]));
+    setTagDraft("");
+  }
+
+  async function onSaveAgmTemplate() {
+    if (!message.trim()) return;
+    setSavingTemplate(true);
+    setError(null);
+    try {
+      const saved = await saveMessageTemplate({
+        id: "agm_invite",
+        title: "เชิญประชุมใหญ่สามัญประจำปี",
+        body: message.trim(),
+      });
+      setTemplates((list) => {
+        const rest = list.filter((t) => t.id !== saved.id);
+        return [saved, ...rest];
+      });
+      setResult("บันทึกแม่แบบเชิญประชุมแล้ว");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "save_template_failed");
+    } finally {
+      setSavingTemplate(false);
+    }
   }
 
   function toggleAllFiltered() {
@@ -201,6 +288,7 @@ export default function BroadcastPage() {
         memberTypes: memberTypes.length ? memberTypes : undefined,
         statuses: statuses.length ? statuses : undefined,
         boardOnly: boardOnly || undefined,
+        tags: selectedTags.length ? selectedTags : undefined,
       });
       setResult(
         `ส่งแล้ว ${res.sent} คน` +
@@ -347,6 +435,83 @@ export default function BroadcastPage() {
                   {filterSummary.join(" · ")}
                 </p>
               </div>
+
+              <div className="bo-filter-group">
+                <span className="bo-filter-label" id="bc-tag-label">
+                  แท็ก (มีอย่างน้อยหนึ่งค่า)
+                </span>
+                <div className="bo-broadcast-tag-row">
+                  <input
+                    type="text"
+                    value={tagDraft}
+                    placeholder="พิมพ์แท็กแล้ว Enter"
+                    aria-labelledby="bc-tag-label"
+                    disabled={loading}
+                    onChange={(e) => setTagDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addTagFromDraft();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-ghost bo-btn-sm"
+                    disabled={loading || !tagDraft.trim()}
+                    onClick={addTagFromDraft}
+                  >
+                    เพิ่ม
+                  </button>
+                </div>
+                {(knownTags.length > 0 || selectedTags.length > 0) && (
+                  <div
+                    className="bo-seg bo-broadcast-tag-seg"
+                    role="group"
+                    aria-labelledby="bc-tag-label"
+                  >
+                    {[...new Set([...selectedTags, ...knownTags])].map((tag) => {
+                      const active = selectedTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={`bo-seg-btn${active ? " is-active" : ""}`}
+                          aria-pressed={active}
+                          disabled={loading}
+                          onClick={() =>
+                            setSelectedTags((list) => toggleInList(list, tag))
+                          }
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="bo-broadcast-presets">
+                <span className="bo-filter-label">ทางลัด</span>
+                <div className="bo-broadcast-preset-btns">
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-ghost bo-btn-sm"
+                    disabled={loading}
+                    onClick={applyBoardMarchPreset}
+                  >
+                    แจ้งเตือนกรรมการ (มี.ค.)
+                  </button>
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-ghost bo-btn-sm"
+                    disabled={loading}
+                    onClick={applyAgmInvitePreset}
+                  >
+                    เชิญประชุมใหญ่ (สามัญ)
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -419,6 +584,7 @@ export default function BroadcastPage() {
                       <th>ชื่อ</th>
                       <th>ประเภท</th>
                       <th>สถานภาพ</th>
+                      <th>แท็ก</th>
                       <th>กรรมการ</th>
                     </tr>
                   </thead>
@@ -453,6 +619,7 @@ export default function BroadcastPage() {
                               {statusLabel(r.status)}
                             </span>
                           </td>
+                          <td>{(r.tags ?? []).join(", ") || "—"}</td>
                           <td>
                             {r.isBoardMember ? (
                               <span className="bo-badge slip">กรรมการ</span>
@@ -520,6 +687,19 @@ export default function BroadcastPage() {
                     : ""}
                 </span>
               </label>
+
+              <div className="bo-broadcast-template-actions">
+                <button
+                  type="button"
+                  className="bo-btn bo-btn-ghost bo-btn-sm"
+                  disabled={!message.trim() || savingTemplate}
+                  onClick={() => void onSaveAgmTemplate()}
+                >
+                  {savingTemplate
+                    ? "กำลังบันทึกแม่แบบ…"
+                    : "บันทึกเป็นแม่แบบเชิญประชุม"}
+                </button>
+              </div>
 
               {message.trim() ? (
                 <div className="bo-broadcast-preview-box" aria-label="ตัวอย่างข้อความ">

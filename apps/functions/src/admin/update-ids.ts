@@ -11,7 +11,6 @@
  */
 
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
-import { WEB_ORIGIN } from "../config";
 import { pushMessages } from "../line/client";
 import { memberIdsUpdatedText } from "../line/messages";
 import {
@@ -24,6 +23,10 @@ import {
   peekNextReceiptNumber,
   receiptRegistryRef,
 } from "../members/id-registry";
+import {
+  memberCardUrls,
+  resolvePublicToken,
+} from "../members/public-token";
 import {
   MEMBERS_COLLECTION,
   PAYMENTS_COLLECTION,
@@ -144,8 +147,8 @@ export async function updateMemberIds(opts: {
   }
 
   if (member.lineUserId) {
-    const token = member.publicToken ?? "";
-    const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
+    const token = resolvePublicToken(member.publicToken);
+    const urls = memberCardUrls(member.memberId, token);
     try {
       await pushMessages(member.lineUserId, [
         memberIdsUpdatedText({
@@ -161,9 +164,9 @@ export async function updateMemberIds(opts: {
                   to: nextReceipt,
                 }
               : undefined,
-          statusUrl,
-          cardUrl: member.memberCardUrl,
-          receiptUrl: payment?.receiptUrl,
+          statusUrl: urls.statusUrl,
+          cardUrl: urls.memberCardUrl,
+          receiptUrl: payment?.receiptUrl ?? urls.receiptUrl,
         }),
       ]);
     } catch (err) {

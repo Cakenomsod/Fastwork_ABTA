@@ -47,6 +47,7 @@ export async function updateMemberProfile(opts: {
       | "buildingName"
       | "organization"
       | "isBoardMember"
+      | "tags"
     >
   > & { expiryDate?: string };
   actorEmail: string;
@@ -89,11 +90,33 @@ export async function updateMemberProfile(opts: {
     updates.isBoardMember = Boolean(opts.patch.isBoardMember);
   }
 
+  if (opts.patch.tags !== undefined) {
+    const tags = Array.isArray(opts.patch.tags)
+      ? [
+          ...new Set(
+            opts.patch.tags
+              .map((t) => String(t).trim().toLowerCase())
+              .filter(Boolean),
+          ),
+        ]
+      : [];
+    if (tags.length > 30) {
+      return { ok: false, error: "too_many_tags", status: 400 };
+    }
+    for (const t of tags) {
+      if (t.length > 40) {
+        return { ok: false, error: "tag_too_long", status: 400 };
+      }
+    }
+    updates.tags = tags;
+  }
+
   const hasFieldChange = EDITABLE_FIELDS.some((k) => opts.patch[k] !== undefined);
   if (
     !hasFieldChange &&
     opts.patch.expiryDate === undefined &&
-    opts.patch.isBoardMember === undefined
+    opts.patch.isBoardMember === undefined &&
+    opts.patch.tags === undefined
   ) {
     return { ok: false, error: "nothing_to_update", status: 400 };
   }

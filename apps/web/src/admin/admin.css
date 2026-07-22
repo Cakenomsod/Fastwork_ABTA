@@ -3432,3 +3432,61 @@
     min-height: 8.5rem;
   }
 }
+
+.bo-broadcast-tag-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.bo-broadcast-tag-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.bo-broadcast-tag-seg {
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.bo-broadcast-presets {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--bo-line);
+}
+
+.bo-broadcast-preset-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bo-broadcast-template-actions {
+  margin-top: 0.35rem;
+}
+
+.bo-agm .bo-panel-head {
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.bo-agm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bo-agm-search {
+  max-width: 22rem;
+}
+
+.bo-profile-edit__tags-view {
+  margin: 0 0 0.75rem;
+}
+
+.bo-profile-edit__tags-field {
+  grid-column: 1 / -1;
+}
