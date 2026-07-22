@@ -149,10 +149,23 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
         ) : null}
       </div>
 
-      {!editing && viewTags.length > 0 ? (
-        <p className="bo-hint bo-profile-edit__tags-view">
-          แท็ก: {viewTags.join(", ")}
-        </p>
+      {!editing ? (
+        <div className="bo-profile-edit__tags-view">
+          <span className="bo-profile-edit__tags-label">แท็ก</span>
+          {viewTags.length > 0 ? (
+            <ul className="bo-tag-list" aria-label="แท็กสมาชิก">
+              {viewTags.map((tag) => (
+                <li key={tag} className="bo-tag-chip">
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="bo-hint bo-profile-edit__tags-empty">
+              ยังไม่มีแท็ก — กดแก้ไขเพื่อเพิ่ม (ใช้กรองกลุ่มตอนส่งข้อความ)
+            </p>
+          )}
+        </div>
       ) : null}
 
       {error ? (
@@ -185,12 +198,25 @@ export function MemberProfileEditPanel(props: MemberProfileEditPanelProps) {
                 id={`${formId}-tags`}
                 type="text"
                 value={form.tagsText}
-                placeholder="เช่น agm2026, bangkok"
+                placeholder="เช่น vip, กรุงเทพ, วิทยากร"
                 onChange={(e) =>
                   setForm((f) => ({ ...f, tagsText: e.target.value }))
                 }
                 autoComplete="off"
               />
+              {parseTags(form.tagsText).length > 0 ? (
+                <ul className="bo-tag-list bo-tag-list--preview" aria-label="ตัวอย่างแท็ก">
+                  {parseTags(form.tagsText).map((tag) => (
+                    <li key={tag} className="bo-tag-chip">
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="bo-hint">
+                  ใช้กรองกลุ่มในหน้าส่งข้อความแบบกลุ่ม
+                </p>
+              )}
             </div>
             <label className="bo-check bo-profile-edit__board">
               <input

@@ -27,6 +27,19 @@ const BOARD_MARCH_PRESET = [
   "ต่ออายุผ่าน LINE OA ของสมาคมได้เลยครับ",
 ].join("\n");
 
+const ERROR_LABEL: Record<string, string> = {
+  load_failed: "โหลดรายชื่อไม่สำเร็จ กรุณาลองใหม่",
+  send_failed: "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่",
+  save_template_failed: "บันทึกแม่แบบไม่สำเร็จ",
+  auth_required: "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่",
+  not_authorized: "ไม่มีสิทธิ์ส่งข้อความแบบกลุ่ม",
+};
+
+function errorMessage(err: unknown, fallback: string): string {
+  const code = err instanceof Error ? err.message : fallback;
+  return ERROR_LABEL[code] ?? code;
+}
+
 function toggleInList<T extends string>(list: T[], value: T): T[] {
   return list.includes(value)
     ? list.filter((v) => v !== value)
@@ -116,7 +129,7 @@ export default function BroadcastPage() {
       setTotalMatched(data.totalMatched);
       setSelected(new Set());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "load_failed");
+      setError(errorMessage(err, "load_failed"));
       setRecipients([]);
     } finally {
       setLoading(false);
@@ -165,6 +178,7 @@ export default function BroadcastPage() {
   const charsLeft = MAX_CHARS - messageLen;
   const nearLimit = charsLeft <= 200;
   const canSend = message.trim().length > 0 && selectedCount > 0 && !sending;
+  const hasSearch = recipientQuery.trim().length > 0;
 
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
@@ -213,14 +227,23 @@ export default function BroadcastPage() {
     setMessage(BOARD_MARCH_PRESET);
   }
 
+  const agmTemplate =
+    templates.find((t) => t.id === "agm_invite") ?? templates[0] ?? null;
+
+  function loadAgmTemplateMessage() {
+    if (agmTemplate?.body) {
+      setMessage(agmTemplate.body);
+      setResult("โหลดแม่แบบเชิญประชุมแล้ว — ตรวจข้อความแล้วเลือกผู้รับก่อนส่ง");
+      setError(null);
+    }
+  }
+
   function applyAgmInvitePreset() {
-    const tpl =
-      templates.find((t) => t.id === "agm_invite") ?? templates[0];
     setMemberTypes(["ordinary"]);
     setStatuses(["active", "near_expiry", "temporary"]);
     setBoardOnly(false);
     setSelectedTags([]);
-    if (tpl?.body) setMessage(tpl.body);
+    loadAgmTemplateMessage();
   }
 
   function addTagFromDraft() {
@@ -244,9 +267,11 @@ export default function BroadcastPage() {
         const rest = list.filter((t) => t.id !== saved.id);
         return [saved, ...rest];
       });
-      setResult("บันทึกแม่แบบเชิญประชุมแล้ว");
+      setResult(
+        "บันทึกแม่แบบแล้ว — กด «โหลดแม่แบบลงกล่องข้อความ» หรือทางลัด «ใช้แม่แบบเชิญประชุม» เพื่อใช้ครั้งถัดไป",
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "save_template_failed");
+      setError(errorMessage(err, "save_template_failed"));
     } finally {
       setSavingTemplate(false);
     }
@@ -299,7 +324,7 @@ export default function BroadcastPage() {
       setSelected(new Set());
       await loadLogs();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "send_failed");
+      setError(errorMessage(err, "send_failed"));
     } finally {
       setSending(false);
     }
@@ -308,9 +333,14 @@ export default function BroadcastPage() {
   return (
     <div className="bo-broadcast">
       <header className="bo-broadcast-hero">
-        <p className="bo-muted bo-broadcast-lead">
-          กรองสมาชิก → เลือกผู้รับที่ผูก LINE แล้ว → ส่งผ่าน LINE OA
-        </p>
+        <div className="bo-broadcast-hero-copy">
+          <p className="bo-broadcast-lead">
+            กรองสมาชิก → เลือกผู้รับที่ผูก LINE แล้ว → เขียนข้อความ → ส่งผ่าน LINE OA
+          </p>
+          <p className="bo-muted bo-broadcast-lead-sub">
+            ใช้ทางลัดด้านล่างสำหรับแจ้งเตือนกรรมการ หรือเชิญประชุมใหญ่สามัญ
+          </p>
+        </div>
         <button
           type="button"
           className="bo-btn bo-btn-ghost bo-btn-sm"
@@ -321,18 +351,20 @@ export default function BroadcastPage() {
         </button>
       </header>
 
-      <div className="bo-stats bo-broadcast-stats">
+      <div className="bo-stats bo-broadcast-stats" aria-live="polite">
         <div className="bo-stat">
           <div className="num">{recipients.length}</div>
           <div className="lbl">ส่งได้ (มี LINE)</div>
         </div>
-        <div className="bo-stat bo-stat--accent">
+        <div
+          className={`bo-stat bo-stat--accent${selectedCount > 0 ? " is-hot" : ""}`}
+        >
           <div className="num">{selectedCount}</div>
           <div className="lbl">เลือกแล้ว</div>
         </div>
         <div className="bo-stat">
           <div className="num">{totalMatched}</div>
-          <div className="lbl">จับคู่ฟิลเตอร์</div>
+          <div className="lbl">ตรงเงื่อนไข</div>
         </div>
         <div className="bo-stat">
           <div className="num">{skippedNoLine}</div>
@@ -343,11 +375,11 @@ export default function BroadcastPage() {
       <div className="bo-broadcast-layout">
         <div className="bo-broadcast-main">
           <section className="bo-panel">
-            <div className="bo-panel-head">
+            <div className="bo-panel-head bo-broadcast-panel-head">
               <div>
                 <h2>1. กรองผู้รับ</h2>
                 <p className="bo-muted bo-broadcast-head-sub">
-                  ไม่เลือก = รวมทุกค่าในกลุ่มนั้น
+                  ไม่เลือก = รวมทุกค่าในกลุ่มนั้น · เปลี่ยนตัวกรองแล้วรายชื่อจะโหลดใหม่
                 </p>
               </div>
               <button
@@ -421,19 +453,21 @@ export default function BroadcastPage() {
                 </div>
               </div>
 
-              <div className="bo-broadcast-filter-footer">
-                <button
-                  type="button"
-                  className={`bo-seg-btn bo-broadcast-board-btn${boardOnly ? " is-active" : ""}`}
-                  aria-pressed={boardOnly}
-                  disabled={loading}
-                  onClick={() => setBoardOnly((v) => !v)}
-                >
-                  เฉพาะกรรมการสมาคม
-                </button>
-                <p className="bo-hint bo-broadcast-filter-summary">
-                  {filterSummary.join(" · ")}
-                </p>
+              <div className="bo-filter-group">
+                <span className="bo-filter-label" id="bc-board-label">
+                  กลุ่มพิเศษ
+                </span>
+                <div className="bo-broadcast-filter-footer">
+                  <button
+                    type="button"
+                    className={`bo-seg-btn bo-broadcast-board-btn${boardOnly ? " is-active" : ""}`}
+                    aria-pressed={boardOnly}
+                    disabled={loading}
+                    onClick={() => setBoardOnly((v) => !v)}
+                  >
+                    เฉพาะกรรมการสมาคม
+                  </button>
+                </div>
               </div>
 
               <div className="bo-filter-group">
@@ -491,8 +525,22 @@ export default function BroadcastPage() {
                 )}
               </div>
 
+              <div className="bo-broadcast-active-filters" aria-live="polite">
+                <span className="bo-filter-label">กำลังใช้</span>
+                <div className="bo-broadcast-compose-chips">
+                  {filterSummary.map((part) => (
+                    <span key={part} className="bo-broadcast-chip">
+                      {part}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
               <div className="bo-broadcast-presets">
                 <span className="bo-filter-label">ทางลัด</span>
+                <p className="bo-hint bo-broadcast-preset-hint">
+                  ตั้งตัวกรองและข้อความพร้อมกัน — ตรวจรายชื่อก่อนกดส่ง
+                </p>
                 <div className="bo-broadcast-preset-btns">
                   <button
                     type="button"
@@ -505,22 +553,23 @@ export default function BroadcastPage() {
                   <button
                     type="button"
                     className="bo-btn bo-btn-ghost bo-btn-sm"
-                    disabled={loading}
+                    disabled={loading || !agmTemplate?.body}
                     onClick={applyAgmInvitePreset}
+                    title="กรองสมาชิกสามัญ + โหลดข้อความแม่แบบ"
                   >
-                    เชิญประชุมใหญ่ (สามัญ)
+                    ใช้แม่แบบเชิญประชุม
                   </button>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="bo-panel">
-            <div className="bo-panel-head">
+          <section className="bo-panel" aria-busy={loading}>
+            <div className="bo-panel-head bo-broadcast-panel-head">
               <div>
                 <h2>2. เลือกรายชื่อ</h2>
                 <p className="bo-muted bo-broadcast-head-sub">
-                  แสดงเฉพาะสมาชิกที่ผูก LINE แล้ว
+                  แสดงเฉพาะสมาชิกที่ผูก LINE แล้ว — คลิกแถวเพื่อเลือก/ยกเลิก
                 </p>
               </div>
               <button
@@ -536,22 +585,35 @@ export default function BroadcastPage() {
             <div className="bo-broadcast-list-tools">
               <label className="bo-field bo-broadcast-search">
                 <span className="bo-filter-label">ค้นหาในรายชื่อ</span>
-                <input
-                  type="search"
-                  value={recipientQuery}
-                  placeholder="ชื่อ, เลขสมาชิก, หรือเบอร์โทร"
-                  onChange={(e) => setRecipientQuery(e.target.value)}
-                />
+                <div className="bo-broadcast-search-row">
+                  <input
+                    type="search"
+                    value={recipientQuery}
+                    placeholder="ชื่อ, เลขสมาชิก, หรือเบอร์โทร"
+                    onChange={(e) => setRecipientQuery(e.target.value)}
+                  />
+                  {hasSearch ? (
+                    <button
+                      type="button"
+                      className="bo-btn bo-btn-ghost bo-btn-sm"
+                      onClick={() => setRecipientQuery("")}
+                    >
+                      ล้าง
+                    </button>
+                  ) : null}
+                </div>
               </label>
-              <div className="bo-broadcast-selection-meta" aria-live="polite">
-                เลือกแล้ว <strong>{selectedCount}</strong> จาก{" "}
-                <strong>{recipients.length}</strong>
-                {recipientQuery.trim() ? (
-                  <>
-                    {" "}
-                    · แสดง {filteredRecipients.length}
-                  </>
-                ) : null}
+              <div
+                className={`bo-broadcast-selection-meta${selectedCount > 0 ? " is-selected" : ""}`}
+                aria-live="polite"
+              >
+                <span className="bo-broadcast-selection-count">
+                  {selectedCount}
+                </span>
+                <span className="bo-broadcast-selection-text">
+                  เลือกแล้วจาก {recipients.length} คน
+                  {hasSearch ? ` · แสดง ${filteredRecipients.length}` : ""}
+                </span>
               </div>
             </div>
 
@@ -561,11 +623,31 @@ export default function BroadcastPage() {
               <div className="bo-empty">
                 <strong>ไม่พบผู้รับที่ผูก LINE</strong>
                 ลองเปลี่ยนตัวกรอง หรือทำเครื่องหมายกรรมการในโปรไฟล์สมาชิก
+                {filtersActive ? (
+                  <div className="bo-broadcast-empty-actions">
+                    <button
+                      type="button"
+                      className="bo-btn bo-btn-ghost bo-btn-sm"
+                      onClick={clearFilters}
+                    >
+                      ล้างตัวกรอง
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : filteredRecipients.length === 0 ? (
               <div className="bo-empty">
                 <strong>ไม่พบรายชื่อที่ตรงกับการค้นหา</strong>
                 ลองคำอื่น หรือล้างช่องค้นหา
+                <div className="bo-broadcast-empty-actions">
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-ghost bo-btn-sm"
+                    onClick={() => setRecipientQuery("")}
+                  >
+                    ล้างการค้นหา
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="bo-table-wrap bo-broadcast-table-wrap">
@@ -595,7 +677,9 @@ export default function BroadcastPage() {
                         <tr
                           key={r.memberId}
                           className={
-                            isOn ? "bo-broadcast-row is-selected" : "bo-broadcast-row"
+                            isOn
+                              ? "bo-broadcast-row is-selected"
+                              : "bo-broadcast-row"
                           }
                           onClick={() => toggleOne(r.memberId)}
                         >
@@ -619,7 +703,15 @@ export default function BroadcastPage() {
                               {statusLabel(r.status)}
                             </span>
                           </td>
-                          <td>{(r.tags ?? []).join(", ") || "—"}</td>
+                          <td>
+                            {(r.tags ?? []).length ? (
+                              <span className="bo-broadcast-row-tags">
+                                {(r.tags ?? []).join(", ")}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
                           <td>
                             {r.isBoardMember ? (
                               <span className="bo-badge slip">กรรมการ</span>
@@ -637,9 +729,12 @@ export default function BroadcastPage() {
           </section>
         </div>
 
-        <aside className="bo-broadcast-compose-panel" aria-label="เขียนและส่งข้อความ">
+        <aside
+          className="bo-broadcast-compose-panel"
+          aria-label="เขียนและส่งข้อความ"
+        >
           <div className="bo-panel bo-broadcast-compose-card">
-            <div className="bo-panel-head">
+            <div className="bo-panel-head bo-broadcast-panel-head">
               <div>
                 <h2>3. เขียนข้อความ</h2>
                 <p className="bo-muted bo-broadcast-head-sub">
@@ -649,10 +744,20 @@ export default function BroadcastPage() {
             </div>
 
             <div className="bo-broadcast-compose">
-              {error ? <div className="bo-error">{error}</div> : null}
-              {result ? <div className="bo-success">{result}</div> : null}
+              {error ? (
+                <div className="bo-error" role="alert">
+                  {error}
+                </div>
+              ) : null}
+              {result ? (
+                <div className="bo-success" role="status">
+                  {result}
+                </div>
+              ) : null}
 
-              <div className="bo-broadcast-compose-summary">
+              <div
+                className={`bo-broadcast-compose-summary${selectedCount > 0 ? " is-ready" : ""}`}
+              >
                 <div className="bo-broadcast-compose-count">
                   <span className="bo-broadcast-compose-count-num">
                     {selectedCount}
@@ -688,22 +793,49 @@ export default function BroadcastPage() {
                 </span>
               </label>
 
-              <div className="bo-broadcast-template-actions">
-                <button
-                  type="button"
-                  className="bo-btn bo-btn-ghost bo-btn-sm"
-                  disabled={!message.trim() || savingTemplate}
-                  onClick={() => void onSaveAgmTemplate()}
-                >
-                  {savingTemplate
-                    ? "กำลังบันทึกแม่แบบ…"
-                    : "บันทึกเป็นแม่แบบเชิญประชุม"}
-                </button>
+              <div className="bo-broadcast-template-box">
+                <div className="bo-broadcast-template-box__head">
+                  <strong>แม่แบบเชิญประชุมใหญ่</strong>
+                  <span className="bo-hint">
+                    {agmTemplate?.updatedAt
+                      ? `บันทึกล่าสุด ${new Date(agmTemplate.updatedAt).toLocaleString("th-TH")}`
+                      : "ยังใช้ข้อความเริ่มต้นของระบบ"}
+                  </span>
+                </div>
+                <div className="bo-broadcast-template-actions">
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-ghost bo-btn-sm"
+                    disabled={!agmTemplate?.body || loading}
+                    onClick={loadAgmTemplateMessage}
+                  >
+                    โหลดแม่แบบลงกล่องข้อความ
+                  </button>
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-ghost bo-btn-sm"
+                    disabled={!message.trim() || savingTemplate}
+                    onClick={() => void onSaveAgmTemplate()}
+                  >
+                    {savingTemplate
+                      ? "กำลังบันทึก…"
+                      : "บันทึกกล่องนี้เป็นแม่แบบ"}
+                  </button>
+                </div>
+                <p className="bo-hint bo-broadcast-template-hint">
+                  แก้ข้อความด้านบน → กดบันทึก → ครั้งถัดไปกดโหลด หรือใช้ทางลัด
+                  «ใช้แม่แบบเชิญประชุม» (กรองสามัญให้อัตโนมัติ)
+                </p>
               </div>
 
               {message.trim() ? (
-                <div className="bo-broadcast-preview-box" aria-label="ตัวอย่างข้อความ">
-                  <div className="bo-broadcast-preview-label">ตัวอย่างใน LINE</div>
+                <div
+                  className="bo-broadcast-preview-box"
+                  aria-label="ตัวอย่างข้อความ"
+                >
+                  <div className="bo-broadcast-preview-label">
+                    ตัวอย่างใน LINE
+                  </div>
                   <pre className="bo-broadcast-preview-body">
                     {message.trim()}
                   </pre>
@@ -737,16 +869,19 @@ export default function BroadcastPage() {
       </div>
 
       <section className="bo-panel">
-        <div className="bo-panel-head">
+        <div className="bo-panel-head bo-broadcast-panel-head">
           <div>
-            <h2>ประวัติการส่งล่าสุด</h2>
+            <h2>4. ประวัติการส่งล่าสุด</h2>
             <p className="bo-muted bo-broadcast-head-sub">
               15 รายการล่าสุดจากระบบ
             </p>
           </div>
         </div>
         {logs.length === 0 ? (
-          <div className="bo-empty">ยังไม่มีประวัติการส่ง</div>
+          <div className="bo-empty">
+            <strong>ยังไม่มีประวัติการส่ง</strong>
+            เมื่อส่งข้อความสำเร็จ รายการจะแสดงที่นี่
+          </div>
         ) : (
           <div className="bo-table-wrap">
             <table className="bo-table">
