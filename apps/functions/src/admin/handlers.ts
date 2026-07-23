@@ -51,6 +51,15 @@ import {
 } from "../legacy/repository";
 import type { LegacyMemberStatus } from "../legacy/types";
 import {
+  findPaymentById,
+  findPaymentsByMemberId,
+} from "../members/repository";
+import {
+  PAYMENT_STATUS_LABEL,
+  RECEIPT_STATUS_LABEL,
+  type PaymentDoc,
+} from "../members/types";
+import {
   importLegacyWorkbookFromBuffer,
   LegacyImportError,
   LEGACY_IMPORT_MAX_BYTES,
@@ -282,23 +291,36 @@ export async function handleAdminMemberSlip(
   }
 
   const memberId = String(req.query.memberId ?? req.query.m ?? "").trim();
+  const paymentId = String(req.query.paymentId ?? "").trim();
   if (!memberId) {
     jsonError(res, 400, "member_id_required");
     return;
   }
 
-  const detail = await getAdminMemberDetail(memberId);
-  if (!detail?.slipUrl) {
+  let slipUrl: string | undefined;
+  if (paymentId) {
+    const payment = await findPaymentById(paymentId);
+    if (!payment || payment.memberId !== memberId) {
+      jsonError(res, 404, "slip_not_found");
+      return;
+    }
+    slipUrl = payment.slipUrl;
+  } else {
+    const detail = await getAdminMemberDetail(memberId);
+    slipUrl = detail?.slipUrl;
+  }
+
+  if (!slipUrl) {
     jsonError(res, 404, "slip_not_found");
     return;
   }
 
-  if (detail.slipUrl.startsWith("http://") || detail.slipUrl.startsWith("https://")) {
-    res.redirect(detail.slipUrl);
+  if (slipUrl.startsWith("http://") || slipUrl.startsWith("https://")) {
+    res.redirect(slipUrl);
     return;
   }
 
-  const ref = slipObjectRef(detail.slipUrl);
+  const ref = slipObjectRef(slipUrl);
   if (!ref) {
     jsonError(res, 404, "slip_not_found");
     return;
@@ -604,6 +626,64 @@ export async function handleAdminLegacyPayments(
       itemType: r.itemType,
       expiryDate: r.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
       transferredAt: r.transferredAt?.toDate?.()?.toISOString?.(),
+    })),
+  });
+}
+
+function paymentKindLabel(kind?: PaymentDoc["paymentKind"]): string {
+  if (kind === "renewal") return "ต่ออายุ";
+  if (kind === "seminar") return "สัมมนา";
+  if (kind === "registration") return "สมัครสมาชิก";
+  return "—";
+}
+
+function paymentSlipViewUrl(payment: PaymentDoc): string | undefined {
+  if (!payment.slipUrl) return undefined;
+  if (
+    payment.slipUrl.startsWith("http://") ||
+    payment.slipUrl.startsWith("https://")
+  ) {
+    return payment.slipUrl;
+  }
+  return `/admin/members/slip?memberId=${encodeURIComponent(payment.memberId)}&paymentId=${encodeURIComponent(payment.paymentId)}`;
+}
+
+/** GET live payment history for admin member detail panel. */
+export async function handleAdminMemberPayments(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const memberId = String(req.query.memberId ?? "").trim();
+  if (!memberId) {
+    jsonError(res, 400, "member_id_required");
+    return;
+  }
+
+  const rows = await findPaymentsByMemberId(memberId);
+  res.status(200).json({
+    ok: true,
+    items: rows.map((r) => ({
+      paymentId: r.paymentId,
+      receiptNumber: r.receiptNumber,
+      pendingReceiptNumber: r.pendingReceiptNumber,
+      amount: r.amount,
+      paymentKind: r.paymentKind,
+      paymentKindLabel: paymentKindLabel(r.paymentKind),
+      status: r.status,
+      statusLabel: PAYMENT_STATUS_LABEL[r.status] ?? r.status,
+      receiptStatus: r.receiptStatus,
+      receiptStatusLabel:
+        RECEIPT_STATUS_LABEL[r.receiptStatus] ?? r.receiptStatus,
+      hasSlip: Boolean(r.slipUrl),
+      slipViewUrl: paymentSlipViewUrl(r),
+      rejectReason: r.rejectReason,
+      createdAt: r.createdAt?.toDate?.()?.toISOString?.(),
+      verifiedAt: r.verifiedAt?.toDate?.()?.toISOString?.(),
     })),
   });
 }

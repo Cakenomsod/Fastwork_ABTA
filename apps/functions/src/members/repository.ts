@@ -63,22 +63,38 @@ export async function findMemberById(memberId: string): Promise<MemberDoc | unde
   return snap.empty ? undefined : (snap.docs[0].data() as MemberDoc);
 }
 
-/** Latest payment for a member (by createdAt desc, tolerant of missing field). */
-export async function findLatestPayment(
+/** All payments for a member (by createdAt desc, tolerant of missing field). */
+export async function findPaymentsByMemberId(
   memberId: string,
-): Promise<PaymentDoc | undefined> {
+): Promise<PaymentDoc[]> {
   const snap = await db()
     .collection(PAYMENTS_COLLECTION)
     .where("memberId", "==", memberId)
     .get();
-  if (snap.empty) return undefined;
+  if (snap.empty) return [];
   const payments = snap.docs.map((d) => d.data() as PaymentDoc);
   payments.sort((a, b) => {
     const at = a.createdAt?.toMillis?.() ?? 0;
     const bt = b.createdAt?.toMillis?.() ?? 0;
     return bt - at;
   });
+  return payments;
+}
+
+/** Latest payment for a member (by createdAt desc, tolerant of missing field). */
+export async function findLatestPayment(
+  memberId: string,
+): Promise<PaymentDoc | undefined> {
+  const payments = await findPaymentsByMemberId(memberId);
   return payments[0];
+}
+
+export async function findPaymentById(
+  paymentId: string,
+): Promise<PaymentDoc | undefined> {
+  const snap = await db().collection(PAYMENTS_COLLECTION).doc(paymentId).get();
+  if (!snap.exists) return undefined;
+  return snap.data() as PaymentDoc;
 }
 
 export async function getStatusViewByLineUserId(

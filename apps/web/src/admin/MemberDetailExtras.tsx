@@ -2,6 +2,7 @@ import type { AdminMe, MemberDetail } from "../lib/admin-api";
 import LegacyPaymentsPanel from "./LegacyPaymentsPanel";
 import MemberDeletePanel from "./MemberDeletePanel";
 import MemberProfileEditPanel from "./MemberProfileEditPanel";
+import PaymentsHistoryPanel from "./PaymentsHistoryPanel";
 
 export interface MemberDetailExtrasProps {
   detail: MemberDetail;
@@ -18,6 +19,7 @@ export function MemberDetailExtras(props: MemberDetailExtrasProps) {
         me={props.me}
         onUpdated={(m) => props.onUpdated?.(m)}
       />
+      <PaymentsHistoryPanel memberId={props.detail.memberId} />
       {props.detail.legacyMemberId ? (
         <LegacyPaymentsPanel legacyMemberId={props.detail.legacyMemberId} />
       ) : null}

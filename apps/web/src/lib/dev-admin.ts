@@ -5,6 +5,7 @@ import {
   type DashboardData,
   type LegacyPaymentRow,
   type MemberDetail,
+  type MemberPaymentRow,
   type QueueItem,
   type StaffRow,
 } from "./admin-api";
@@ -444,6 +445,44 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
         member: updated,
       } as T);
     }
+  }
+
+  if (path.startsWith("/admin/members/payments")) {
+    const rows: MemberPaymentRow[] = [
+      {
+        paymentId: "pay_renew_demo_2",
+        receiptNumber: "ABTA-2026-0088",
+        amount: 500,
+        paymentKind: "renewal",
+        paymentKindLabel: "ต่ออายุ",
+        status: "official_receipt_issued",
+        statusLabel: "ออกใบเสร็จตัวจริงแล้ว",
+        receiptStatus: "official",
+        receiptStatusLabel: "ใบเสร็จตัวจริง",
+        hasSlip: true,
+        slipViewUrl:
+          "https://placehold.co/360x480/png?text=Renewal+Slip",
+        createdAt: "2026-04-12T10:00:00.000Z",
+        verifiedAt: "2026-04-12T14:00:00.000Z",
+      },
+      {
+        paymentId: "pay_demo_1",
+        receiptNumber: "ABTA-T-2026-0042",
+        amount: 500,
+        paymentKind: "registration",
+        paymentKindLabel: "สมัครสมาชิก",
+        status: "official_receipt_issued",
+        statusLabel: "ออกใบเสร็จตัวจริงแล้ว",
+        receiptStatus: "official",
+        receiptStatusLabel: "ใบเสร็จตัวจริง",
+        hasSlip: true,
+        slipViewUrl:
+          "https://placehold.co/360x480/png?text=Registration+Slip",
+        createdAt: "2026-01-15T08:30:00.000Z",
+        verifiedAt: "2026-01-16T09:00:00.000Z",
+      },
+    ];
+    return Promise.resolve({ items: rows } as T);
   }
 
   if (path.startsWith("/admin/members/legacy-payments")) {

@@ -194,6 +194,24 @@ export interface LegacyPaymentRow {
   transferredAt?: string;
 }
 
+export interface MemberPaymentRow {
+  paymentId: string;
+  receiptNumber?: string;
+  pendingReceiptNumber?: string;
+  amount?: number;
+  paymentKind?: string;
+  paymentKindLabel: string;
+  status: string;
+  statusLabel: string;
+  receiptStatus?: string;
+  receiptStatusLabel?: string;
+  hasSlip: boolean;
+  slipViewUrl?: string;
+  rejectReason?: string;
+  createdAt?: string;
+  verifiedAt?: string;
+}
+
 export interface StaffRow {
   email: string;
   roles: StaffRole[];
@@ -434,6 +452,16 @@ export async function fetchLegacyPayments(
   const params = new URLSearchParams({ legacyMemberId });
   const data = await adminFetch<{ items: LegacyPaymentRow[] }>(
     `/admin/members/legacy-payments?${params}`,
+  );
+  return data.items;
+}
+
+export async function fetchMemberPayments(
+  memberId: string,
+): Promise<MemberPaymentRow[]> {
+  const params = new URLSearchParams({ memberId });
+  const data = await adminFetch<{ items: MemberPaymentRow[] }>(
+    `/admin/members/payments?${params}`,
   );
   return data.items;
 }

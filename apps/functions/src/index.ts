@@ -15,6 +15,7 @@ import {
   handleAdminLegacyImport,
   handleAdminListLegacyMembers,
   handleAdminLegacyPayments,
+  handleAdminMemberPayments,
   handleAdminStaffDelete,
   handleAdminStaffList,
   handleAdminStaffUpsert,
@@ -203,6 +204,10 @@ export const api = onRequest(
     }
     if (path === "/admin/members/legacy-payments" && req.method === "GET") {
       await handleAdminLegacyPayments(req, res);
+      return;
+    }
+    if (path === "/admin/members/payments" && req.method === "GET") {
+      await handleAdminMemberPayments(req, res);
       return;
     }
     if (path === "/admin/legacy/members" && req.method === "GET") {
