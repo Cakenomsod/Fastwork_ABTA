@@ -271,6 +271,8 @@ export type RenewDraft = {
   expiryDate?: string;
   feeThb: number;
   pendingRenewal: boolean;
+  /** Present when draft API exposes slip review state (e.g. rejected → resubmit). */
+  receiptStatus?: string;
 };
 
 export async function fetchRenewDraft(idToken: string): Promise<RenewDraft> {
@@ -293,6 +295,8 @@ export async function fetchRenewDraft(idToken: string): Promise<RenewDraft> {
     expiryDate: data.expiryDate,
     feeThb: data.feeThb,
     pendingRenewal: Boolean(data.pendingRenewal),
+    receiptStatus:
+      typeof data.receiptStatus === "string" ? data.receiptStatus : undefined,
   };
 }
 

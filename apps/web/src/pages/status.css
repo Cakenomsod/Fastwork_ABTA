@@ -41,8 +41,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .status-content {
+  .status-content,
+  .status-error {
     animation: none;
+  }
+
+  .sk,
+  .detail-card .sk {
+    animation: none;
+  }
+
+  .btn {
+    transition: none;
   }
 }
 
@@ -259,6 +269,11 @@
     box-shadow 0.2s ease;
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--page-gold-soft);
+  outline-offset: 3px;
+}
+
 .btn:active {
   transform: translateY(1px);
 }
@@ -266,13 +281,25 @@
 .btn--primary {
   background: linear-gradient(160deg, var(--page-green-active), var(--page-green-primary));
   color: #fff;
-  box-shadow: 0 12px 24px -14px rgba(15, 76, 54, 0.9);
+  box-shadow: 0 12px 24px -14px rgba(0, 0, 0, 0.28);
 }
 
 .btn--ghost {
   background: rgba(255, 255, 255, 0.9);
   color: var(--page-green-primary);
   border: 1px solid rgba(201, 162, 75, 0.5);
+}
+
+.status-reject {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: rgba(201, 162, 75, 0.16);
+  border: 1px solid rgba(228, 206, 147, 0.28);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: left;
 }
 
 .foot-note {
@@ -349,4 +376,19 @@
   font-size: 0.9rem;
   color: var(--page-green-text-soft);
   line-height: 1.6;
+}
+
+.status-error__hint {
+  margin: 1rem auto 0;
+  max-width: 20rem;
+  font-size: 0.82rem;
+  color: var(--page-gold-soft);
+  line-height: 1.5;
+}
+
+.status-error__actions {
+  margin: 1.25rem auto 0;
+  max-width: 20rem;
+  display: grid;
+  gap: 0.6rem;
 }

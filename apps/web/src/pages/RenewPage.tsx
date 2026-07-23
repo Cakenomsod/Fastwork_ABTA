@@ -4,7 +4,7 @@ import {
   submitRenewal,
   type RenewDraft,
 } from "../lib/api";
-import { liffPageUrl } from "../lib/member-links";
+import { liffPageUrl, memberStatusHrefFromUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import "./register.css";
 
@@ -46,6 +46,12 @@ export default function RenewPage() {
     });
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (slip.kind === "ready") URL.revokeObjectURL(slip.previewUrl);
+    };
+  }, [slip]);
+
   function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -58,6 +64,7 @@ export default function RenewPage() {
       setSlip({ kind: "error", message: "ไฟล์ใหญ่เกิน 5 MB" });
       return;
     }
+    if (slip.kind === "ready") URL.revokeObjectURL(slip.previewUrl);
     setSlip({
       kind: "ready",
       file,
@@ -94,6 +101,11 @@ export default function RenewPage() {
     }
   }
 
+  const slipRejected =
+    draft != null &&
+    !draft.pendingRenewal &&
+    draft.receiptStatus === "rejected";
+
   return (
     <div className="reg-shell">
       <div className="reg-atmosphere" aria-hidden />
@@ -106,6 +118,9 @@ export default function RenewPage() {
             <div className="reg-error__badge">ABTA</div>
             <h1 className="reg-error__title">เชื่อมต่อ LINE ไม่สำเร็จ</h1>
             <p className="reg-error__detail">{liff.message}</p>
+            <p className="reg-error__detail">
+              กรุณาเปิดหน้านี้จาก LINE OA ของสมาคมอีกครั้ง
+            </p>
           </div>
         )}
 
@@ -117,7 +132,10 @@ export default function RenewPage() {
               <h1>รับคำขอต่ออายุแล้ว</h1>
               <p className="reg-success__id">{done.receiptNumber}</p>
               <p className="reg-lead">รอเหรัญญิกตรวจสอบสลิปครับ</p>
-              <a className="reg-btn reg-btn--primary" href={done.statusUrl}>
+              <a
+                className="reg-btn reg-btn--primary"
+                href={memberStatusHrefFromUrl(done.statusUrl)}
+              >
                 ดูสถานะ
               </a>
             </section>
@@ -158,36 +176,74 @@ export default function RenewPage() {
                   เลขสมาชิก {draft.memberId}
                   {draft.expiryDate ? ` · หมดอายุ ${draft.expiryDate}` : ""}
                 </p>
-                <p className="reg-user">
-                  ค่าธรรมเนียม {draft.feeThb.toLocaleString("th-TH")} บาท
-                </p>
               </header>
 
               {draft.pendingRenewal ? (
                 <div className="reg-warn">มีคำขอต่ออายุรอตรวจอยู่แล้ว</div>
+              ) : slipRejected ? (
+                <div className="reg-form">
+                  <div className="reg-warn">
+                    สลิปถูกปฏิเสธ — กรุณาส่งสลิปใหม่
+                  </div>
+                  <a
+                    className="reg-btn reg-btn--primary"
+                    href={liffPageUrl("/slip")}
+                  >
+                    ส่งสลิปใหม่
+                  </a>
+                </div>
               ) : (
                 <form
                   className="reg-form"
                   onSubmit={(e) => void onSubmit(e)}
                 >
-                  <label className="reg-field">
-                    <span>แนบสลิปโอนเงิน</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png"
-                      onChange={onFile}
-                    />
-                  </label>
-                  {slip.kind === "ready" ? (
-                    <img
-                      src={slip.previewUrl}
-                      alt="สลิป"
-                      className="reg-slip-preview"
-                    />
-                  ) : null}
-                  {slip.kind === "error" ? (
-                    <p className="reg-form-error">{slip.message}</p>
-                  ) : null}
+                  <section className="reg-section">
+                    <h2 className="reg-section__title">หลักฐานการชำระเงิน</h2>
+                    <div className="reg-fee">
+                      <span>ค่าธรรมเนียมต่ออายุ</span>
+                      <strong>
+                        {draft.feeThb.toLocaleString("th-TH")} บาท
+                      </strong>
+                    </div>
+                    <div className="reg-bank">
+                      <span className="reg-bank__label">บัญชีรับโอน</span>
+                      <p>รอข้อมูลจากสมาคม</p>
+                      <small>
+                        จะแสดงชื่อบัญชี เลขบัญชี และธนาคารเมื่อสมาคมยืนยันแล้ว
+                      </small>
+                    </div>
+                    <div className="reg-field">
+                      <span>
+                        แนบสลิปโอนเงิน <em className="req">*</em>
+                      </span>
+                      <label className="reg-upload">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                          onChange={onFile}
+                        />
+                        {slip.kind === "ready" ? (
+                          <>
+                            <img
+                              src={slip.previewUrl}
+                              alt="ตัวอย่างสลิป"
+                            />
+                            <span className="reg-upload__name">
+                              {slip.file.name}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <strong>แตะเพื่ออัปโหลดสลิป</strong>
+                            <small>รองรับ JPG, PNG · สูงสุด 5 MB</small>
+                          </>
+                        )}
+                      </label>
+                      {slip.kind === "error" ? (
+                        <p className="reg-field-error">{slip.message}</p>
+                      ) : null}
+                    </div>
+                  </section>
                   {error ? <p className="reg-form-error">{error}</p> : null}
                   <button
                     type="submit"
@@ -230,6 +286,10 @@ function errorCopy(code: string): string {
       return "เซสชัน LINE หมดอายุ กรุณาเปิดจาก LINE OA อีกครั้ง";
     case "invalid_id_token":
       return "เซสชัน LINE หมดอายุ กรุณาเปิดจาก LINE OA อีกครั้ง";
+    case "slip_too_large":
+      return "ไฟล์สลิปใหญ่เกิน 5 MB";
+    case "invalid_slip_data":
+      return "ไฟล์สลิปไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง";
     default:
       return "ดำเนินการไม่สำเร็จ กรุณาลองใหม่";
   }

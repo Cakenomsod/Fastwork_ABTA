@@ -37,6 +37,17 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .reg-wrap {
+    animation: none;
+  }
+
+  .reg-mode-tab,
+  .reg-btn {
+    transition: none;
+  }
+}
+
 .reg-kicker {
   margin: 0;
   font-size: 0.78rem;
@@ -131,7 +142,9 @@
   font-style: normal;
 }
 
-.reg-field input {
+.reg-field input,
+.reg-field select,
+.reg-field textarea {
   appearance: none;
   width: 100%;
   min-width: 0;
@@ -145,7 +158,27 @@
   overflow-wrap: anywhere;
 }
 
-.reg-field input:focus {
+.reg-field select {
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--page-muted) 50%),
+    linear-gradient(135deg, var(--page-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) calc(50% - 0.15rem),
+    calc(100% - 0.85rem) calc(50% - 0.15rem);
+  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
+  background-repeat: no-repeat;
+  padding-right: 2.25rem;
+}
+
+.reg-field textarea {
+  resize: vertical;
+  min-height: 5rem;
+  line-height: 1.45;
+}
+
+.reg-field input:focus,
+.reg-field select:focus,
+.reg-field textarea:focus {
   outline: 2px solid rgba(15, 76, 54, 0.35);
   border-color: var(--page-green-primary);
 }
@@ -271,6 +304,11 @@
   cursor: pointer;
 }
 
+.reg-btn:focus-visible {
+  outline: 2px solid var(--page-green-primary);
+  outline-offset: 3px;
+}
+
 .reg-btn:disabled {
   opacity: 0.65;
   cursor: wait;
@@ -286,6 +324,10 @@
   background: transparent;
   color: var(--page-gold-soft);
   border: 1px solid rgba(228, 206, 147, 0.45);
+}
+
+.reg-btn--ghost:focus-visible {
+  outline-color: var(--page-gold-soft);
 }
 
 .reg-legacy {
@@ -423,6 +465,11 @@
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
+.reg-mode-tab:focus-visible {
+  outline: 2px solid var(--page-gold-soft);
+  outline-offset: 2px;
+}
+
 .reg-mode-tab--active {
   background: var(--page-form-surface);
   color: var(--page-green-primary);
@@ -461,7 +508,11 @@
 .reg-btn--legacy {
   background: linear-gradient(160deg, #7a4e12, var(--page-gold));
   color: #fff;
-  box-shadow: 0 10px 24px -12px rgba(122, 78, 18, 0.75);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.28);
+}
+
+.reg-btn--legacy:focus-visible {
+  outline-color: var(--page-gold-soft);
 }
 
 .reg-btn--ghost-light {
@@ -741,6 +792,77 @@ label.reg-legacy-match {
   margin: 0.75rem 0;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.04);
+}
+
+/* Seminar list */
+
+.reg-seminar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reg-seminar-item {
+  margin: 0;
+}
+
+.reg-seminar-item__btn {
+  width: 100%;
+  text-align: left;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-height: auto;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  white-space: normal;
+}
+
+.reg-seminar-item__btn strong {
+  display: block;
+  font-size: 0.98rem;
+  color: var(--page-green-primary);
+}
+
+.reg-form .reg-seminar-item__btn {
+  color: var(--page-ink);
+  border-color: #b7c9bf;
+  background: #fff;
+}
+
+.reg-form .reg-seminar-item__btn:hover {
+  border-color: var(--page-green-primary);
+  background: var(--page-bg-soft);
+}
+
+.reg-seminar-item__meta {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--page-muted);
+}
+
+.reg-seminar-back {
+  width: auto;
+  margin-bottom: 1rem;
+  padding: 0.45rem 0.9rem;
+  min-height: 2.25rem;
+  font-size: 0.88rem;
+}
+
+.reg-form .reg-seminar-back {
+  color: var(--page-green-primary);
+  border-color: #b7c9bf;
+}
+
+.reg-seminar-desc {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: var(--page-muted);
+  line-height: 1.45;
 }
 
 .sr-only {

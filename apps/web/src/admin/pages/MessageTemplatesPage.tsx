@@ -6,6 +6,7 @@ import {
   saveMessageTemplate,
   type MessageTemplate,
 } from "../../lib/admin-api";
+import { ConfirmDialog } from "../ConfirmDialog";
 
 const MAX_CHARS = 4500;
 const AGM_INVITE_ID = "agm_invite";
@@ -23,6 +24,10 @@ const ERROR_LABEL: Record<string, string> = {
   not_found: "ไม่พบแม่แบบ หรือ API ยังไม่อัปเดต — ลองรีเฟรชหรือแจ้งผู้ดูแลระบบ",
   route_not_found: "API ยังไม่รองรับคำขอนี้ — ต้อง deploy Cloud Functions เวอร์ชันใหม่",
 };
+
+type PendingNav =
+  | { type: "select"; tpl: MessageTemplate }
+  | { type: "create" };
 
 function errorMessage(err: unknown, fallback: string): string {
   const code = err instanceof Error ? err.message : fallback;
@@ -46,10 +51,14 @@ export default function MessageTemplatesPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [pendingNav, setPendingNav] = useState<PendingNav | null>(null);
 
   const selected =
     !creating && selectedId
@@ -68,9 +77,11 @@ export default function MessageTemplatesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setLoadFailed(false);
     try {
       const list = await fetchMessageTemplates();
       setTemplates(list);
+      setLoadFailed(false);
       if (creating) return;
       const next =
         (selectedId && list.find((t) => t.id === selectedId)) ||
@@ -86,6 +97,7 @@ export default function MessageTemplatesPage() {
     } catch (err) {
       setError(errorMessage(err, "load_failed"));
       setTemplates([]);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -95,33 +107,70 @@ export default function MessageTemplatesPage() {
     void (async () => {
       setLoading(true);
       setError(null);
+      setLoadFailed(false);
       try {
         const list = await fetchMessageTemplates();
         setTemplates(list);
+        setLoadFailed(false);
         const first = list[0] ?? null;
         if (first) applyTemplate(first);
       } catch (err) {
         setError(errorMessage(err, "load_failed"));
         setTemplates([]);
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
     })();
   }, [applyTemplate]);
 
-  function selectTemplate(tpl: MessageTemplate) {
+  const dirty = creating
+    ? Boolean(title.trim() || body.trim())
+    : selected != null &&
+      (title.trim() !== selected.title.trim() ||
+        body.trim() !== selected.body.trim());
+
+  function doSelectTemplate(tpl: MessageTemplate) {
     applyTemplate(tpl);
     setError(null);
     setResult(null);
   }
 
-  function startCreate() {
+  function doStartCreate() {
     setCreating(true);
     setSelectedId(null);
     setTitle("");
     setBody("");
     setError(null);
     setResult(null);
+  }
+
+  function selectTemplate(tpl: MessageTemplate) {
+    if (dirty && (creating || tpl.id !== selected?.id)) {
+      setPendingNav({ type: "select", tpl });
+      setDiscardOpen(true);
+      return;
+    }
+    doSelectTemplate(tpl);
+  }
+
+  function startCreate() {
+    if (creating) return;
+    if (dirty) {
+      setPendingNav({ type: "create" });
+      setDiscardOpen(true);
+      return;
+    }
+    doStartCreate();
+  }
+
+  function confirmDiscard() {
+    const nav = pendingNav;
+    setDiscardOpen(false);
+    setPendingNav(null);
+    if (!nav) return;
+    if (nav.type === "select") doSelectTemplate(nav.tpl);
+    else doStartCreate();
   }
 
   function cancelCreate() {
@@ -139,12 +188,6 @@ export default function MessageTemplatesPage() {
       setBody("");
     }
   }
-
-  const dirty = creating
-    ? Boolean(title.trim() || body.trim())
-    : selected != null &&
-      (title.trim() !== selected.title.trim() ||
-        body.trim() !== selected.body.trim());
 
   const charsLeft = MAX_CHARS - body.length;
   const nearLimit = charsLeft <= 200;
@@ -207,12 +250,8 @@ export default function MessageTemplatesPage() {
     setResult(null);
   }
 
-  async function onDelete() {
+  async function confirmDelete() {
     if (!selected || selected.id === AGM_INVITE_ID) return;
-    const ok = window.confirm(
-      `ลบแม่แบบ «${selected.title}» ใช่หรือไม่?\nการลบนี้ไม่สามารถกู้คืนได้`,
-    );
-    if (!ok) return;
 
     setDeleting(true);
     setError(null);
@@ -231,6 +270,7 @@ export default function MessageTemplatesPage() {
         setBody("");
       }
       setResult("ลบแม่แบบแล้ว");
+      setDeleteOpen(false);
     } catch (err) {
       setError(errorMessage(err, "delete_template_failed"));
     } finally {
@@ -238,9 +278,12 @@ export default function MessageTemplatesPage() {
     }
   }
 
-  const editorTitle = creating
-    ? "แม่แบบใหม่"
-    : selected?.title ?? "แก้ไขแม่แบบ";
+  const editorModeLabel = creating ? "แม่แบบใหม่" : "แก้ไขแม่แบบ";
+  const showLoadError = loadFailed && !creating;
+  const showEmpty =
+    !loading && !loadFailed && templates.length === 0 && !creating;
+  const showEditor =
+    creating || (!loadFailed && (templates.length > 0 || selected != null));
 
   return (
     <div className="bo-templates">
@@ -258,7 +301,7 @@ export default function MessageTemplatesPage() {
           <button
             type="button"
             className="bo-btn bo-btn-primary bo-btn-sm"
-            disabled={loading || creating}
+            disabled={loading || creating || loadFailed}
             onClick={startCreate}
           >
             สร้างแม่แบบใหม่
@@ -296,7 +339,30 @@ export default function MessageTemplatesPage() {
         <div className="bo-panel">
           <div className="bo-empty">กำลังโหลดแม่แบบ…</div>
         </div>
-      ) : templates.length === 0 && !creating ? (
+      ) : showLoadError ? (
+        <div className="bo-panel">
+          <div className="bo-empty">
+            <strong>โหลดแม่แบบไม่สำเร็จ</strong>
+            ตรวจสอบการเชื่อมต่อแล้วลองใหม่ หรือสร้างแม่แบบใหม่หากต้องการทำงานต่อ
+            <div className="bo-templates-empty-actions">
+              <button
+                type="button"
+                className="bo-btn bo-btn-primary bo-btn-sm"
+                onClick={() => void load()}
+              >
+                ลองใหม่
+              </button>
+              <button
+                type="button"
+                className="bo-btn bo-btn-ghost bo-btn-sm"
+                onClick={doStartCreate}
+              >
+                สร้างแม่แบบใหม่
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : showEmpty ? (
         <div className="bo-panel">
           <div className="bo-empty">
             <strong>ยังไม่มีแม่แบบ</strong>
@@ -312,24 +378,16 @@ export default function MessageTemplatesPage() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : showEditor ? (
         <div className="bo-templates-layout">
           <aside className="bo-panel bo-templates-list" aria-label="รายการแม่แบบ">
             <div className="bo-panel-head">
               <div>
                 <h2>แม่แบบที่มี ({templates.length})</h2>
                 <p className="bo-muted bo-templates-head-sub">
-                  เลือกเพื่อแก้ไข หรือสร้างชุดใหม่
+                  เลือกเพื่อแก้ไข
                 </p>
               </div>
-              <button
-                type="button"
-                className="bo-btn bo-btn-ghost bo-btn-sm"
-                disabled={creating}
-                onClick={startCreate}
-              >
-                + ใหม่
-              </button>
             </div>
             <ul className="bo-templates-nav">
               {creating ? (
@@ -378,7 +436,7 @@ export default function MessageTemplatesPage() {
               <>
                 <div className="bo-panel-head bo-templates-editor-head">
                   <div>
-                    <h2>{editorTitle}</h2>
+                    <h2>{editorModeLabel}</h2>
                     <p className="bo-muted bo-templates-head-sub">
                       {creating
                         ? "ใส่ชื่อและข้อความ แล้วกดบันทึกเพื่อเพิ่มเข้าคลังแม่แบบ"
@@ -426,19 +484,23 @@ export default function MessageTemplatesPage() {
                     </span>
                   </label>
 
-                  {body.trim() ? (
-                    <div
-                      className="bo-broadcast-preview-box"
-                      aria-label="ตัวอย่างข้อความ"
-                    >
-                      <div className="bo-broadcast-preview-label">
-                        ตัวอย่างใน LINE
-                      </div>
-                      <pre className="bo-broadcast-preview-body bo-templates-preview-body">
+                  <div
+                    className="bo-templates-preview"
+                    aria-label="ตัวอย่างข้อความ"
+                  >
+                    <div className="bo-templates-preview-label">
+                      ตัวอย่างใน LINE
+                    </div>
+                    {body.trim() ? (
+                      <pre className="bo-templates-preview-bubble">
                         {body.trim()}
                       </pre>
-                    </div>
-                  ) : null}
+                    ) : (
+                      <p className="bo-templates-preview-empty">
+                        พิมพ์ข้อความด้านบนเพื่อดูตัวอย่าง
+                      </p>
+                    )}
+                  </div>
 
                   <div className="bo-templates-actions">
                     <button
@@ -466,9 +528,9 @@ export default function MessageTemplatesPage() {
                         type="button"
                         className="bo-btn bo-btn-danger-ghost"
                         disabled={deleting || saving}
-                        onClick={() => void onDelete()}
+                        onClick={() => setDeleteOpen(true)}
                       >
-                        {deleting ? "กำลังลบ…" : "ลบแม่แบบ"}
+                        ลบแม่แบบ
                       </button>
                     ) : null}
                   </div>
@@ -482,7 +544,35 @@ export default function MessageTemplatesPage() {
             ) : null}
           </section>
         </div>
-      )}
+      ) : null}
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="ลบแม่แบบ"
+        description={`ลบแม่แบบ «${selected?.title ?? ""}» ใช่หรือไม่?\nการลบนี้ไม่สามารถกู้คืนได้`}
+        confirmLabel="ลบแม่แบบ"
+        cancelLabel="ยกเลิก"
+        variant="danger"
+        busy={deleting}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => {
+          if (!deleting) setDeleteOpen(false);
+        }}
+      />
+
+      <ConfirmDialog
+        open={discardOpen}
+        title="ทิ้งการแก้ไข?"
+        description="มีการแก้ไขที่ยังไม่ได้บันทึก หากดำเนินการต่อ การเปลี่ยนแปลงจะหายไป"
+        confirmLabel="ทิ้งการแก้ไข"
+        cancelLabel="อยู่ต่อ"
+        variant="danger"
+        onConfirm={confirmDiscard}
+        onCancel={() => {
+          setDiscardOpen(false);
+          setPendingNav(null);
+        }}
+      />
     </div>
   );
 }

@@ -29,7 +29,10 @@ function isLocalHost(): boolean {
 
 function isOnLiffEndpoint(): boolean {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
-  return path === LIFF_ENDPOINT_PATH;
+  return (
+    path === LIFF_ENDPOINT_PATH ||
+    path.startsWith(`${LIFF_ENDPOINT_PATH}/`)
+  );
 }
 
 function hasLiffCallbackParams(): boolean {

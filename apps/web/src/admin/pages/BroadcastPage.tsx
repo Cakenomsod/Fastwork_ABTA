@@ -19,6 +19,12 @@ const MAX_CHARS = 4500;
 
 type WizardStep = 1 | 2 | 3 | 4;
 
+type PendingMessage = {
+  body: string;
+  templateId: string | null;
+  label: string;
+};
+
 const STEPS: { step: WizardStep; label: string }[] = [
   { step: 1, label: "กรองกลุ่มผู้รับ" },
   { step: 2, label: "เลือกข้อความ" },
@@ -96,6 +102,9 @@ export default function BroadcastPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState("");
   const [templateId, setTemplateId] = useState<string | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(
+    null,
+  );
   const [recipientQuery, setRecipientQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -104,6 +113,7 @@ export default function BroadcastPage() {
   const [logs, setLogs] = useState<BroadcastLogItem[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [logsOpen, setLogsOpen] = useState(false);
 
   const loadLogs = useCallback(async () => {
     try {
@@ -139,10 +149,11 @@ export default function BroadcastPage() {
       setRecipients(data.recipients);
       setSkippedNoLine(data.skippedNoLine);
       setTotalMatched(data.totalMatched);
-      setSelected(new Set());
+      setSelected(new Set(data.recipients.map((r) => r.memberId)));
     } catch (err) {
       setError(errorMessage(err, "load_failed"));
       setRecipients([]);
+      setSelected(new Set());
     } finally {
       setLoading(false);
     }
@@ -226,12 +237,29 @@ export default function BroadcastPage() {
   const activeTemplate =
     templates.find((t) => t.id === templateId) ?? null;
 
+  const currentStepMeta = STEPS.find((s) => s.step === step) ?? STEPS[0];
+
+  const confirmDescription = useMemo(() => {
+    const preview = message.trim();
+    const previewSlice =
+      preview.length > 400 ? `${preview.slice(0, 400)}…` : preview;
+    return [
+      `จะส่งข้อความไปยังสมาชิก ${selectedCount.toLocaleString("th-TH")} คนผ่าน LINE OA`,
+      "",
+      `ตัวกรอง: ${filterSummary.join(" · ")}`,
+      "",
+      "ข้อความ:",
+      previewSlice || "(ว่าง)",
+    ].join("\n");
+  }, [selectedCount, filterSummary, message]);
+
   function clearFilters() {
     setMemberTypes([]);
     setStatuses([]);
     setBoardOnly(false);
     setSelectedTags([]);
     setTagDraft("");
+    setPendingMessage(null);
   }
 
   function applyBoardMarchFilters() {
@@ -239,8 +267,11 @@ export default function BroadcastPage() {
     setStatuses(["active", "near_expiry", "temporary"]);
     setBoardOnly(true);
     setSelectedTags([]);
-    setMessage(BOARD_MARCH_PRESET);
-    setTemplateId(null);
+    setPendingMessage({
+      body: BOARD_MARCH_PRESET,
+      templateId: null,
+      label: "แจ้งเตือนกรรมการ (มี.ค.)",
+    });
   }
 
   function applyAgmInviteFilters() {
@@ -251,14 +282,27 @@ export default function BroadcastPage() {
     const agm =
       templates.find((t) => t.id === "agm_invite") ?? templates[0] ?? null;
     if (agm?.body) {
-      setMessage(agm.body);
-      setTemplateId(agm.id);
+      setPendingMessage({
+        body: agm.body,
+        templateId: agm.id,
+        label: agm.title || "แม่แบบเชิญประชุม",
+      });
+    } else {
+      setPendingMessage(null);
     }
+  }
+
+  function applyPendingMessageIfNeeded() {
+    if (!pendingMessage) return;
+    setMessage(pendingMessage.body);
+    setTemplateId(pendingMessage.templateId);
+    setPendingMessage(null);
   }
 
   function loadTemplateIntoMessage(tpl: MessageTemplate) {
     setMessage(tpl.body);
     setTemplateId(tpl.id);
+    setPendingMessage(null);
     setError(null);
     setResult(null);
   }
@@ -294,6 +338,7 @@ export default function BroadcastPage() {
   function goNext() {
     setError(null);
     setResult(null);
+    if (step === 1) applyPendingMessageIfNeeded();
     setStep((s) => (s < 4 ? ((s + 1) as WizardStep) : s));
   }
 
@@ -303,7 +348,6 @@ export default function BroadcastPage() {
   }
 
   async function doSend() {
-    setConfirmOpen(false);
     setSending(true);
     setError(null);
     setResult(null);
@@ -326,8 +370,11 @@ export default function BroadcastPage() {
       );
       setMessage("");
       setTemplateId(null);
+      setPendingMessage(null);
       setSelected(new Set());
       setStep(1);
+      setConfirmOpen(false);
+      setLogsOpen(true);
       await loadLogs();
     } catch (err) {
       setError(errorMessage(err, "send_failed"));
@@ -361,51 +408,76 @@ export default function BroadcastPage() {
       </header>
 
       <nav className="bo-wizard-steps" aria-label="ขั้นตอนการส่ง">
-        {STEPS.map(({ step: s, label }) => {
-          const done = step > s;
-          const current = step === s;
-          return (
-            <button
-              key={s}
-              type="button"
-              className={`bo-wizard-step${current ? " is-current" : ""}${done ? " is-done" : ""}`}
-              aria-current={current ? "step" : undefined}
-              disabled={s > step}
-              onClick={() => {
-                if (s <= step) {
-                  setError(null);
-                  setStep(s);
-                }
-              }}
-            >
-              <span className="bo-wizard-step-num" aria-hidden="true">
-                {done ? "✓" : s}
-              </span>
-              <span className="bo-wizard-step-label">{label}</span>
-            </button>
-          );
-        })}
+        <div className="bo-wizard-steps-compact" aria-hidden="false">
+          <span className="bo-wizard-compact-label">
+            ขั้นตอนที่ {step} จาก 4 — {currentStepMeta.label}
+          </span>
+        </div>
+        <div className="bo-wizard-steps-grid">
+          {STEPS.map(({ step: s, label }) => {
+            const done = step > s;
+            const current = step === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                className={`bo-wizard-step${current ? " is-current" : ""}${done ? " is-done" : ""}`}
+                aria-current={current ? "step" : undefined}
+                disabled={s > step}
+                onClick={() => {
+                  if (s <= step) {
+                    setError(null);
+                    if (s === 2 && step === 1) applyPendingMessageIfNeeded();
+                    setStep(s);
+                  }
+                }}
+              >
+                <span className="bo-wizard-step-num" aria-hidden="true">
+                  {done ? "✓" : s}
+                </span>
+                <span className="bo-wizard-step-label">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
-      <div className="bo-stats bo-broadcast-stats" aria-live="polite">
-        <div className="bo-stat">
-          <div className="num">{recipients.length}</div>
-          <div className="lbl">ส่งได้ (มี LINE)</div>
-        </div>
-        <div
-          className={`bo-stat bo-stat--accent${selectedCount > 0 ? " is-hot" : ""}`}
-        >
-          <div className="num">{selectedCount}</div>
-          <div className="lbl">เลือกแล้ว</div>
-        </div>
-        <div className="bo-stat">
-          <div className="num">{totalMatched}</div>
-          <div className="lbl">ตรงเงื่อนไข</div>
-        </div>
-        <div className="bo-stat">
-          <div className="num">{skippedNoLine}</div>
-          <div className="lbl">ไม่มี LINE</div>
-        </div>
+      <div
+        className={`bo-stats bo-broadcast-stats bo-broadcast-stats--step-${step}`}
+        aria-live="polite"
+      >
+        {(step === 1 || step === 2) && (
+          <>
+            <div className="bo-stat">
+              <div className="num">{recipients.length}</div>
+              <div className="lbl">ส่งได้ (มี LINE)</div>
+            </div>
+            <div className="bo-stat">
+              <div className="num">{skippedNoLine}</div>
+              <div className="lbl">ไม่มี LINE</div>
+            </div>
+            {step === 1 ? (
+              <div className="bo-stat">
+                <div className="num">{totalMatched}</div>
+                <div className="lbl">ตรงเงื่อนไข</div>
+              </div>
+            ) : null}
+          </>
+        )}
+        {(step === 3 || step === 4) && (
+          <>
+            <div
+              className={`bo-stat bo-stat--accent${selectedCount > 0 ? " is-hot" : ""}`}
+            >
+              <div className="num">{selectedCount}</div>
+              <div className="lbl">เลือกแล้ว</div>
+            </div>
+            <div className="bo-stat">
+              <div className="num">{recipients.length}</div>
+              <div className="lbl">ส่งได้ (มี LINE)</div>
+            </div>
+          </>
+        )}
       </div>
 
       {error && step !== 4 ? (
@@ -420,7 +492,7 @@ export default function BroadcastPage() {
       ) : null}
 
       {step === 1 ? (
-        <section className="bo-panel">
+        <section className="bo-panel bo-broadcast-step-panel">
           <div className="bo-panel-head bo-broadcast-panel-head">
             <div>
               <h2>1. กรองกลุ่มผู้รับ</h2>
@@ -593,7 +665,7 @@ export default function BroadcastPage() {
             <div className="bo-broadcast-presets">
               <span className="bo-filter-label">ทางลัดตัวกรอง</span>
               <p className="bo-hint bo-broadcast-preset-hint">
-                ตั้งตัวกรองให้พร้อม — ข้อความเชิญประชุมดึงจากแม่แบบที่บันทึกไว้
+                ตั้งตัวกรองให้พร้อม — ข้อความจะถูกโหลดเมื่อไปขั้นเลือกข้อความ
               </p>
               <div className="bo-broadcast-preset-btns">
                 <button
@@ -614,11 +686,16 @@ export default function BroadcastPage() {
                     )
                   }
                   onClick={applyAgmInviteFilters}
-                  title="กรองสมาชิกสามัญ + โหลดข้อความจากแม่แบบ"
+                  title="กรองสมาชิกสามัญ + จองข้อความจากแม่แบบ"
                 >
                   ใช้แม่แบบเชิญประชุม
                 </button>
               </div>
+              {pendingMessage ? (
+                <p className="bo-broadcast-pending-chip" role="status">
+                  จะโหลดข้อความ: {pendingMessage.label}
+                </p>
+              ) : null}
             </div>
 
             {loading ? (
@@ -626,7 +703,14 @@ export default function BroadcastPage() {
             ) : recipients.length === 0 ? (
               <div className="bo-empty">
                 <strong>ไม่พบผู้รับที่ผูก LINE</strong>
-                ลองเปลี่ยนตัวกรอง หรือทำเครื่องหมายกรรมการในโปรไฟล์สมาชิก
+                {totalMatched > 0 ? (
+                  <span className="bo-broadcast-warn-text">
+                    มี {totalMatched.toLocaleString("th-TH")} คนตรงเงื่อนไข
+                    แต่ยังไม่ผูก LINE
+                  </span>
+                ) : (
+                  "ลองเปลี่ยนตัวกรอง หรือทำเครื่องหมายกรรมการในโปรไฟล์สมาชิก"
+                )}
                 {filtersActive ? (
                   <div className="bo-broadcast-empty-actions">
                     <button
@@ -639,16 +723,13 @@ export default function BroadcastPage() {
                   </div>
                 ) : null}
               </div>
-            ) : (
-              <p className="bo-hint">
-                พบ {recipients.length.toLocaleString("th-TH")} คนที่ส่งได้ —
-                กดถัดไปเพื่อเลือกข้อความ
-              </p>
-            )}
+            ) : null}
           </div>
 
           <div className="bo-wizard-footer">
-            <span className="bo-hint">ขั้นตอนที่ 1 จาก 4</span>
+            <span className="bo-hint">
+              พบ {recipients.length.toLocaleString("th-TH")} คนที่ส่งได้
+            </span>
             <button
               type="button"
               className="bo-btn bo-btn-primary"
@@ -662,7 +743,7 @@ export default function BroadcastPage() {
       ) : null}
 
       {step === 2 ? (
-        <section className="bo-panel">
+        <section className="bo-panel bo-broadcast-step-panel">
           <div className="bo-panel-head bo-broadcast-panel-head">
             <div>
               <h2>2. เลือกข้อความจากแม่แบบ</h2>
@@ -703,18 +784,20 @@ export default function BroadcastPage() {
                       key={tpl.id}
                       type="button"
                       role="listitem"
-                      className={`bo-broadcast-template-card${active ? " is-active" : ""}`}
+                      className={`bo-broadcast-template-row${active ? " is-active" : ""}`}
                       onClick={() => loadTemplateIntoMessage(tpl)}
                     >
-                      <strong>{tpl.title}</strong>
-                      <span className="bo-hint">
-                        {tpl.updatedAt
-                          ? `บันทึกล่าสุด ${new Date(tpl.updatedAt).toLocaleString("th-TH")}`
-                          : "ข้อความเริ่มต้นของระบบ"}
+                      <span className="bo-broadcast-template-row-main">
+                        <strong>{tpl.title}</strong>
+                        <span className="bo-broadcast-template-row-preview">
+                          {tpl.body.slice(0, 90)}
+                          {tpl.body.length > 90 ? "…" : ""}
+                        </span>
                       </span>
-                      <span className="bo-broadcast-template-card-preview">
-                        {tpl.body.slice(0, 120)}
-                        {tpl.body.length > 120 ? "…" : ""}
+                      <span className="bo-hint bo-broadcast-template-row-meta">
+                        {tpl.updatedAt
+                          ? new Date(tpl.updatedAt).toLocaleDateString("th-TH")
+                          : "ระบบ"}
                       </span>
                     </button>
                   );
@@ -750,18 +833,6 @@ export default function BroadcastPage() {
               </span>
             </label>
 
-            {message.trim() ? (
-              <div
-                className="bo-broadcast-preview-box"
-                aria-label="ตัวอย่างข้อความ"
-              >
-                <div className="bo-broadcast-preview-label">ตัวอย่างใน LINE</div>
-                <pre className="bo-broadcast-preview-body">
-                  {message.trim()}
-                </pre>
-              </div>
-            ) : null}
-
             <p className="bo-hint">
               ต้องการแก้แม่แบบถาวร?{" "}
               <button
@@ -795,7 +866,7 @@ export default function BroadcastPage() {
       ) : null}
 
       {step === 3 ? (
-        <section className="bo-panel" aria-busy={loading}>
+        <section className="bo-panel bo-broadcast-step-panel" aria-busy={loading}>
           <div className="bo-panel-head bo-broadcast-panel-head">
             <div>
               <h2>3. ตรวจรายชื่อที่เลือก</h2>
@@ -968,7 +1039,7 @@ export default function BroadcastPage() {
       ) : null}
 
       {step === 4 ? (
-        <section className="bo-panel">
+        <section className="bo-panel bo-broadcast-step-panel">
           <div className="bo-panel-head bo-broadcast-panel-head">
             <div>
               <h2>4. ยืนยันแล้วส่ง LINE</h2>
@@ -1003,10 +1074,7 @@ export default function BroadcastPage() {
               </div>
             </div>
 
-            <div
-              className="bo-broadcast-preview-box"
-              aria-label="ข้อความที่จะส่ง"
-            >
+            <div className="bo-broadcast-preview-flat" aria-label="ข้อความที่จะส่ง">
               <div className="bo-broadcast-preview-label">
                 ข้อความที่จะส่ง
                 {activeTemplate ? ` · จากแม่แบบ «${activeTemplate.title}»` : ""}
@@ -1016,27 +1084,13 @@ export default function BroadcastPage() {
               </pre>
             </div>
 
-            <div className="bo-broadcast-compose-actions">
-              <button
-                type="button"
-                className="bo-btn bo-btn-primary bo-broadcast-send"
-                disabled={!canSend}
-                onClick={() => setConfirmOpen(true)}
-              >
-                {sending
-                  ? "กำลังส่ง…"
-                  : selectedCount > 0
-                    ? `ส่งข้อความ (${selectedCount} คน)`
-                    : "เลือกผู้รับก่อนส่ง"}
-              </button>
-              {!canSend && !sending ? (
-                <p className="bo-hint bo-broadcast-send-hint">
-                  {selectedCount === 0
-                    ? "ย้อนกลับไปเลือกผู้รับอย่างน้อย 1 คน"
-                    : "ย้อนกลับไปใส่ข้อความก่อนกดส่ง"}
-                </p>
-              ) : null}
-            </div>
+            {!canSend && !sending ? (
+              <p className="bo-hint bo-broadcast-send-hint">
+                {selectedCount === 0
+                  ? "ย้อนกลับไปเลือกผู้รับอย่างน้อย 1 คน"
+                  : "ย้อนกลับไปใส่ข้อความก่อนกดส่ง"}
+              </p>
+            ) : null}
           </div>
 
           <div className="bo-wizard-footer">
@@ -1048,19 +1102,36 @@ export default function BroadcastPage() {
             >
               ย้อนกลับ
             </button>
+            <button
+              type="button"
+              className="bo-btn bo-btn-primary bo-broadcast-send"
+              disabled={!canSend}
+              onClick={() => setConfirmOpen(true)}
+            >
+              {sending
+                ? "กำลังส่ง…"
+                : selectedCount > 0
+                  ? `ส่งข้อความ (${selectedCount} คน)`
+                  : "เลือกผู้รับก่อนส่ง"}
+            </button>
           </div>
         </section>
       ) : null}
 
-      <section className="bo-panel">
-        <div className="bo-panel-head bo-broadcast-panel-head">
-          <div>
-            <h2>ประวัติการส่งล่าสุด</h2>
-            <p className="bo-muted bo-broadcast-head-sub">
-              15 รายการล่าสุดจากระบบ
-            </p>
-          </div>
-        </div>
+      <details
+        className="bo-panel bo-broadcast-logs"
+        open={logsOpen}
+        onToggle={(e) => setLogsOpen((e.target as HTMLDetailsElement).open)}
+      >
+        <summary className="bo-broadcast-logs-summary">
+          <span>
+            <strong>ประวัติการส่งล่าสุด</strong>
+            <span className="bo-muted bo-broadcast-head-sub">
+              {" "}
+              · 15 รายการล่าสุดจากระบบ
+            </span>
+          </span>
+        </summary>
         {logs.length === 0 ? (
           <div className="bo-empty">
             <strong>ยังไม่มีประวัติการส่ง</strong>
@@ -1106,16 +1177,19 @@ export default function BroadcastPage() {
             </table>
           </div>
         )}
-      </section>
+      </details>
 
       <ConfirmDialog
         open={confirmOpen}
         title="ยืนยันส่งข้อความแบบกลุ่ม"
-        description={`จะส่งข้อความไปยังสมาชิก ${selectedCount} คนผ่าน LINE OA\n\n${message.trim().slice(0, 200)}${message.trim().length > 200 ? "…" : ""}`}
+        description={confirmDescription}
         confirmLabel="ส่งเลย"
         cancelLabel="ยกเลิก"
+        busy={sending}
         onConfirm={() => void doSend()}
-        onCancel={() => setConfirmOpen(false)}
+        onCancel={() => {
+          if (!sending) setConfirmOpen(false);
+        }}
       />
     </div>
   );

@@ -9,7 +9,8 @@ export function liffPageUrl(path: string): string {
 }
 
 /** Same-origin status path for in-LIFF navigation (keeps query params). */
-export function memberStatusHref(memberId: string, token?: string): string {  const q = new URLSearchParams({ m: memberId });
+export function memberStatusHref(memberId: string, token?: string): string {
+  const q = new URLSearchParams({ m: memberId });
   if (token) q.set("t", token);
   return `/status?${q.toString()}`;
 }
@@ -50,13 +51,38 @@ export function readMemberStatusParams(search = window.location.search): {
   return { memberId, token };
 }
 
-/** Resolve SPA route path, honoring LIFF liff.state deep links. */
+const LIFF_ENDPOINT_PATH =
+  (import.meta.env.VITE_LIFF_ENDPOINT ?? "/register").replace(/\/+$/, "") ||
+  "/register";
+
+/**
+ * Resolve SPA route path, honoring LIFF deep links.
+ * LINE often sets `liff.state` without a leading slash (`renew` not `/renew`).
+ * With Endpoint URL `/register`, child deep links can land as `/register/renew`.
+ */
 export function effectiveAppPath(pathname = window.location.pathname): string {
   const path = pathname.replace(/\/+$/, "") || "/";
   const liffState = new URLSearchParams(window.location.search).get("liff.state");
-  if (!liffState) return path;
 
-  const decoded = decodeURIComponent(liffState);
-  const statePath = (decoded.split("?")[0] ?? "").replace(/\/+$/, "") || "/";
-  return statePath.startsWith("/") ? statePath : path;
+  if (liffState) {
+    const decoded = decodeURIComponent(liffState);
+    let statePath = (decoded.split("?")[0] ?? "").replace(/\/+$/, "") || "";
+    if (statePath && !statePath.startsWith("/")) {
+      statePath = `/${statePath}`;
+    }
+    if (statePath && statePath !== "/") {
+      return statePath;
+    }
+  }
+
+  // Endpoint `/register` + LIFF path `/renew` → `/register/renew`
+  if (
+    path !== LIFF_ENDPOINT_PATH &&
+    path.startsWith(`${LIFF_ENDPOINT_PATH}/`)
+  ) {
+    const nested = path.slice(LIFF_ENDPOINT_PATH.length) || "/";
+    return nested.startsWith("/") ? nested : `/${nested}`;
+  }
+
+  return path;
 }

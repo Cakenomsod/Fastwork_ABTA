@@ -36,6 +36,7 @@ export type RenewDraftResult =
       expiryDate?: string;
       feeThb: number;
       pendingRenewal: boolean;
+      receiptStatus: string;
     }
   | { ok: false; error: string; status: number };
 
@@ -98,11 +99,12 @@ async function uploadSlip(
 function hasPendingRenewal(payment: PaymentDoc | undefined): boolean {
   if (!payment || payment.paymentKind !== "renewal") return false;
   if (payment.receiptStatus === "official") return false;
+  // Rejected slips are not pending — member may resubmit via /renew or /slip
+  if (payment.receiptStatus === "rejected") return false;
   return (
     payment.status === "slip_review" ||
     payment.receiptStatus === "temp" ||
-    payment.receiptStatus === "pending_review" ||
-    payment.receiptStatus === "rejected"
+    payment.receiptStatus === "pending_review"
   );
 }
 
@@ -126,6 +128,7 @@ export async function getRenewDraft(idToken: string): Promise<RenewDraftResult> 
     expiryDate: member.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
     feeThb: MEMBERSHIP_FEE_THB,
     pendingRenewal: hasPendingRenewal(payment),
+    receiptStatus: payment?.receiptStatus ?? "none",
   };
 }
 

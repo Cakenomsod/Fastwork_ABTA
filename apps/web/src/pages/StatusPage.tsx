@@ -153,11 +153,11 @@ function StatusCard({ data }: { data: PublicStatus }) {
       {data.canResubmit && (
         <section className="actions">
           {data.rejectReason && (
-            <p className="foot-note" style={{ marginBottom: "0.75rem" }}>
+            <p className="status-reject" role="status">
               เหตุผลที่ไม่ผ่าน: {data.rejectReason}
             </p>
           )}
-          <a className="btn btn--primary" href="/register">
+          <a className="btn btn--primary" href={liffPageUrl("/register")}>
             แก้ไขข้อมูลแล้วส่งใหม่
           </a>
         </section>
@@ -166,7 +166,7 @@ function StatusCard({ data }: { data: PublicStatus }) {
       {data.canResubmitSlip && (
         <section className="actions">
           {data.rejectReason && (
-            <p className="foot-note" style={{ marginBottom: "0.75rem" }}>
+            <p className="status-reject" role="status">
               เหตุผลที่สลิปไม่ผ่าน: {data.rejectReason}
             </p>
           )}
@@ -251,6 +251,14 @@ function StatusError({ code }: { code: string }) {
       <div className="status-error__badge">ABTA</div>
       <h1 className="status-error__title">{title}</h1>
       <p className="status-error__detail">{detail}</p>
+      <p className="status-error__hint">
+        เปิดจาก LINE OA ของสมาคม · หรือพิมพ์ “เช็คสถานะ” ได้ทุกเมื่อ
+      </p>
+      <div className="status-error__actions">
+        <a className="btn btn--primary" href={liffPageUrl("/register")}>
+          ไปหน้าสมัครสมาชิก
+        </a>
+      </div>
     </div>
   );
 }
