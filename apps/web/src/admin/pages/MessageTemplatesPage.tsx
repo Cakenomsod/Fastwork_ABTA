@@ -27,14 +27,17 @@ const ERROR_LABEL: Record<string, string> = {
 
 type PendingNav =
   | { type: "select"; tpl: MessageTemplate }
-  | { type: "create" };
+  | { type: "create" }
+  | { type: "cancel" }
+  | { type: "reload" }
+  | { type: "broadcast" };
 
 function errorMessage(err: unknown, fallback: string): string {
   const code = err instanceof Error ? err.message : fallback;
   return ERROR_LABEL[code] ?? code;
 }
 
-function goBroadcast() {
+function navigateBroadcast() {
   window.history.pushState({}, "", "/admin/broadcast");
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
@@ -74,34 +77,45 @@ export default function MessageTemplatesPage() {
     setBody(tpl.body);
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setLoadFailed(false);
-    try {
-      const list = await fetchMessageTemplates();
-      setTemplates(list);
+  const dirty = creating
+    ? Boolean(title.trim() || body.trim())
+    : selected != null &&
+      (title.trim() !== selected.title.trim() ||
+        body.trim() !== selected.body.trim());
+
+  const load = useCallback(
+    async (opts?: { discardDraft?: boolean }) => {
+      const keepCreating = creating && !opts?.discardDraft;
+      setLoading(true);
+      setError(null);
       setLoadFailed(false);
-      if (creating) return;
-      const next =
-        (selectedId && list.find((t) => t.id === selectedId)) ||
-        list[0] ||
-        null;
-      if (next) {
-        applyTemplate(next);
-      } else {
-        setSelectedId(null);
-        setTitle("");
-        setBody("");
+      try {
+        const list = await fetchMessageTemplates();
+        setTemplates(list);
+        setLoadFailed(false);
+        if (keepCreating) return;
+        const next =
+          (selectedId && list.find((t) => t.id === selectedId)) ||
+          list[0] ||
+          null;
+        if (next) {
+          applyTemplate(next);
+        } else {
+          setCreating(false);
+          setSelectedId(null);
+          setTitle("");
+          setBody("");
+        }
+      } catch (err) {
+        setError(errorMessage(err, "load_failed"));
+        setTemplates([]);
+        setLoadFailed(true);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(errorMessage(err, "load_failed"));
-      setTemplates([]);
-      setLoadFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [applyTemplate, creating, selectedId]);
+    },
+    [applyTemplate, creating, selectedId],
+  );
 
   useEffect(() => {
     void (async () => {
@@ -124,11 +138,15 @@ export default function MessageTemplatesPage() {
     })();
   }, [applyTemplate]);
 
-  const dirty = creating
-    ? Boolean(title.trim() || body.trim())
-    : selected != null &&
-      (title.trim() !== selected.title.trim() ||
-        body.trim() !== selected.body.trim());
+  useEffect(() => {
+    if (!dirty) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   function doSelectTemplate(tpl: MessageTemplate) {
     applyTemplate(tpl);
@@ -145,35 +163,7 @@ export default function MessageTemplatesPage() {
     setResult(null);
   }
 
-  function selectTemplate(tpl: MessageTemplate) {
-    if (dirty && (creating || tpl.id !== selected?.id)) {
-      setPendingNav({ type: "select", tpl });
-      setDiscardOpen(true);
-      return;
-    }
-    doSelectTemplate(tpl);
-  }
-
-  function startCreate() {
-    if (creating) return;
-    if (dirty) {
-      setPendingNav({ type: "create" });
-      setDiscardOpen(true);
-      return;
-    }
-    doStartCreate();
-  }
-
-  function confirmDiscard() {
-    const nav = pendingNav;
-    setDiscardOpen(false);
-    setPendingNav(null);
-    if (!nav) return;
-    if (nav.type === "select") doSelectTemplate(nav.tpl);
-    else doStartCreate();
-  }
-
-  function cancelCreate() {
+  function doCancelCreate() {
     setCreating(false);
     setError(null);
     setResult(null);
@@ -187,6 +177,64 @@ export default function MessageTemplatesPage() {
       setTitle("");
       setBody("");
     }
+  }
+
+  function requestLeave(nav: PendingNav) {
+    setPendingNav(nav);
+    setDiscardOpen(true);
+  }
+
+  function selectTemplate(tpl: MessageTemplate) {
+    if (dirty && (creating || tpl.id !== selected?.id)) {
+      requestLeave({ type: "select", tpl });
+      return;
+    }
+    doSelectTemplate(tpl);
+  }
+
+  function startCreate() {
+    if (creating) return;
+    if (dirty) {
+      requestLeave({ type: "create" });
+      return;
+    }
+    doStartCreate();
+  }
+
+  function cancelCreate() {
+    if (dirty) {
+      requestLeave({ type: "cancel" });
+      return;
+    }
+    doCancelCreate();
+  }
+
+  function requestReload() {
+    if (dirty) {
+      requestLeave({ type: "reload" });
+      return;
+    }
+    void load();
+  }
+
+  function goBroadcast() {
+    if (dirty) {
+      requestLeave({ type: "broadcast" });
+      return;
+    }
+    navigateBroadcast();
+  }
+
+  function confirmDiscard() {
+    const nav = pendingNav;
+    setDiscardOpen(false);
+    setPendingNav(null);
+    if (!nav) return;
+    if (nav.type === "select") doSelectTemplate(nav.tpl);
+    else if (nav.type === "create") doStartCreate();
+    else if (nav.type === "cancel") doCancelCreate();
+    else if (nav.type === "reload") void load({ discardDraft: true });
+    else if (nav.type === "broadcast") navigateBroadcast();
   }
 
   const charsLeft = MAX_CHARS - body.length;
@@ -310,7 +358,7 @@ export default function MessageTemplatesPage() {
             type="button"
             className="bo-btn bo-btn-ghost bo-btn-sm"
             disabled={loading}
-            onClick={() => void load()}
+            onClick={requestReload}
           >
             {loading ? "กำลังโหลด…" : "รีเฟรช"}
           </button>
@@ -476,6 +524,10 @@ export default function MessageTemplatesPage() {
                         setResult(null);
                       }}
                     />
+                    <span className="bo-hint">
+                      ข้อความตรง ๆ — ไม่แทนชื่อ/เลขสมาชิกอัตโนมัติ และไม่มี merge
+                      fields
+                    </span>
                     <span
                       className={`bo-hint${nearLimit ? " bo-templates-char-warn" : ""}`}
                     >
@@ -489,7 +541,7 @@ export default function MessageTemplatesPage() {
                     aria-label="ตัวอย่างข้อความ"
                   >
                     <div className="bo-templates-preview-label">
-                      ตัวอย่างใน LINE
+                      ตัวอย่างข้อความ
                     </div>
                     {body.trim() ? (
                       <pre className="bo-templates-preview-bubble">

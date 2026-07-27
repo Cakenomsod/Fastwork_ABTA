@@ -43,6 +43,29 @@ function errorCopy(code: string): { title: string; detail: string } {
   }
 }
 
+type ErrorCta =
+  | { kind: "link"; href: string; label: string }
+  | { kind: "retry"; label: string }
+  | null;
+
+function errorCta(code: string): ErrorCta {
+  switch (code) {
+    case "not_found":
+      return {
+        kind: "link",
+        href: liffPageUrl("/register"),
+        label: "ไปหน้าสมัครสมาชิก",
+      };
+    case "invalid_token":
+    case "forbidden":
+    case "403":
+    case "member_id_required":
+      return null;
+    default:
+      return { kind: "retry", label: "ลองใหม่อีกครั้ง" };
+  }
+}
+
 export default function StatusPage() {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
 
@@ -99,7 +122,7 @@ function StatusCard({ data }: { data: PublicStatus }) {
     (data.statusKey === "near_expiry" || data.statusKey === "expired");
 
   return (
-    <div className="status-content">
+    <div className="status-content" aria-live="polite">
       <section className="mcard">
         <div className="mcard__sheen" aria-hidden />
         <header className="mcard__top">
@@ -228,14 +251,20 @@ function DetailRow({
 
 function StatusSkeleton() {
   return (
-    <div className="status-content" aria-busy>
-      <div className="mcard mcard--skeleton">
+    <div
+      className="status-content"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <span className="sr-only">กำลังโหลดสถานะสมาชิก…</span>
+      <div className="mcard mcard--skeleton" aria-hidden="true">
         <div className="sk sk--line" style={{ width: "40%" }} />
         <div className="sk sk--line" style={{ width: "70%", marginTop: 24 }} />
         <div className="sk sk--line" style={{ width: "55%" }} />
         <div className="sk sk--block" style={{ marginTop: 24 }} />
       </div>
-      <div className="detail-card">
+      <div className="detail-card" aria-hidden="true">
         <div className="sk sk--line" />
         <div className="sk sk--line" />
         <div className="sk sk--line" />
@@ -246,19 +275,32 @@ function StatusSkeleton() {
 
 function StatusError({ code }: { code: string }) {
   const { title, detail } = errorCopy(code);
+  const cta = errorCta(code);
   return (
-    <div className="status-error">
+    <div className="status-error" role="alert">
       <div className="status-error__badge">ABTA</div>
       <h1 className="status-error__title">{title}</h1>
       <p className="status-error__detail">{detail}</p>
       <p className="status-error__hint">
         เปิดจาก LINE OA ของสมาคม · หรือพิมพ์ “เช็คสถานะ” ได้ทุกเมื่อ
       </p>
-      <div className="status-error__actions">
-        <a className="btn btn--primary" href={liffPageUrl("/register")}>
-          ไปหน้าสมัครสมาชิก
-        </a>
-      </div>
+      {cta && (
+        <div className="status-error__actions">
+          {cta.kind === "link" ? (
+            <a className="btn btn--primary" href={cta.href}>
+              {cta.label}
+            </a>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => window.location.reload()}
+            >
+              {cta.label}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,12 @@ import {
 import { memberStatusHrefFromUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import PhoneDigitInput, { isValidThaiMobile } from "./PhoneDigitInput";
+import {
+  hasTransferAccount,
+  NO_TRANSFER_ACCOUNT_SUBMIT_HINT,
+  PaymentConfirmPanel,
+  TransferBankBlock,
+} from "./TransferBank";
 import "./register.css";
 
 const FEE_THB = 500;
@@ -88,6 +94,8 @@ function errorCopy(code: string): string {
       return "กรุณากรอกเบอร์โทรศัพท์ 10 หลัก ให้ครบ (ขึ้นต้นด้วย 0)";
     case "slip_required":
       return "กรุณาแนบสลิปโอนเงิน";
+    case "no_transfer_account":
+      return NO_TRANSFER_ACCOUNT_SUBMIT_HINT;
     case "slip_upload_failed":
       return "อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่ หรือเลือกรูปขนาดเล็กลง";
     case "server_error":
@@ -203,6 +211,8 @@ export default function RegisterPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [slip, setSlip] = useState<SlipState>({ kind: "empty" });
   const [submit, setSubmit] = useState<SubmitState>({ phase: "idle" });
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const canPay = hasTransferAccount();
 
   const [legacyStep, setLegacyStep] = useState<LegacyStep>(1);
   const [legacySearch, setLegacySearch] = useState<LegacySearchState>({
@@ -300,9 +310,10 @@ export default function RegisterPage() {
     }
     if (slip.kind === "ready") URL.revokeObjectURL(slip.previewUrl);
     setSlip({ kind: "ready", file, previewUrl: URL.createObjectURL(file) });
+    setConfirmOpen(false);
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onRequestConfirm(e: FormEvent) {
     e.preventDefault();
     if (submit.phase === "submitting") return;
 
@@ -314,10 +325,21 @@ export default function RegisterPage() {
       setSubmit({ phase: "error", code: "invalid_phone" });
       return;
     }
+    if (!canPay) {
+      setSubmit({ phase: "error", code: "no_transfer_account" });
+      return;
+    }
     if (slip.kind !== "ready") {
       setSubmit({ phase: "error", code: "slip_required" });
       return;
     }
+
+    setSubmit({ phase: "idle" });
+    setConfirmOpen(true);
+  }
+
+  async function onConfirmSubmit() {
+    if (submit.phase === "submitting" || !canPay || slip.kind !== "ready") return;
 
     setSubmit({ phase: "submitting" });
 
@@ -325,6 +347,7 @@ export default function RegisterPage() {
       const idToken = await getIdToken();
       if (!idToken) {
         setSubmit({ phase: "error", code: "invalid_id_token" });
+        setConfirmOpen(false);
         return;
       }
 
@@ -350,6 +373,7 @@ export default function RegisterPage() {
     } catch (err) {
       const code = (err as Error & { code?: string }).code ?? "unknown";
       setSubmit({ phase: "error", code });
+      setConfirmOpen(false);
     }
   }
 
@@ -880,7 +904,35 @@ export default function RegisterPage() {
               )
             )}
 
-            <form className="reg-form" onSubmit={onSubmit} noValidate>
+            <form className="reg-form" onSubmit={onRequestConfirm} noValidate>
+              {confirmOpen && slip.kind === "ready" ? (
+                <PaymentConfirmPanel
+                  title={isResubmit ? "ยืนยันส่งข้อมูลใหม่" : "ยืนยันส่งใบสมัคร"}
+                  lead="ตรวจสอบยอดและสลิปก่อนส่งให้นายทะเบียน"
+                  rows={[
+                    {
+                      label: "ชื่อ–นามสกุล",
+                      value: `${form.firstName} ${form.lastName}`,
+                    },
+                    { label: "เบอร์โทร", value: form.phone },
+                    {
+                      label: "ค่าธรรมเนียม",
+                      value: `${FEE_THB.toLocaleString("th-TH")} บาท`,
+                    },
+                  ]}
+                  slipPreviewUrl={slip.previewUrl}
+                  confirmLabel={
+                    isResubmit ? "ยืนยันส่งข้อมูลใหม่" : "ยืนยันส่งใบสมัคร"
+                  }
+                  busy={submit.phase === "submitting"}
+                  error={
+                    submit.phase === "error" ? errorCopy(submit.code) : null
+                  }
+                  onConfirm={() => void onConfirmSubmit()}
+                  onBack={() => setConfirmOpen(false)}
+                />
+              ) : (
+                <>
               <section className="reg-section">
                 <h2 className="reg-section__title">ข้อมูลส่วนตัว</h2>
                 <div className="reg-row">
@@ -954,11 +1006,8 @@ export default function RegisterPage() {
                   <span>ค่าธรรมเนียมสมาชิก</span>
                   <strong>{FEE_THB.toLocaleString("th-TH")} บาท</strong>
                 </div>
-                <div className="reg-bank">
-                  <span className="reg-bank__label">บัญชีรับโอน</span>
-                  <p>รอข้อมูลจากสมาคม</p>
-                  <small>จะแสดงชื่อบัญชี เลขบัญชี และธนาคารเมื่อสมาคมยืนยันแล้ว</small>
-                </div>
+                <TransferBankBlock />
+                {canPay ? (
                 <div className="reg-field">
                   <span>
                     แนบสลิปโอนเงิน <em className="req">*</em>
@@ -987,6 +1036,7 @@ export default function RegisterPage() {
                     <p className="reg-field-error">{slip.message}</p>
                   )}
                 </div>
+                ) : null}
               </section>
 
               <div className="reg-warn">
@@ -1007,14 +1057,23 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 className="reg-btn reg-btn--primary"
-                disabled={submit.phase === "submitting"}
+                disabled={
+                  submit.phase === "submitting" ||
+                  !canPay ||
+                  slip.kind !== "ready"
+                }
               >
                 {submit.phase === "submitting"
                   ? "กำลังส่ง…"
-                  : isResubmit
-                    ? "ส่งข้อมูลใหม่"
-                    : "ส่งใบสมัคร"}
+                  : "ตรวจสอบก่อนส่ง"}
               </button>
+              {!canPay ? (
+                <p className="reg-submit-hint" role="status">
+                  {NO_TRANSFER_ACCOUNT_SUBMIT_HINT}
+                </p>
+              ) : null}
+                </>
+              )}
             </form>
           </>
         )}

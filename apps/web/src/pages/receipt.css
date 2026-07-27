@@ -54,10 +54,16 @@
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
+  border-radius: 8px;
 }
 
 .rcpt-toolbar__link:hover {
   text-decoration: underline;
+}
+
+.rcpt-toolbar__link:focus-visible {
+  outline: 2px solid var(--page-gold-soft);
+  outline-offset: 3px;
 }
 
 .rcpt-print-btn {
@@ -69,7 +75,7 @@
   font-weight: 700;
   font-size: 0.92rem;
   padding: 0.55rem 1rem;
-  border-radius: 999px;
+  border-radius: 12px;
   cursor: pointer;
 }
 
@@ -77,13 +83,66 @@
   filter: brightness(1.05);
 }
 
+.rcpt-print-btn:focus-visible {
+  outline: 2px solid var(--page-gold-soft);
+  outline-offset: 3px;
+}
+
+.rcpt-print-btn--draft {
+  background: transparent;
+  color: var(--page-gold-soft);
+  border-color: rgba(228, 206, 147, 0.65);
+  font-weight: 600;
+}
+
+.rcpt-print-btn--draft:hover {
+  filter: none;
+  background: rgba(228, 206, 147, 0.12);
+}
+
+.rcpt-print-btn--blocked {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-weight: 600;
+  cursor: not-allowed;
+  user-select: none;
+}
+
 .rcpt-sheet {
+  position: relative;
+  overflow: hidden;
   background: #fff;
   color: var(--page-ink);
   border: 1px solid rgba(201, 162, 75, 0.35);
   border-radius: 4px;
   padding: clamp(1.25rem, 4vw, 2rem);
   box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.2);
+}
+
+.rcpt-watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  font-size: clamp(1.75rem, 6vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: rgba(180, 35, 24, 0.14);
+  transform: rotate(-28deg);
+  text-align: center;
+  line-height: 1.25;
+  padding: 1rem;
+}
+
+.rcpt-sheet--draft > *:not(.rcpt-watermark) {
+  position: relative;
+  z-index: 1;
 }
 
 .rcpt-head {
@@ -109,7 +168,7 @@
   justify-content: center;
   width: 3rem;
   height: 3rem;
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--page-green-deep);
   color: var(--page-gold-soft);
   font-weight: 800;
@@ -143,7 +202,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 0.2rem 0.55rem;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid currentColor;
   margin-bottom: 0.55rem;
 }
@@ -185,7 +244,7 @@
 }
 
 .rcpt-meta__list dt {
-  color: var(--abta-muted);
+  color: var(--page-muted);
   font-weight: 500;
 }
 
@@ -198,7 +257,7 @@
 .rcpt-intro {
   margin: 1.1rem 0 0;
   font-size: 0.95rem;
-  color: #3a4a43;
+  color: var(--page-field-muted);
 }
 
 .rcpt-section-title {
@@ -226,7 +285,7 @@
 }
 
 .rcpt-fields dt {
-  color: var(--abta-muted);
+  color: var(--page-muted);
   font-weight: 500;
 }
 
@@ -274,7 +333,7 @@
   display: block;
   margin-top: 0.15rem;
   font-size: 0.82rem;
-  color: var(--abta-muted);
+  color: var(--page-muted);
   font-weight: 400;
 }
 
@@ -298,7 +357,7 @@
   padding: 0.85rem 0.9rem;
   background: #f7faf8;
   border: 1px solid #e0e8e3;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 0.9rem;
 }
 
@@ -310,7 +369,7 @@
 .rcpt-label {
   display: block;
   font-size: 0.75rem;
-  color: var(--abta-muted);
+  color: var(--page-muted);
   font-weight: 500;
 }
 
@@ -322,7 +381,13 @@
   color: #6b5a1e;
   background: #fbf6e8;
   border: 1px solid #e8dcb0;
-  border-radius: 10px;
+  border-radius: 12px;
+}
+
+.rcpt-notice--danger {
+  color: #7a1f1a;
+  background: #fdf2f1;
+  border-color: #e8b4b0;
 }
 
 .rcpt-foot {
@@ -335,7 +400,7 @@
 .rcpt-sign {
   text-align: center;
   font-size: 0.82rem;
-  color: var(--abta-muted);
+  color: var(--page-muted);
 }
 
 .rcpt-sign__line {
@@ -344,18 +409,42 @@
   border-bottom: 1px solid #9aada2;
 }
 
+.rcpt-system-note {
+  margin: 1.75rem 0 0;
+  padding: 0.75rem 0.85rem;
+  text-align: center;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--page-muted);
+  background: var(--page-bg-soft);
+  border: 1px dashed var(--page-line);
+  border-radius: 12px;
+}
+
 .rcpt-fineprint {
   margin: 1.5rem 0 0;
   font-size: 0.75rem;
-  color: #8a9a92;
+  color: var(--page-muted);
   text-align: center;
   line-height: 1.4;
+}
+
+.rcpt-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .rcpt-sheet--skeleton .rcpt-sk {
   display: block;
   height: 14px;
-  border-radius: 4px;
+  border-radius: 8px;
   background: linear-gradient(90deg, #e8eee9, #f4f7f5, #e8eee9);
   background-size: 200% 100%;
   animation: rcpt-shimmer 1.2s ease-in-out infinite;
@@ -394,8 +483,69 @@
 
 .rcpt-error__detail {
   margin: 0.5rem 0 0;
-  color: #5a6b63;
+  color: var(--page-muted);
   font-size: 0.95rem;
+}
+
+.rcpt-error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+
+.rcpt-error__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--page-green-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.65rem 1.15rem;
+  border-radius: 12px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.rcpt-error__btn:hover {
+  filter: brightness(1.06);
+}
+
+.rcpt-error__btn:focus-visible {
+  outline: 2px solid var(--page-gold);
+  outline-offset: 3px;
+}
+
+.rcpt-error__btn--ghost {
+  background: transparent;
+  color: var(--page-green-primary);
+  border: 1px solid rgba(15, 76, 54, 0.35);
+}
+
+.rcpt-error__btn--ghost:hover {
+  filter: none;
+  background: var(--page-bg-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rcpt-content {
+    animation: none;
+  }
+
+  .rcpt-sheet--skeleton .rcpt-sk {
+    animation: none;
+    background: #e8eee9;
+  }
+
+  .rcpt-print-btn,
+  .rcpt-error__btn {
+    transition: none;
+  }
 }
 
 @media (max-width: 520px) {
@@ -453,6 +603,12 @@
     border: none;
     border-radius: 0;
     padding: 0;
+    overflow: visible;
+  }
+
+  .rcpt-watermark {
+    color: rgba(180, 35, 24, 0.22);
+    font-size: 2.75rem;
   }
 
   .rcpt-print-btn,

@@ -1,12 +1,19 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import {
+  useEffect,
+  useState,
+  type MouseEvent,
+} from "react";
 import {
   ROLE_LABEL,
   deleteStaff,
   fetchStaffList,
-  upsertStaff,
+  type AdminMe,
   type StaffRole,
   type StaffRow,
+  upsertStaff,
 } from "../../lib/admin-api";
+import { ConfirmDialog } from "../ConfirmDialog";
+import { clickableRowProps } from "../clickableRow";
 
 const ALL_ROLES: StaffRole[] = ["admin", "registrar", "treasurer"];
 
@@ -14,6 +21,12 @@ const ERROR_LABEL: Record<string, string> = {
   load_failed: "โหลดรายชื่อไม่สำเร็จ",
   save_failed: "บันทึกไม่สำเร็จ",
   delete_failed: "ลบไม่สำเร็จ",
+  cannot_delete_self: "ไม่สามารถลบบัญชีของตัวเองได้",
+  cannot_delete_super_admin: "ไม่สามารถลบบัญชีซูเปอร์แอดมินได้",
+  invalid_email: "รูปแบบอีเมลไม่ถูกต้อง",
+  roles_required: "กรุณาเลือกอย่างน้อย 1 บทบาท",
+  auth_required: "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่",
+  not_authorized: "ไม่มีสิทธิ์จัดการเจ้าหน้าที่",
 };
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -21,7 +34,15 @@ function errorMessage(err: unknown, fallback: string): string {
   return ERROR_LABEL[code] ?? code;
 }
 
-export default function StaffPage() {
+function staffLabel(row: StaffRow): string {
+  return row.displayName?.trim() || row.email;
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export default function StaffPage(props: { me: AdminMe }) {
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -32,8 +53,10 @@ export default function StaffPage() {
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<StaffRow | null>(null);
 
   const isEditing = editingEmail !== null;
+  const currentEmail = normalizeEmail(props.me.email);
 
   function resetForm() {
     setEditingEmail(null);
@@ -102,18 +125,27 @@ export default function StaffPage() {
     }
   }
 
-  async function onDelete(row: StaffRow, e: MouseEvent) {
+  function requestDelete(row: StaffRow, e: MouseEvent) {
     e.stopPropagation();
     if (row.isSuperAdmin) return;
-    if (!window.confirm(`ลบเจ้าหน้าที่ ${row.email}?`)) return;
+    if (normalizeEmail(row.email) === currentEmail) return;
+    setListError(null);
+    setDeleteTarget(row);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || busy) return;
     setBusy(true);
     setListError(null);
     try {
-      await deleteStaff(row.email);
-      if (editingEmail === row.email) resetForm();
+      await deleteStaff(deleteTarget.email);
+      if (editingEmail === deleteTarget.email) resetForm();
+      setDeleteTarget(null);
+      setFormSuccess(`ลบเจ้าหน้าที่ «${staffLabel(deleteTarget)}» แล้ว`);
       await reload();
     } catch (err) {
       setListError(errorMessage(err, "delete_failed"));
+      setDeleteTarget(null);
     } finally {
       setBusy(false);
     }
@@ -152,71 +184,98 @@ export default function StaffPage() {
                   <th>อีเมล</th>
                   <th>ชื่อ</th>
                   <th>บทบาท</th>
-                  <th></th>
+                  <th>จัดการ</th>
                 </tr>
               </thead>
               <tbody>
-                {staff.map((row) => (
-                  <tr
-                    key={row.email}
-                    className={[
-                      row.isSuperAdmin ? "" : "bo-row-clickable",
-                      editingEmail === row.email ? "selected" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onClick={() => selectForEdit(row)}
-                  >
-                    <td>
-                      {row.email}
-                      {row.isSuperAdmin ? (
-                        <>
-                          {" "}
-                          <span className="bo-badge role-admin">super</span>
-                        </>
-                      ) : null}
-                    </td>
-                    <td>{row.displayName || "—"}</td>
-                    <td>
-                      <div className="bo-staff-roles">
-                        {row.roles.map((r) => (
-                          <span key={r} className={`bo-badge role-${r}`}>
-                            {ROLE_LABEL[r]}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="bo-staff-row-actions">
+                {staff.map((row) => {
+                  const isSelf =
+                    normalizeEmail(row.email) === currentEmail;
+                  const clickable = !row.isSuperAdmin;
+                  const selected = editingEmail === row.email;
+                  return (
+                    <tr
+                      key={row.email}
+                      className={[
+                        clickable ? "bo-row-clickable" : "",
+                        selected ? "selected" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      {...(clickable
+                        ? clickableRowProps({
+                            onActivate: () => selectForEdit(row),
+                            label: `แก้ไขเจ้าหน้าที่ ${staffLabel(row)}`,
+                            selected,
+                          })
+                        : {})}
+                    >
+                      <td>
+                        {row.email}
                         {row.isSuperAdmin ? (
-                          <span className="bo-staff-readonly">อ่านอย่างเดียว</span>
-                        ) : (
                           <>
-                            <button
-                              type="button"
-                              className="bo-btn bo-btn-ghost bo-btn-sm"
-                              disabled={busy}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                selectForEdit(row);
-                              }}
-                            >
-                              แก้ไข
-                            </button>
-                            <button
-                              type="button"
-                              className="bo-btn bo-btn-danger bo-btn-sm"
-                              disabled={busy}
-                              onClick={(e) => void onDelete(row, e)}
-                            >
-                              ลบ
-                            </button>
+                            {" "}
+                            <span className="bo-badge role-admin">super</span>
                           </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        ) : null}
+                      </td>
+                      <td>{row.displayName || "—"}</td>
+                      <td>
+                        <div className="bo-staff-roles">
+                          {row.roles.map((r) => (
+                            <span key={r} className={`bo-badge role-${r}`}>
+                              {ROLE_LABEL[r]}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="bo-staff-row-actions">
+                          {row.isSuperAdmin ? (
+                            <span className="bo-staff-readonly">
+                              อ่านอย่างเดียว
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="bo-btn bo-btn-ghost bo-btn-sm"
+                                disabled={busy}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  selectForEdit(row);
+                                }}
+                              >
+                                แก้ไข
+                              </button>
+                              {isSelf ? (
+                                <button
+                                  type="button"
+                                  className="bo-btn bo-btn-danger bo-btn-sm"
+                                  disabled
+                                  title="ไม่สามารถลบบัญชีของตัวเองได้"
+                                  aria-label="ไม่สามารถลบบัญชีของตัวเองได้"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  ลบ
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="bo-btn bo-btn-danger bo-btn-sm"
+                                  disabled={busy}
+                                  onClick={(e) => requestDelete(row, e)}
+                                >
+                                  ลบ
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -256,8 +315,8 @@ export default function StaffPage() {
               placeholder="เช่น เพชญเกล้า"
             />
           </div>
-          <div className="bo-field">
-            <label>บทบาท (เลือกได้หลายอัน)</label>
+          <fieldset className="bo-field bo-staff-roles-fieldset">
+            <legend>บทบาท (เลือกได้หลายอัน)</legend>
             <div className="bo-check-row">
               {ALL_ROLES.map((r) => (
                 <label key={r} className="bo-check">
@@ -270,7 +329,7 @@ export default function StaffPage() {
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
           <div className="bo-staff-form-actions">
             <button
               type="button"
@@ -296,6 +355,24 @@ export default function StaffPage() {
           เฉพาะแอดมิน / super-admin จัดการเจ้าหน้าที่ได้ · อีเมลต้องตรงกับบัญชี Google ที่ใช้ล็อกอิน
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget != null}
+        title="ลบเจ้าหน้าที่"
+        description={
+          deleteTarget
+            ? `ลบเจ้าหน้าที่ «${staffLabel(deleteTarget)}» (${deleteTarget.email}) ใช่หรือไม่?\nบัญชีนี้จะเข้าสู่ระบบ Back Office ไม่ได้อีก`
+            : undefined
+        }
+        confirmLabel="ลบเจ้าหน้าที่"
+        cancelLabel="ยกเลิก"
+        variant="danger"
+        busy={busy}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => {
+          if (!busy) setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

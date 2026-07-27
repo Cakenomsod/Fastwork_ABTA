@@ -820,8 +820,9 @@ export async function handleAdminListLegacyMembers(
 
 /**
  * POST /admin/legacy/import
- * Body: { fileName: string, contentBase64: string }
+ * Body: { fileName: string, contentBase64: string, dryRun?: boolean }
  * Staff: admin (or super-admin) only.
+ * When dryRun is true, parse/preview only — no Firestore writes.
  */
 export async function handleAdminLegacyImport(
   req: Request,
@@ -841,6 +842,7 @@ export async function handleAdminLegacyImport(
   const body = (req.body ?? {}) as Record<string, unknown>;
   const fileName = String(body.fileName ?? "").trim() || "upload.xlsx";
   const contentBase64 = String(body.contentBase64 ?? "").trim();
+  const dryRun = body.dryRun === true;
   if (!contentBase64) {
     jsonError(res, 400, "file_required");
     return;
@@ -870,7 +872,9 @@ export async function handleAdminLegacyImport(
   }
 
   try {
-    const result = await importLegacyWorkbookFromBuffer(buffer, fileName);
+    const result = await importLegacyWorkbookFromBuffer(buffer, fileName, {
+      dryRun,
+    });
     res.status(200).json({ ok: true, ...result });
   } catch (err) {
     if (err instanceof LegacyImportError) {

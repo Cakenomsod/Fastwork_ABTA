@@ -64,8 +64,27 @@ function statusLink(memberId: string): string {
   return `/status?${q.toString()}`;
 }
 
+function memberIdFromUrl(): string {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("m") ?? params.get("memberId") ?? "";
+}
+
+function isOfficialReceipt(key: string): boolean {
+  return key === "official";
+}
+
+function isRejectedReceipt(key: string): boolean {
+  return key === "rejected";
+}
+
+function watermarkLabel(key: string): string {
+  if (key === "rejected") return "ไม่ผ่าน";
+  return "ยังไม่ใช่ใบเสร็จตัวจริง";
+}
+
 export default function ReceiptPage() {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -77,6 +96,7 @@ export default function ReceiptPage() {
       return;
     }
 
+    setState({ phase: "loading" });
     let active = true;
     fetchMemberStatus(memberId, token)
       .then((data) => active && setState({ phase: "ready", data }))
@@ -86,14 +106,19 @@ export default function ReceiptPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   return (
     <div className="rcpt-shell">
       <div className="rcpt-atmosphere no-print" aria-hidden />
       <main className="rcpt-wrap">
         {state.phase === "loading" && <ReceiptSkeleton />}
-        {state.phase === "error" && <ReceiptError code={state.code} />}
+        {state.phase === "error" && (
+          <ReceiptError
+            code={state.code}
+            onRetry={() => setReloadKey((k) => k + 1)}
+          />
+        )}
         {state.phase === "ready" && <ReceiptDocument data={state.data} />}
       </main>
     </div>
@@ -102,10 +127,13 @@ export default function ReceiptPage() {
 
 function ReceiptDocument({ data }: { data: PublicStatus }) {
   const badge = receiptBadge(data.receiptStatusKey);
+  const official = isOfficialReceipt(data.receiptStatusKey);
+  const rejected = isRejectedReceipt(data.receiptStatusKey);
   const hasReceipt =
     data.receiptStatusKey !== "none" && Boolean(data.receiptNumber);
   const issuedLabel =
     data.paymentDateLabel ?? data.updatedAtLabel ?? "—";
+  const showWatermark = !official;
 
   return (
     <div className="rcpt-content">
@@ -113,21 +141,57 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
         <a className="rcpt-toolbar__link" href={statusLink(data.memberId)}>
           ← กลับไปสถานะสมาชิก
         </a>
-        <button
-          type="button"
-          className="rcpt-print-btn"
-          onClick={() => window.print()}
-        >
-          พิมพ์ / บันทึก PDF
-        </button>
+        {rejected ? (
+          <span
+            className="rcpt-print-btn rcpt-print-btn--blocked"
+            title="ไม่สามารถพิมพ์ใบเสร็จที่ไม่ผ่านได้"
+          >
+            พิมพ์ไม่ได้ — ไม่ผ่าน
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={
+              official
+                ? "rcpt-print-btn"
+                : "rcpt-print-btn rcpt-print-btn--draft"
+            }
+            onClick={() => window.print()}
+          >
+            {official
+              ? "พิมพ์ / บันทึก PDF"
+              : "พิมพ์แบบร่าง (มีลายน้ำ)"}
+          </button>
+        )}
       </div>
 
-      <article className="rcpt-sheet" aria-label="ใบเสร็จรับเงิน">
+      <article
+        className={`rcpt-sheet${showWatermark ? " rcpt-sheet--draft" : ""}`}
+        aria-label={
+          official
+            ? "ใบเสร็จรับเงิน"
+            : rejected
+              ? "เอกสารใบเสร็จที่ไม่ผ่าน"
+              : "แบบร่างใบเสร็จ — ยังไม่ใช่ใบเสร็จตัวจริง"
+        }
+      >
+        {showWatermark && (
+          <div className="rcpt-watermark" aria-hidden>
+            {watermarkLabel(data.receiptStatusKey)}
+          </div>
+        )}
+
         <header className="rcpt-head">
           <div className="rcpt-brand">
             <span className="rcpt-brand__mark">{ASSOC_SHORT}</span>
             <div>
-              <h1 className="rcpt-brand__title">ใบเสร็จรับเงิน</h1>
+              <h1 className="rcpt-brand__title">
+                {official
+                  ? "ใบเสร็จรับเงิน"
+                  : rejected
+                    ? "เอกสารสถานะการชำระเงิน"
+                    : "ใบเสร็จรับเงิน (แบบร่าง)"}
+              </h1>
               <p className="rcpt-brand__assoc">{ASSOC_NAME}</p>
             </div>
           </div>
@@ -147,7 +211,11 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
         </header>
 
         <p className="rcpt-intro">
-          ได้รับเงินจากสมาชิกดังรายการด้านล่างนี้แล้ว
+          {official
+            ? "ได้รับเงินจากสมาชิกดังรายการด้านล่างนี้แล้ว"
+            : rejected
+              ? "เอกสารนี้ไม่ใช่ใบเสร็จรับเงิน — การชำระเงินไม่ผ่านการตรวจสอบ"
+              : "เอกสารนี้ยังไม่ใช่ใบเสร็จตัวจริง — แสดงรายการตามที่ระบบบันทึกไว้เท่านั้น"}
         </p>
 
         <section className="rcpt-party">
@@ -220,40 +288,60 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
         </section>
 
         {!hasReceipt && (
-          <p className="rcpt-notice">
+          <p className="rcpt-notice" role="status">
             ยังไม่ออกเลขใบเสร็จ — เอกสารนี้เป็นแบบร่างสำหรับตรวจสอบสถานะเท่านั้น
             จะมีเลขที่ใบเสร็จหลังนายทะเบียนอนุมัติข้อมูล
           </p>
         )}
 
         {data.receiptStatusKey === "temp" && (
-          <p className="rcpt-notice">
+          <p className="rcpt-notice" role="status">
             ใบเสร็จชั่วคราว — รอเหรัญญิกตรวจสอบสลิปแล้วจะเปลี่ยนเป็นใบเสร็จตัวจริง
           </p>
         )}
 
         {data.receiptStatusKey === "pending_review" && (
-          <p className="rcpt-notice">
+          <p className="rcpt-notice" role="status">
             อยู่ระหว่างรอเหรัญญิกตรวจสอบหลักฐานการชำระเงิน
           </p>
         )}
 
-        <footer className="rcpt-foot">
-          <div className="rcpt-sign">
-            <div className="rcpt-sign__line" />
-            <span>ผู้รับเงิน / เจ้าหน้าที่</span>
-          </div>
-          <div className="rcpt-sign">
-            <div className="rcpt-sign__line" />
-            <span>ตราประทับสมาคม</span>
-          </div>
-        </footer>
+        {rejected && (
+          <p className="rcpt-notice rcpt-notice--danger" role="status">
+            ใบเสร็จนี้ไม่ผ่านการตรวจสอบ — ไม่สามารถใช้เป็นหลักฐานการชำระเงินได้
+            {data.rejectReason ? (
+              <>
+                <br />
+                เหตุผล: {data.rejectReason}
+              </>
+            ) : null}
+          </p>
+        )}
+
+        {official ? (
+          <footer className="rcpt-foot">
+            <div className="rcpt-sign">
+              <div className="rcpt-sign__line" />
+              <span>ผู้รับเงิน / เจ้าหน้าที่</span>
+            </div>
+            <div className="rcpt-sign">
+              <div className="rcpt-sign__line" />
+              <span>ตราประทับสมาคม</span>
+            </div>
+          </footer>
+        ) : (
+          <p className="rcpt-system-note">
+            ออกโดยระบบสมาชิก {ASSOC_SHORT} · ยังไม่ใช่เอกสารหลักฐานการชำระเงิน
+          </p>
+        )}
 
         <p className="rcpt-fineprint">
-          เอกสารนี้ออกโดยระบบสมาชิก {ASSOC_SHORT} · สำหรับใช้เป็นหลักฐานการชำระเงิน
-          {data.receiptStatusKey === "official"
-            ? " (ใบเสร็จตัวจริง)"
-            : " (สถานะตามที่ระบบบันทึก)"}
+          เอกสารนี้ออกโดยระบบสมาชิก {ASSOC_SHORT}
+          {official
+            ? " · สำหรับใช้เป็นหลักฐานการชำระเงิน (ใบเสร็จตัวจริง)"
+            : rejected
+              ? " · ไม่ผ่านการตรวจสอบ — ห้ามใช้เป็นหลักฐาน"
+              : " · แบบร่าง / สถานะตามที่ระบบบันทึก — ยังไม่ใช่ใบเสร็จตัวจริง"}
         </p>
       </article>
     </div>
@@ -262,7 +350,13 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
 
 function ReceiptSkeleton() {
   return (
-    <div className="rcpt-content" aria-busy>
+    <div
+      className="rcpt-content"
+      aria-busy="true"
+      aria-live="polite"
+      role="status"
+    >
+      <span className="rcpt-sr-only">กำลังโหลดใบเสร็จ</span>
       <div className="rcpt-sheet rcpt-sheet--skeleton">
         <div className="rcpt-sk" style={{ width: "45%", height: 28 }} />
         <div className="rcpt-sk" style={{ width: "70%", marginTop: 12 }} />
@@ -273,13 +367,35 @@ function ReceiptSkeleton() {
   );
 }
 
-function ReceiptError({ code }: { code: string }) {
+function ReceiptError({
+  code,
+  onRetry,
+}: {
+  code: string;
+  onRetry: () => void;
+}) {
   const { title, detail } = errorCopy(code);
+  const memberId = memberIdFromUrl();
+  const canRetry = code !== "member_id_required";
+
   return (
     <div className="rcpt-error no-print">
       <div className="rcpt-error__badge">{ASSOC_SHORT}</div>
       <h1 className="rcpt-error__title">{title}</h1>
       <p className="rcpt-error__detail">{detail}</p>
+      <div className="rcpt-error__actions">
+        {canRetry && (
+          <button type="button" className="rcpt-error__btn" onClick={onRetry}>
+            ลองใหม่
+          </button>
+        )}
+        <a
+          className="rcpt-error__btn rcpt-error__btn--ghost"
+          href={memberId ? statusLink(memberId) : "/status"}
+        >
+          กลับไปสถานะสมาชิก
+        </a>
+      </div>
     </div>
   );
 }

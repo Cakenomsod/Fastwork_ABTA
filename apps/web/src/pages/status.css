@@ -54,6 +54,10 @@
   .btn {
     transition: none;
   }
+
+  .btn:active {
+    transform: none;
+  }
 }
 
 /* ---------- Member card ---------- */
@@ -97,14 +101,14 @@
 
 .mcard__kind {
   font-size: 0.72rem;
-  color: var(--page-green-text-soft);
+  color: var(--page-green-mist);
   letter-spacing: 0.02em;
 }
 
 .mcard__assoc {
   margin: 0.3rem 0 0;
   font-size: 0.72rem;
-  color: var(--page-green-text-muted);
+  color: var(--page-green-mist);
 }
 
 .mcard__person {
@@ -122,7 +126,7 @@
 .mcard__entity {
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
-  color: #c7e0d3;
+  color: var(--page-green-mist);
 }
 
 .mcard__idrow {
@@ -138,7 +142,7 @@
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--page-green-text-muted);
+  color: var(--page-green-mist);
 }
 
 .mcard__id {
@@ -146,7 +150,7 @@
   margin-top: 0.15rem;
   font-size: 1.5rem;
   font-weight: 800;
-  color: #f4e9cc;
+  color: var(--page-gold-pale);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
@@ -167,7 +171,7 @@
 .mcard__expiry-hint {
   font-style: normal;
   font-weight: 500;
-  color: var(--page-gold-soft);
+  color: var(--page-gold-pale);
 }
 
 /* ---------- Status pill ---------- */
@@ -177,25 +181,30 @@
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--page-white);
   white-space: nowrap;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
 .status--active {
-  background: var(--page-green-active);
+  background: var(--page-success);
+  color: var(--page-white);
 }
 .status--temporary {
-  background: #b9822a;
+  background: var(--page-warn);
+  color: var(--page-white);
 }
 .status--warning {
-  background: #d97a19;
+  background: var(--page-warn);
+  color: var(--page-white);
 }
 .status--danger {
-  background: #c0392b;
+  background: var(--page-danger);
+  color: var(--page-white);
 }
 .status--neutral {
-  background: #5b7083;
+  background: var(--page-muted);
+  color: var(--page-white);
 }
 
 /* ---------- Detail card ---------- */
@@ -258,12 +267,17 @@
 
 .btn {
   display: block;
+  width: 100%;
+  box-sizing: border-box;
   text-align: center;
   padding: 0.85rem 1rem;
+  border: none;
   border-radius: 14px;
+  font: inherit;
   font-size: 0.95rem;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
   transition:
     transform 0.15s ease,
     box-shadow 0.2s ease;

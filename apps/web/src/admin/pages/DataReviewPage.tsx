@@ -18,6 +18,7 @@ import ReviewDetailHeader from "../ReviewDetailHeader";
 import ReviewIdChangePanel from "../ReviewIdChangePanel";
 import ReviewIdConflictDialog from "../ReviewIdConflictDialog";
 import ReviewQueuePanel from "../ReviewQueuePanel";
+import { reviewErrorMessage } from "../reviewErrorMessage";
 import SlipImage from "../SlipImage";
 
 export default function DataReviewPage(props: {
@@ -27,6 +28,7 @@ export default function DataReviewPage(props: {
   const [items, setItems] = useState<QueueItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MemberDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -39,6 +41,13 @@ export default function DataReviewPage(props: {
   );
   const [idPanelOpenKey, setIdPanelOpenKey] = useState(0);
 
+  const detailReady = Boolean(
+    selectedId &&
+      detail &&
+      detail.memberId === selectedId &&
+      !detailLoading,
+  );
+
   async function reload() {
     setLoading(true);
     setError(null);
@@ -48,9 +57,10 @@ export default function DataReviewPage(props: {
       if (selectedId && !list.some((i) => i.memberId === selectedId)) {
         setSelectedId(null);
         setDetail(null);
+        setDetailLoading(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "load_failed");
+      setError(reviewErrorMessage(err, "load_failed"));
     } finally {
       setLoading(false);
     }
@@ -63,17 +73,27 @@ export default function DataReviewPage(props: {
   useEffect(() => {
     if (!selectedId) {
       setDetail(null);
+      setDetailLoading(false);
       setConflictBanner(null);
       setIdConflict(null);
       return;
     }
     let cancelled = false;
+    setDetail(null);
+    setDetailLoading(true);
+    setConflictBanner(null);
+    setIdConflict(null);
     fetchMemberDetail(selectedId)
       .then((d) => {
-        if (!cancelled) setDetail(d);
+        if (cancelled) return;
+        setDetail(d);
+        setDetailLoading(false);
       })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setDetail(null);
+        setDetailLoading(false);
+        setError(reviewErrorMessage(err, "load_failed"));
       });
     return () => {
       cancelled = true;
@@ -81,7 +101,7 @@ export default function DataReviewPage(props: {
   }, [selectedId]);
 
   useEffect(() => {
-    if (!detail) {
+    if (!detailReady || !detail) {
       setConflictBanner(null);
       return;
     }
@@ -97,19 +117,22 @@ export default function DataReviewPage(props: {
     return () => {
       cancelled = true;
     };
-  }, [detail]);
+  }, [detail, detailReady]);
 
   function selectRow(memberId: string) {
     setSelectedId(memberId);
+    setDetail(null);
+    setDetailLoading(true);
     setShowReject(false);
     setRejectReason("");
     setActionMessage(null);
     setError(null);
     setIdConflict(null);
+    setConflictBanner(null);
   }
 
   async function gateApprove(): Promise<boolean> {
-    if (!detail) return false;
+    if (!detailReady || !detail || detail.memberId !== selectedId) return false;
     setError(null);
     try {
       const conflict = await checkIdConflictOnConfirm({
@@ -125,13 +148,15 @@ export default function DataReviewPage(props: {
       }
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "check_failed");
+      setError(reviewErrorMessage(err, "check_failed"));
       return false;
     }
   }
 
   async function runApprove() {
-    if (!selectedId) return;
+    if (!selectedId || !detailReady || !detail || detail.memberId !== selectedId) {
+      return;
+    }
     setBusy(true);
     setError(null);
     setActionMessage(null);
@@ -142,6 +167,7 @@ export default function DataReviewPage(props: {
       );
       setSelectedId(null);
       setDetail(null);
+      setDetailLoading(false);
       setShowReject(false);
       setIdConflict(null);
       setConflictBanner(null);
@@ -162,18 +188,14 @@ export default function DataReviewPage(props: {
           return;
         }
       }
-      setError(
-        code === "member_id_taken"
-          ? "เลขสมาชิกที่จะใช้ถูกใช้ไปแล้ว — กดเปลี่ยนเลขสมาชิกเป็นเลขอื่นก่อนอนุมัติ"
-          : code,
-      );
+      setError(reviewErrorMessage(err, "approve_failed"));
     } finally {
       setBusy(false);
     }
   }
 
   async function onUseSuggestedId() {
-    if (!selectedId || !idConflict) return;
+    if (!selectedId || !idConflict || !detailReady) return;
     setBusy(true);
     setError(null);
     try {
@@ -181,6 +203,7 @@ export default function DataReviewPage(props: {
         memberId: selectedId,
         newMemberId: idConflict.suggestedId,
       });
+      if (staged.member.memberId !== selectedId) return;
       setDetail(staged.member);
       setItems((prev) =>
         prev.map((row) =>
@@ -200,6 +223,7 @@ export default function DataReviewPage(props: {
       );
       setSelectedId(null);
       setDetail(null);
+      setDetailLoading(false);
       setShowReject(false);
       await reload();
       props.onChanged?.();
@@ -208,7 +232,7 @@ export default function DataReviewPage(props: {
       setError(
         code === "member_id_taken"
           ? "เลขที่ระบบแนะนำถูกใช้ไปแล้ว — ลองเปลี่ยนเลขเอง"
-          : code,
+          : reviewErrorMessage(err, "approve_failed"),
       );
     } finally {
       setBusy(false);
@@ -216,7 +240,9 @@ export default function DataReviewPage(props: {
   }
 
   async function onReject() {
-    if (!selectedId) return;
+    if (!selectedId || !detailReady || !detail || detail.memberId !== selectedId) {
+      return;
+    }
     if (!rejectReason.trim()) {
       setError("กรุณาระบุเหตุผลการปฏิเสธ");
       return;
@@ -229,6 +255,7 @@ export default function DataReviewPage(props: {
       setActionMessage("ปฏิเสธแล้ว — แจ้งสมาชิกทาง LINE แล้ว");
       setSelectedId(null);
       setDetail(null);
+      setDetailLoading(false);
       setRejectReason("");
       setShowReject(false);
       setIdConflict(null);
@@ -236,7 +263,7 @@ export default function DataReviewPage(props: {
       await reload();
       props.onChanged?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "reject_failed");
+      setError(reviewErrorMessage(err, "reject_failed"));
     } finally {
       setBusy(false);
     }
@@ -255,13 +282,13 @@ export default function DataReviewPage(props: {
         emptyHint="คิวว่าง — รอใบสมัครใหม่"
         error={error}
         actionMessage={actionMessage}
-        showAlerts={!detail}
+        showAlerts={!selectedId}
         onSelect={selectRow}
         onRefresh={() => void reload()}
       />
 
-      <main className="bo-review-main">
-        {!detail ? (
+      <main className="bo-review-main" aria-busy={detailLoading}>
+        {!selectedId ? (
           <div className="bo-review-empty">
             <span className="bo-review-empty-icon" aria-hidden="true">
               <svg
@@ -280,83 +307,104 @@ export default function DataReviewPage(props: {
             <strong>เลือกรายการจากคิว</strong>
             <span>คลิกรายการทางซ้ายเพื่อดูข้อมูลสมาชิกและดำเนินการตรวจ</span>
           </div>
+        ) : !detailReady ? (
+          <div
+            className="bo-review-loading"
+            role="status"
+            aria-live="polite"
+          >
+            {error ? <div className="bo-error">{error}</div> : null}
+            <div className="bo-review-skeleton" aria-hidden="true">
+              <div className="bo-review-skeleton-line w-40" />
+              <div className="bo-review-skeleton-line w-70" />
+              <div className="bo-review-skeleton-block" />
+              <div className="bo-review-skeleton-line w-55" />
+              <div className="bo-review-skeleton-line w-80" />
+            </div>
+            <span className="bo-review-loading-label">กำลังโหลดรายละเอียด…</span>
+          </div>
         ) : (
           <>
-            <ReviewDetailHeader
-              stepLabel="ตรวจข้อมูล · ขั้นที่ 1 นายทะเบียน"
-              stepVariant="data"
-              fullName={detail.fullName}
-              memberIdLabel="เลขชั่วคราว"
-              memberId={detail.memberId}
-            />
+            <div className="bo-review-main-scroll">
+              <ReviewDetailHeader
+                stepLabel="ตรวจข้อมูล · ขั้นที่ 1 นายทะเบียน"
+                stepVariant="data"
+                fullName={detail!.fullName}
+                memberIdLabel="เลขชั่วคราว"
+                memberId={detail!.memberId}
+              />
 
-            {error ? <div className="bo-error">{error}</div> : null}
-            {actionMessage && detail ? (
-              <div className="bo-flash-ok" role="status">
-                {actionMessage}
-              </div>
-            ) : null}
-            {conflictBanner ? (
-              <div className="bo-flash-warn" role="alert">
-                เลขที่จะได้เมื่อยืนยัน (<code>{conflictBanner.contestedId}</code>
-                ) ซ้ำกับสมาชิกที่มีอยู่แล้ว — กดอนุมัติแล้วเลือกระหว่างใช้เลขที่ระบบแนะนำ (
-                <code>{conflictBanner.suggestedId}</code>) หรือเปลี่ยนเลขเอง
-              </div>
-            ) : null}
+              {error ? <div className="bo-error">{error}</div> : null}
+              {actionMessage ? (
+                <div className="bo-flash-ok" role="status">
+                  {actionMessage}
+                </div>
+              ) : null}
+              {conflictBanner ? (
+                <div className="bo-flash-warn" role="alert">
+                  เลขที่จะได้เมื่อยืนยัน (
+                  <code>{conflictBanner.contestedId}</code>
+                  ) ซ้ำกับสมาชิกที่มีอยู่แล้ว — กดอนุมัติแล้วเลือกระหว่างใช้เลขที่ระบบแนะนำ (
+                  <code>{conflictBanner.suggestedId}</code>) หรือเปลี่ยนเลขเอง
+                </div>
+              ) : null}
 
-            <div className="bo-review-body">
-              <div className="bo-review-info">
-                <MemberReviewSummary
-                  detail={detail}
-                  variant="data"
-                  idChange={
-                    <ReviewIdChangePanel
-                      me={props.me}
-                      detail={detail}
-                      mode="member"
-                      disabled={busy}
-                      openKey={idPanelOpenKey}
-                      onUpdated={(result) => {
-                        // เลขใหม่ถูกบันทึกเก็บไว้ก่อน — เลขชั่วคราวยังไม่เปลี่ยน
-                        setDetail(result.member);
-                        setItems((prev) =>
-                          prev.map((row) =>
-                            row.memberId === result.memberId
-                              ? {
-                                  ...row,
-                                  pendingMemberId:
-                                    result.member.pendingMemberId,
-                                }
-                              : row,
-                          ),
-                        );
-                        setActionMessage(
-                          `บันทึกเลขสมาชิกใหม่แล้ว: ${result.member.pendingMemberId ?? "—"} — จะมีผลเมื่อกดอนุมัติ`,
-                        );
-                        setError(null);
-                        setIdConflict(null);
-                        props.onChanged?.();
-                      }}
-                    />
-                  }
-                />
+              <div className="bo-review-body">
+                <div className="bo-review-info">
+                  <MemberReviewSummary
+                    detail={detail!}
+                    variant="data"
+                    idChange={
+                      <ReviewIdChangePanel
+                        me={props.me}
+                        detail={detail!}
+                        mode="member"
+                        disabled={busy}
+                        openKey={idPanelOpenKey}
+                        onUpdated={(result) => {
+                          if (result.memberId !== selectedId) return;
+                          // เลขใหม่ถูกบันทึกเก็บไว้ก่อน — เลขชั่วคราวยังไม่เปลี่ยน
+                          setDetail(result.member);
+                          setItems((prev) =>
+                            prev.map((row) =>
+                              row.memberId === result.memberId
+                                ? {
+                                    ...row,
+                                    pendingMemberId:
+                                      result.member.pendingMemberId,
+                                  }
+                                : row,
+                            ),
+                          );
+                          setActionMessage(
+                            `บันทึกเลขสมาชิกใหม่แล้ว: ${result.member.pendingMemberId ?? "—"} — จะมีผลเมื่อกดอนุมัติ`,
+                          );
+                          setError(null);
+                          setIdConflict(null);
+                          props.onChanged?.();
+                        }}
+                      />
+                    }
+                  />
+                </div>
+                <section className="bo-review-aside bo-review-slip-section">
+                  <h3 className="bo-review-section-title">สลิปโอนเงิน</h3>
+                  <SlipImage
+                    slipViewUrl={detail!.slipViewUrl}
+                    emptyHint={
+                      detail!.hasSlip
+                        ? "ไม่สามารถแสดงสลิปได้"
+                        : "ยังไม่มีสลิป — เหรัญญิกจะตรวจในขั้นที่ 2"
+                    }
+                  />
+                </section>
               </div>
-              <section className="bo-review-aside bo-review-slip-section">
-                <h3 className="bo-review-section-title">สลิปโอนเงิน</h3>
-                <SlipImage
-                  slipViewUrl={detail.slipViewUrl}
-                  emptyHint={
-                    detail.hasSlip
-                      ? "ไม่สามารถแสดงสลิปได้"
-                      : "ยังไม่มีสลิป — เหรัญญิกจะตรวจในขั้นที่ 2"
-                  }
-                />
-              </section>
             </div>
 
             <ReviewActionBar
-              key={detail.memberId}
+              key={detail!.memberId}
               busy={busy}
+              actionsDisabled={!detailReady}
               showReject={showReject}
               rejectReason={rejectReason}
               gateApprove={gateApprove}
@@ -366,7 +414,7 @@ export default function DataReviewPage(props: {
               onRejectReasonChange={setRejectReason}
               approveLabel="อนุมัติ — promote + ใบเสร็จชั่วคราว"
               rejectPlaceholder="เช่น ชื่อไม่ตรงกับสลิป / ข้อมูลไม่ครบ"
-              approveConfirmMessage={`อนุมัติข้อมูลนี้? เลขสมาชิกถาวรจะเป็น ${effectiveIdOnConfirm(detail.memberId, detail.pendingMemberId)} และออกใบเสร็จชั่วคราว`}
+              approveConfirmMessage={`อนุมัติข้อมูลนี้? เลขสมาชิกถาวรจะเป็น ${effectiveIdOnConfirm(detail!.memberId, detail!.pendingMemberId)} และออกใบเสร็จชั่วคราว`}
               rejectTextareaId="data-reject-reason"
               note="เมื่อไม่ผ่าน: ไม่ส่งต่อเหรัญญิก · ใบเสร็จยังไม่ออก · สมาชิกแก้ไขแล้ววนกลับคิวนายทะเบียน"
             />

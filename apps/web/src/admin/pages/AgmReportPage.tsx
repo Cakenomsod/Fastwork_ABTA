@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BROADCAST_STATUS_OPTIONS,
   searchAdminMembers,
   type AdminMe,
   type QueueItem,
 } from "../../lib/admin-api";
+
+/** Safety ceiling: 50 × 500 = 25,000 rows. Beyond this we warn instead of looping forever. */
+const MAX_PAGES = 500;
 
 const ERROR_LABEL: Record<string, string> = {
   load_failed: "โหลดรายงานไม่สำเร็จ",
@@ -87,19 +90,34 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
   const [matched, setMatched] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
+  const [loadProgress, setLoadProgress] = useState<{
+    page: number;
+    pageCount: number;
+  } | null>(null);
   const [q, setQ] = useState("");
+  const [exportFlash, setExportFlash] = useState<string | null>(null);
+  const exportFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setTruncated(false);
+    setLoadProgress(null);
     try {
-      // Pull all ordinary-active pages (pageSize max 50).
       const pageSize = 50;
       let page = 1;
       let pageCount = 1;
       const all: QueueItem[] = [];
       let total = 0;
+      let hitCap = false;
+
       while (page <= pageCount) {
+        if (page > MAX_PAGES) {
+          hitCap = true;
+          break;
+        }
+        setLoadProgress({ page, pageCount: Math.max(pageCount, 1) });
         const res = await searchAdminMembers({
           status: "ordinary_active",
           page,
@@ -110,22 +128,30 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
         total = res.matched;
         pageCount = Math.max(res.pageCount, 1);
         page += 1;
-        if (page > 200) break;
       }
+
+      const incomplete = hitCap || all.length < total;
       setItems(all);
       setMatched(total);
+      setTruncated(incomplete);
     } catch (err) {
       setError(errorMessage(err));
-      setItems([]);
-      setMatched(0);
+      // Keep prior roster on refresh failure — do not clear table.
     } finally {
       setLoading(false);
+      setLoadProgress(null);
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    return () => {
+      if (exportFlashTimer.current) clearTimeout(exportFlashTimer.current);
+    };
+  }, []);
 
   const yearLabel = useMemo(() => {
     const y = new Date().getFullYear() + 543;
@@ -151,8 +177,15 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
   }, [items]);
 
   const searchActive = Boolean(q.trim());
+  const hasRoster = items.length > 0;
+  const firstLoad = loading && !hasRoster;
+  const refreshing = loading && hasRoster;
+  /** Count shown as “complete roster” — never claim matched when truncated. */
+  const loadedCount = items.length;
+  const totalDisplay = truncated ? loadedCount : matched;
 
   function onExport() {
+    if (truncated || filtered.length === 0) return;
     const rows: string[][] = [
       [
         "เลขสมาชิก",
@@ -175,16 +208,31 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
         m.legalEntityName ?? "",
         m.buildingName ?? "",
         statusLabel(m.status),
-        m.expiryDate ?? "",
+        formatDate(m.expiryDate),
         (m.tags ?? []).join("; "),
       ]),
     ];
     downloadCsv(`agm-ordinary-active-${yearLabel}.csv`, rows);
+    const msg = searchActive
+      ? `ส่งออก ${filtered.length.toLocaleString("th-TH")} รายแล้ว (ตามการค้นหา)`
+      : `ส่งออก ${filtered.length.toLocaleString("th-TH")} รายแล้ว`;
+    setExportFlash(msg);
+    if (exportFlashTimer.current) clearTimeout(exportFlashTimer.current);
+    exportFlashTimer.current = setTimeout(() => setExportFlash(null), 4000);
   }
+
+  function onPrint() {
+    window.print();
+  }
+
+  const progressLabel =
+    loadProgress != null
+      ? `กำลังโหลดหน้า ${loadProgress.page.toLocaleString("th-TH")}/${Math.max(loadProgress.pageCount, loadProgress.page).toLocaleString("th-TH")}…`
+      : "กำลังอัปเดตรายชื่อ…";
 
   return (
     <div className="bo-agm">
-      <header className="bo-agm-hero">
+      <header className="bo-agm-hero bo-agm-no-print">
         <div className="bo-agm-hero-copy">
           <p className="bo-muted bo-agm-lead">
             รายชื่อสมาชิกสามัญที่มีสิทธิ์เข้าร่วมและออกเสียงในประชุมใหญ่ปี{" "}
@@ -209,68 +257,101 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
         </button>
       </header>
 
-      <div className="bo-stats bo-agm-stats">
+      <div className="bo-agm-print-title" aria-hidden="true">
+        <h2>รายชื่อผู้มีสิทธิ์ประชุมใหญ่ ปี {yearLabel}</h2>
+        <ul className="bo-agm-criteria" aria-label="เงื่อนไขผู้มีสิทธิ์">
+          <li>ประเภท <strong>สามัญ</strong></li>
+          <li>
+            สถานภาพ <strong>สมบูรณ์</strong> / <strong>ใกล้หมดอายุ</strong> /{" "}
+            <strong>ชั่วคราว</strong>
+          </li>
+          <li>ยังไม่หมดอายุ</li>
+        </ul>
+      </div>
+
+      <div className="bo-stats bo-agm-stats bo-agm-no-print">
         <div className="bo-stat bo-stat--accent">
           <div className="num">
-            {loading ? "—" : matched.toLocaleString("th-TH")}
+            {firstLoad ? "—" : totalDisplay.toLocaleString("th-TH")}
           </div>
-          <div className="lbl">มีสิทธิ์ทั้งหมด</div>
+          <div className="lbl">
+            {truncated ? "โหลดแล้ว (อาจไม่ครบ)" : "มีสิทธิ์ทั้งหมด"}
+          </div>
         </div>
         <div className="bo-stat">
           <div className="num">
-            {loading ? "—" : statusCounts.active.toLocaleString("th-TH")}
+            {firstLoad ? "—" : statusCounts.active.toLocaleString("th-TH")}
           </div>
           <div className="lbl">สมาชิกสมบูรณ์</div>
         </div>
         <div className="bo-stat">
           <div className="num">
-            {loading ? "—" : statusCounts.nearExpiry.toLocaleString("th-TH")}
+            {firstLoad ? "—" : statusCounts.nearExpiry.toLocaleString("th-TH")}
           </div>
           <div className="lbl">ใกล้หมดอายุ</div>
         </div>
         <div className="bo-stat">
           <div className="num">
-            {loading ? "—" : statusCounts.temporary.toLocaleString("th-TH")}
+            {firstLoad ? "—" : statusCounts.temporary.toLocaleString("th-TH")}
           </div>
           <div className="lbl">สมาชิกชั่วคราว</div>
         </div>
       </div>
 
-      <section className="bo-panel">
+      <section className="bo-panel" aria-busy={loading || undefined}>
         <div className="bo-panel-head">
           <div>
             <h2>รายชื่อผู้มีสิทธิ์</h2>
             <p className="bo-muted bo-agm-head-sub" aria-live="polite">
-              {loading
-                ? "กำลังโหลด…"
-                : searchActive
-                  ? `แสดง ${filtered.length.toLocaleString("th-TH")} จาก ${matched.toLocaleString("th-TH")} ราย`
-                  : `${matched.toLocaleString("th-TH")} ราย · เรียงตามเลขสมาชิก`}
+              {firstLoad
+                ? progressLabel
+                : refreshing
+                  ? progressLabel
+                  : searchActive
+                    ? `แสดง ${filtered.length.toLocaleString("th-TH")} จาก ${loadedCount.toLocaleString("th-TH")} รายที่โหลดแล้ว`
+                    : truncated
+                      ? `แสดง ${loadedCount.toLocaleString("th-TH")} รายที่โหลดแล้ว · เรียงตามเลขสมาชิก`
+                      : `${matched.toLocaleString("th-TH")} ราย · เรียงตามเลขสมาชิก`}
             </p>
           </div>
-          <div className="bo-agm-actions">
+          <div className="bo-agm-actions bo-agm-no-print">
+            <button
+              type="button"
+              className="bo-btn bo-btn-ghost bo-btn-sm"
+              disabled={firstLoad || filtered.length === 0}
+              onClick={onPrint}
+            >
+              พิมพ์ / PDF
+            </button>
             <button
               type="button"
               className="bo-btn bo-btn-primary bo-btn-sm"
-              disabled={loading || filtered.length === 0}
+              disabled={
+                loading || truncated || filtered.length === 0
+              }
               onClick={onExport}
+              title={
+                truncated
+                  ? "ไม่สามารถส่งออกได้จนกว่าจะโหลดรายชื่อครบ"
+                  : undefined
+              }
             >
               ส่งออก CSV
-              {searchActive && filtered.length > 0
+              {searchActive && filtered.length > 0 && !truncated
                 ? ` (${filtered.length.toLocaleString("th-TH")})`
                 : ""}
             </button>
           </div>
         </div>
 
-        <div className="bo-agm-list-tools">
+        <div className="bo-agm-list-tools bo-agm-no-print">
           <label className="bo-field bo-agm-search">
             <span className="bo-filter-label">ค้นหาในรายชื่อ</span>
             <input
               type="search"
               value={q}
               placeholder="ชื่อ / เลขสมาชิก / โทร / แท็ก"
-              disabled={loading && items.length === 0}
+              disabled={firstLoad}
               onChange={(e) => setQ(e.target.value)}
             />
           </label>
@@ -286,26 +367,69 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
           ) : null}
         </div>
 
-        {error ? (
-          <div className="bo-error" role="alert" style={{ margin: "0 1rem 0.75rem" }}>
-            {error}
+        {exportFlash ? (
+          <div
+            className="bo-flash-ok bo-agm-flash bo-agm-no-print"
+            role="status"
+          >
+            {exportFlash}
           </div>
         ) : null}
 
-        {loading ? (
-          <div className="bo-empty">กำลังโหลดรายชื่อ…</div>
+        {truncated && !loading ? (
+          <div className="bo-flash-warn bo-agm-flash" role="alert">
+            รายชื่ออาจไม่ครบ — โหลดได้{" "}
+            {loadedCount.toLocaleString("th-TH")} จาก{" "}
+            {matched.toLocaleString("th-TH")} รายตามระบบ
+            {matched > loadedCount
+              ? " (ถึงขีดจำกัดการดึงข้อมูลทีละหน้า)"
+              : ""}
+            {" "}กรุณารีเฟรชหรือติดต่อผู้ดูแลระบบก่อนใช้เป็นบัญชีผู้มีสิทธิ์ประชุมใหญ่
+            ปุ่มส่งออก CSV ถูกปิดจนกว่าจะโหลดครบ
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="bo-error bo-agm-flash" role="alert">
+            {error}
+            <button
+              type="button"
+              className="bo-btn bo-btn-ghost bo-btn-sm bo-agm-no-print"
+              style={{ marginLeft: "0.65rem" }}
+              disabled={loading}
+              onClick={() => void load()}
+            >
+              ลองใหม่
+            </button>
+          </div>
+        ) : null}
+
+        {refreshing ? (
+          <div
+            className="bo-agm-refresh-banner bo-agm-no-print"
+            role="status"
+            aria-live="polite"
+          >
+            {progressLabel}
+          </div>
+        ) : null}
+
+        {firstLoad ? (
+          <div className="bo-empty">{progressLabel}</div>
         ) : items.length === 0 ? (
           <div className="bo-empty">
             <strong>ยังไม่มีสมาชิกสามัญที่มีสิทธิ์</strong>
             รายชื่อจะแสดงเมื่อมีสมาชิกสามัญที่ต่ออายุแล้วและยังไม่หมดอายุ
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bo-empty">
+          <div className="bo-empty bo-agm-no-print">
             <strong>ไม่พบรายชื่อที่ตรงกับการค้นหา</strong>
             ลองคำอื่น หรือล้างช่องค้นหา
           </div>
         ) : (
-          <div className="bo-table-wrap">
+          <div
+            className={`bo-table-wrap bo-agm-table-wrap${refreshing ? " is-refreshing" : ""}`}
+          >
             <table className="bo-table bo-table--cards">
               <thead>
                 <tr>

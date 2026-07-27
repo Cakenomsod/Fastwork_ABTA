@@ -149,7 +149,8 @@ export default function BroadcastPage() {
       setRecipients(data.recipients);
       setSkippedNoLine(data.skippedNoLine);
       setTotalMatched(data.totalMatched);
-      setSelected(new Set(data.recipients.map((r) => r.memberId)));
+      // Safety: never auto-blast — staff must opt in (เลือกทั้งหมด / ทีละคน)
+      setSelected(new Set());
     } catch (err) {
       setError(errorMessage(err, "load_failed"));
       setRecipients([]);
@@ -240,18 +241,29 @@ export default function BroadcastPage() {
   const currentStepMeta = STEPS.find((s) => s.step === step) ?? STEPS[0];
 
   const confirmDescription = useMemo(() => {
-    const preview = message.trim();
-    const previewSlice =
-      preview.length > 400 ? `${preview.slice(0, 400)}…` : preview;
-    return [
+    const preview = message.trim() || "(ว่าง)";
+    const lines = [
       `จะส่งข้อความไปยังสมาชิก ${selectedCount.toLocaleString("th-TH")} คนผ่าน LINE OA`,
+      "ส่งแล้วแก้ไขหรือเรียกคืนบน LINE ของสมาชิกไม่ได้",
       "",
       `ตัวกรอง: ${filterSummary.join(" · ")}`,
+    ];
+    if (!filtersActive) {
+      lines.push(
+        "⚠ ยังไม่ได้จำกัดประเภท/สถานภาพ — รวมทุกประเภทและทุกสถานภาพที่มี LINE",
+      );
+    }
+    lines.push(
+      "",
+      `พิมพ์จำนวนผู้รับ (${selectedCount}) ด้านล่างเพื่อยืนยัน`,
       "",
       "ข้อความ:",
-      previewSlice || "(ว่าง)",
-    ].join("\n");
-  }, [selectedCount, filterSummary, message]);
+      preview,
+    );
+    return lines.join("\n");
+  }, [selectedCount, filterSummary, message, filtersActive]);
+
+  const typedConfirmCount = String(selectedCount);
 
   function clearFilters() {
     setMemberTypes([]);
@@ -497,7 +509,8 @@ export default function BroadcastPage() {
             <div>
               <h2>1. กรองกลุ่มผู้รับ</h2>
               <p className="bo-muted bo-broadcast-head-sub">
-                ไม่เลือก = รวมทุกค่าในกลุ่มนั้น · เปลี่ยนตัวกรองแล้วรายชื่อจะโหลดใหม่
+                แนะนำให้เลือกประเภทหรือสถานภาพก่อน · เปลี่ยนตัวกรองแล้วรายชื่อจะโหลดใหม่
+                (ยังไม่เลือกผู้รับอัตโนมัติ)
               </p>
             </div>
             <div className="bo-broadcast-step-actions">
@@ -662,6 +675,17 @@ export default function BroadcastPage() {
               </div>
             </div>
 
+            {!filtersActive ? (
+              <div
+                className="bo-broadcast-audience-warn"
+                role="status"
+              >
+                กำลังรวมทุกประเภทและทุกสถานภาพที่มี LINE —
+                ตรวจจำนวนก่อนส่ง และต้องเลือกผู้รับเองในขั้นถัดไป
+                (ระบบไม่เลือกให้ทั้งหมดอัตโนมัติ)
+              </div>
+            ) : null}
+
             <div className="bo-broadcast-presets">
               <span className="bo-filter-label">ทางลัดตัวกรอง</span>
               <p className="bo-hint bo-broadcast-preset-hint">
@@ -729,6 +753,7 @@ export default function BroadcastPage() {
           <div className="bo-wizard-footer">
             <span className="bo-hint">
               พบ {recipients.length.toLocaleString("th-TH")} คนที่ส่งได้
+              {!filtersActive ? " · ยังไม่จำกัดกลุ่ม" : ""}
             </span>
             <button
               type="button"
@@ -872,6 +897,7 @@ export default function BroadcastPage() {
               <h2>3. ตรวจรายชื่อที่เลือก</h2>
               <p className="bo-muted bo-broadcast-head-sub">
                 แสดงเฉพาะสมาชิกที่ผูก LINE แล้ว — คลิกแถวเพื่อเลือก/ยกเลิก
+                · ต้องเลือกผู้รับเองก่อนส่ง
               </p>
             </div>
             <button
@@ -879,10 +905,43 @@ export default function BroadcastPage() {
               className="bo-btn bo-btn-ghost bo-btn-sm"
               disabled={!filteredRecipients.length}
               onClick={toggleAllFiltered}
+              title={
+                !filtersActive && !allFilteredSelected
+                  ? "กำลังเลือกทุกคนที่แสดง — รวมทุกประเภทและทุกสถานภาพที่มี LINE"
+                  : undefined
+              }
             >
               {allFilteredSelected ? "ยกเลิกที่แสดง" : "เลือกทั้งหมดที่แสดง"}
             </button>
           </div>
+
+          <div
+            className="bo-broadcast-msg-bridge"
+            aria-label="ข้อความที่จะส่ง"
+          >
+            <div className="bo-broadcast-msg-bridge-head">
+              <span className="bo-broadcast-preview-label">
+                ข้อความที่จะส่ง
+                {activeTemplate
+                  ? ` · จากแม่แบบ «${activeTemplate.title}»`
+                  : ""}
+              </span>
+              <span className="bo-hint bo-broadcast-msg-bridge-meta">
+                {messageLen.toLocaleString("th-TH")} ตัวอักษร · เลือกแล้ว{" "}
+                {selectedCount.toLocaleString("th-TH")} คน
+              </span>
+            </div>
+            <pre className="bo-broadcast-msg-bridge-body">
+              {message.trim() || "—"}
+            </pre>
+          </div>
+
+          {!filtersActive ? (
+            <div className="bo-broadcast-audience-warn" role="status">
+              ตัวกรองยังกว้าง (ทุกประเภท · ทุกสถานภาพ) —
+              กด «เลือกทั้งหมดที่แสดง» เท่ากับเลือกทุกคนที่มี LINE ในรายการนี้
+            </div>
+          ) : null}
 
           <div className="bo-broadcast-list-tools">
             <label className="bo-field bo-broadcast-search">
@@ -1044,7 +1103,7 @@ export default function BroadcastPage() {
             <div>
               <h2>4. ยืนยันแล้วส่ง LINE</h2>
               <p className="bo-muted bo-broadcast-head-sub">
-                ตรวจสรุปอีกครั้งก่อนส่งผ่าน LINE OA
+                ตรวจสรุปอีกครั้งก่อนส่ง — ส่งแล้วแก้ไขบน LINE ของสมาชิกไม่ได้
               </p>
             </div>
           </div>
@@ -1053,6 +1112,13 @@ export default function BroadcastPage() {
             {error ? (
               <div className="bo-error" role="alert">
                 {error}
+              </div>
+            ) : null}
+
+            {!filtersActive ? (
+              <div className="bo-broadcast-audience-warn" role="status">
+                กำลังรวมทุกประเภทและทุกสถานภาพที่มี LINE —
+                ตรวจจำนวนผู้รับก่อนยืนยันส่ง
               </div>
             ) : null}
 
@@ -1183,8 +1249,10 @@ export default function BroadcastPage() {
         open={confirmOpen}
         title="ยืนยันส่งข้อความแบบกลุ่ม"
         description={confirmDescription}
-        confirmLabel="ส่งเลย"
+        confirmLabel="ยืนยันส่ง LINE จริง"
         cancelLabel="ยกเลิก"
+        variant="danger"
+        requireTypedConfirm={typedConfirmCount}
         busy={sending}
         onConfirm={() => void doSend()}
         onCancel={() => {

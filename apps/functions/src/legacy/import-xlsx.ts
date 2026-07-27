@@ -20,6 +20,13 @@ export const MEMBERSHIP_FEE_MASTERS_COLLECTION = "membershipFeeMasters";
 
 export const LEGACY_IMPORT_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 
+export type LegacyImportWarning = {
+  sheet: "Member" | "Transaction";
+  /** 1-based Excel row (header = 1). */
+  row: number;
+  reason: "missing_member_id" | "incomplete_row";
+};
+
 export type LegacyImportResult = {
   members: number;
   payments: number;
@@ -31,7 +38,28 @@ export type LegacyImportResult = {
     status: string;
     memberTypeLabel?: string;
   }>;
+  /** Member sheet rows with content but no usable member id. */
+  skippedMembers: number;
+  /** Transaction sheet rows with content that were neither payment nor fee master. */
+  skippedPayments: number;
+  /** Sample of skip reasons (capped). */
+  warnings: LegacyImportWarning[];
+  /** True when parse-only; no Firestore writes. */
+  dryRun: boolean;
 };
+
+const MAX_WARNINGS = 25;
+
+export type ImportLegacyOptions = {
+  /** Parse and return projected counts without writing. */
+  dryRun?: boolean;
+};
+
+function rowHasContent(row: Record<string, unknown>): boolean {
+  return Object.values(row).some(
+    (v) => v != null && String(v).trim() !== "",
+  );
+}
 
 function omitUndefined<T extends Record<string, unknown>>(obj: T): T {
   const out: Record<string, unknown> = {};
@@ -301,11 +329,15 @@ export class LegacyImportError extends Error {
 
 /**
  * Parse workbook buffer and upsert into Firestore (merge).
+ * Pass `{ dryRun: true }` to preview projected counts without writing.
  */
 export async function importLegacyWorkbookFromBuffer(
   buffer: Buffer,
   sourceFile: string,
+  options: ImportLegacyOptions = {},
 ): Promise<LegacyImportResult> {
+  const dryRun = options.dryRun === true;
+
   if (buffer.byteLength > LEGACY_IMPORT_MAX_BYTES) {
     throw new LegacyImportError("file_too_large");
   }
@@ -331,8 +363,16 @@ export async function importLegacyWorkbookFromBuffer(
   const expiryByMember = new Map<string, Timestamp>();
   const payments: LegacyPaymentDoc[] = [];
   const feeMasters: Array<Record<string, unknown>> = [];
+  const warnings: LegacyImportWarning[] = [];
+  let skippedMembers = 0;
+  let skippedPayments = 0;
+
+  function pushWarning(w: LegacyImportWarning) {
+    if (warnings.length < MAX_WARNINGS) warnings.push(w);
+  }
 
   txRows.forEach((row, i) => {
+    const excelRow = i + 2;
     const legacyMemberId = asString(cell(row, "เลขที่สมาชิก"));
     if (!legacyMemberId) {
       const item = asString(cell(row, "รายการ"));
@@ -351,11 +391,30 @@ export async function importLegacyWorkbookFromBuffer(
           importedAt,
           sourceFile: safeName,
         });
+        return;
+      }
+      if (rowHasContent(row)) {
+        skippedPayments += 1;
+        pushWarning({
+          sheet: "Transaction",
+          row: excelRow,
+          reason: item || itemType ? "incomplete_row" : "missing_member_id",
+        });
       }
       return;
     }
     const pay = buildPayment(row, safeName, importedAt, i + 1);
-    if (!pay) return;
+    if (!pay) {
+      if (rowHasContent(row)) {
+        skippedPayments += 1;
+        pushWarning({
+          sheet: "Transaction",
+          row: excelRow,
+          reason: "incomplete_row",
+        });
+      }
+      return;
+    }
     payments.push(pay);
     if (pay.expiryDate) {
       const prev = expiryByMember.get(pay.legacyMemberId);
@@ -366,13 +425,45 @@ export async function importLegacyWorkbookFromBuffer(
   });
 
   const members: LegacyMemberDoc[] = [];
-  for (const row of memberRows) {
+  memberRows.forEach((row, i) => {
     const m = buildMember(row, safeName, importedAt, expiryByMember);
-    if (m) members.push(m);
-  }
+    if (m) {
+      members.push(m);
+      return;
+    }
+    if (rowHasContent(row)) {
+      skippedMembers += 1;
+      pushWarning({
+        sheet: "Member",
+        row: i + 2,
+        reason: "missing_member_id",
+      });
+    }
+  });
 
   if (members.length === 0) {
     throw new LegacyImportError("no_members_parsed");
+  }
+
+  const sample = members.slice(0, 100).map((m) => ({
+    legacyMemberId: m.legacyMemberId,
+    fullName: `${m.firstName} ${m.lastName}`.trim(),
+    status: m.status,
+    memberTypeLabel: m.memberTypeLabel,
+  }));
+
+  if (dryRun) {
+    return {
+      members: members.length,
+      payments: payments.length,
+      feeMasters: feeMasters.length,
+      sourceFile: safeName,
+      sample,
+      skippedMembers,
+      skippedPayments,
+      warnings,
+      dryRun: true,
+    };
   }
 
   const db = getFirestore();
@@ -429,11 +520,10 @@ export async function importLegacyWorkbookFromBuffer(
     payments: writtenPayments,
     feeMasters: writtenFees,
     sourceFile: safeName,
-    sample: members.slice(0, 100).map((m) => ({
-      legacyMemberId: m.legacyMemberId,
-      fullName: `${m.firstName} ${m.lastName}`.trim(),
-      status: m.status,
-      memberTypeLabel: m.memberTypeLabel,
-    })),
+    sample,
+    skippedMembers,
+    skippedPayments,
+    warnings,
+    dryRun: false,
   };
 }

@@ -8,8 +8,12 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   variant?: "default" | "danger";
   requireTypedConfirm?: string;
+  /** When true, show a required reason textarea; value is passed to onConfirm. */
+  requireReason?: boolean;
+  reasonLabel?: string;
+  reasonPlaceholder?: string;
   busy?: boolean;
-  onConfirm: (typedConfirm?: string) => void;
+  onConfirm: (typedOrReason?: string) => void;
   onCancel: () => void;
 }
 
@@ -17,17 +21,24 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
   const titleId = useId();
   const descId = useId();
   const typedId = useId();
+  const reasonId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const typedRef = useRef<HTMLInputElement>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
   const [typedValue, setTypedValue] = useState("");
+  const [reasonValue, setReasonValue] = useState("");
 
   const confirmLabel = props.confirmLabel ?? "ยืนยัน";
   const cancelLabel = props.cancelLabel ?? "ยกเลิก";
   const variant = props.variant ?? "default";
+  const reasonLabel = props.reasonLabel ?? "เหตุผลการปฏิเสธ (จำเป็น)";
+  const reasonPlaceholder =
+    props.reasonPlaceholder ?? "ระบุเหตุผลการปฏิเสธ";
 
   useEffect(() => {
     if (!props.open) {
       setTypedValue("");
+      setReasonValue("");
       return;
     }
 
@@ -36,7 +47,9 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
 
     const focusTarget = props.requireTypedConfirm
       ? typedRef.current
-      : cancelRef.current;
+      : props.requireReason
+        ? reasonRef.current
+        : cancelRef.current;
     focusTarget?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
@@ -50,13 +63,20 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [props.open, props.busy, props.requireTypedConfirm, props.onCancel]);
+  }, [
+    props.open,
+    props.busy,
+    props.requireTypedConfirm,
+    props.requireReason,
+    props.onCancel,
+  ]);
 
   if (!props.open) return null;
 
   const typedOk =
     !props.requireTypedConfirm ||
     typedValue.trim() === props.requireTypedConfirm;
+  const reasonOk = !props.requireReason || reasonValue.trim().length > 0;
 
   return (
     <div
@@ -105,6 +125,21 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
           </div>
         ) : null}
 
+        {props.requireReason ? (
+          <div className="bo-field" style={{ marginTop: "0.85rem" }}>
+            <label htmlFor={reasonId}>{reasonLabel}</label>
+            <textarea
+              id={reasonId}
+              ref={reasonRef}
+              value={reasonValue}
+              disabled={props.busy}
+              placeholder={reasonPlaceholder}
+              rows={3}
+              onChange={(e) => setReasonValue(e.target.value)}
+            />
+          </div>
+        ) : null}
+
         <div className="bo-modal-actions">
           <button
             ref={cancelRef}
@@ -118,12 +153,16 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
           <button
             type="button"
             className={`bo-btn ${variant === "danger" ? "bo-btn-danger" : "bo-btn-primary"}`}
-            disabled={props.busy || !typedOk}
-            onClick={() =>
+            disabled={props.busy || !typedOk || !reasonOk}
+            onClick={() => {
+              if (props.requireReason) {
+                props.onConfirm(reasonValue.trim());
+                return;
+              }
               props.onConfirm(
                 props.requireTypedConfirm ? typedValue.trim() : undefined,
-              )
-            }
+              );
+            }}
           >
             {props.busy ? "กำลังดำเนินการ…" : confirmLabel}
           </button>

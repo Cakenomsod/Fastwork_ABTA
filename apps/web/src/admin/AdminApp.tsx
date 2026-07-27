@@ -317,7 +317,7 @@ export default function AdminApp() {
   } else if (route === "agm" && canSeeData) {
     page = <AgmReportPage me={me} />;
   } else if (route === "staff" && me.canManageStaff) {
-    page = <StaffPage />;
+    page = <StaffPage me={me} />;
   } else if (route !== "dashboard") {
     page = (
       <div className="bo-panel">

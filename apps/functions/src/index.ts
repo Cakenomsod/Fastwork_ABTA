@@ -44,7 +44,7 @@ import { runExpiryReminderJob } from "./members/expiry-reminders";
 import { publicTokensEqual } from "./members/public-token";
 import { getRegisterDraft, registerNewMember } from "./members/register";
 import { getRenewDraft, renewMembership } from "./members/renew";
-import { resubmitSlip } from "./members/slip-resubmit";
+import { getSlipDraft, resubmitSlip } from "./members/slip-resubmit";
 import { getStatusViewByMemberId } from "./members/repository";
 import { toPublicStatus } from "./members/status-view";
 import {
@@ -117,6 +117,10 @@ export const api = onRequest(
       return;
     }
 
+    if (path === "/members/slip/draft" && req.method === "POST") {
+      await handleSlipDraft(req, res);
+      return;
+    }
     if (path === "/members/slip/resubmit" && req.method === "POST") {
       await handleSlipResubmit(req, res);
       return;
@@ -501,6 +505,30 @@ async function handleLegacyBind(req: Request, res: Response): Promise<void> {
   }
 }
 
+async function handleSlipDraft(req: Request, res: Response): Promise<void> {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const result = await getSlipDraft(String(body.idToken ?? ""));
+    if (!result.ok) {
+      res.status(result.status).json({
+        ok: false,
+        error: result.error,
+        ...(result.statusUrl ? { statusUrl: result.statusUrl } : {}),
+      });
+      return;
+    }
+    res.status(200).json({
+      ok: true,
+      memberId: result.memberId,
+      statusUrl: result.statusUrl,
+      ...(result.rejectReason ? { rejectReason: result.rejectReason } : {}),
+    });
+  } catch (err) {
+    console.error("slip draft handler error", err);
+    res.status(500).json({ ok: false, error: "server_error" });
+  }
+}
+
 async function handleSlipResubmit(req: Request, res: Response): Promise<void> {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -510,7 +538,11 @@ async function handleSlipResubmit(req: Request, res: Response): Promise<void> {
       slipBase64: String(body.slipBase64 ?? ""),
     });
     if (!result.ok) {
-      res.status(result.status).json({ ok: false, error: result.error });
+      res.status(result.status).json({
+        ok: false,
+        error: result.error,
+        ...(result.statusUrl ? { statusUrl: result.statusUrl } : {}),
+      });
       return;
     }
     res.status(200).json(result);

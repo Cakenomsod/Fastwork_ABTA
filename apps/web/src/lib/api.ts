@@ -240,6 +240,38 @@ export async function bindLegacyMember(input: {
   };
 }
 
+export type SlipDraft = {
+  memberId: string;
+  statusUrl: string;
+  rejectReason?: string;
+};
+
+export async function fetchSlipDraft(idToken: string): Promise<SlipDraft> {
+  const res = await fetch(`${apiBase()}/api/members/slip/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    const err = new Error(data?.error ?? `request_failed_${res.status}`);
+    (err as Error & { code?: string; statusUrl?: string }).code =
+      data?.error ?? String(res.status);
+    if (typeof data?.statusUrl === "string" && data.statusUrl) {
+      (err as Error & { statusUrl?: string }).statusUrl = data.statusUrl;
+    }
+    throw err;
+  }
+  return {
+    memberId: String(data.memberId ?? ""),
+    statusUrl: String(data.statusUrl ?? ""),
+    rejectReason:
+      data.rejectReason != null && String(data.rejectReason).trim()
+        ? String(data.rejectReason)
+        : undefined,
+  };
+}
+
 export async function resubmitSlip(input: {
   idToken: string;
   slipContentType: string;
@@ -253,7 +285,11 @@ export async function resubmitSlip(input: {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.ok) {
     const err = new Error(data?.error ?? `request_failed_${res.status}`);
-    (err as Error & { code?: string }).code = data?.error ?? String(res.status);
+    (err as Error & { code?: string; statusUrl?: string }).code =
+      data?.error ?? String(res.status);
+    if (typeof data?.statusUrl === "string" && data.statusUrl) {
+      (err as Error & { statusUrl?: string }).statusUrl = data.statusUrl;
+    }
     throw err;
   }
   return {

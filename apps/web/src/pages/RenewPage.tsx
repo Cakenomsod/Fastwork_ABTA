@@ -6,6 +6,12 @@ import {
 } from "../lib/api";
 import { liffPageUrl, memberStatusHrefFromUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
+import {
+  hasTransferAccount,
+  NO_TRANSFER_ACCOUNT_SUBMIT_HINT,
+  PaymentConfirmPanel,
+  TransferBankBlock,
+} from "./TransferBank";
 import "./register.css";
 
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
@@ -22,11 +28,14 @@ export default function RenewPage() {
   const [draftError, setDraftError] = useState<string | null>(null);
   const [slip, setSlip] = useState<SlipState>({ kind: "empty" });
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [done, setDone] = useState<{
     statusUrl: string;
     receiptNumber: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const canPay = hasTransferAccount();
 
   useEffect(() => {
     void initLiff().then(async (phase) => {
@@ -70,11 +79,18 @@ export default function RenewPage() {
       file,
       previewUrl: URL.createObjectURL(file),
     });
+    setConfirmOpen(false);
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onRequestConfirm(e: FormEvent) {
     e.preventDefault();
-    if (slip.kind !== "ready" || !draft) return;
+    if (!canPay || slip.kind !== "ready" || !draft) return;
+    setError(null);
+    setConfirmOpen(true);
+  }
+
+  async function onConfirmSubmit() {
+    if (slip.kind !== "ready" || !draft || !canPay) return;
     setBusy(true);
     setError(null);
     try {
@@ -96,6 +112,7 @@ export default function RenewPage() {
       });
     } catch (err) {
       setError(errorCopy((err as Error & { code?: string }).code ?? "error"));
+      setConfirmOpen(false);
     } finally {
       setBusy(false);
     }
@@ -192,10 +209,34 @@ export default function RenewPage() {
                     ส่งสลิปใหม่
                   </a>
                 </div>
+              ) : confirmOpen && slip.kind === "ready" ? (
+                <section className="reg-form">
+                  <PaymentConfirmPanel
+                    title="ยืนยันส่งคำขอต่ออายุ"
+                    lead="ตรวจสอบยอดและสลิปก่อนส่งให้เหรัญญิก"
+                    rows={[
+                      {
+                        label: "สมาชิก",
+                        value: `${draft.firstName} ${draft.lastName}`,
+                      },
+                      { label: "เลขสมาชิก", value: draft.memberId },
+                      {
+                        label: "ค่าธรรมเนียม",
+                        value: `${draft.feeThb.toLocaleString("th-TH")} บาท`,
+                      },
+                    ]}
+                    slipPreviewUrl={slip.previewUrl}
+                    confirmLabel="ยืนยันส่งคำขอต่ออายุ"
+                    busy={busy}
+                    error={error}
+                    onConfirm={() => void onConfirmSubmit()}
+                    onBack={() => setConfirmOpen(false)}
+                  />
+                </section>
               ) : (
                 <form
                   className="reg-form"
-                  onSubmit={(e) => void onSubmit(e)}
+                  onSubmit={onRequestConfirm}
                 >
                   <section className="reg-section">
                     <h2 className="reg-section__title">หลักฐานการชำระเงิน</h2>
@@ -205,53 +246,54 @@ export default function RenewPage() {
                         {draft.feeThb.toLocaleString("th-TH")} บาท
                       </strong>
                     </div>
-                    <div className="reg-bank">
-                      <span className="reg-bank__label">บัญชีรับโอน</span>
-                      <p>รอข้อมูลจากสมาคม</p>
-                      <small>
-                        จะแสดงชื่อบัญชี เลขบัญชี และธนาคารเมื่อสมาคมยืนยันแล้ว
-                      </small>
-                    </div>
-                    <div className="reg-field">
-                      <span>
-                        แนบสลิปโอนเงิน <em className="req">*</em>
-                      </span>
-                      <label className="reg-upload">
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                          onChange={onFile}
-                        />
-                        {slip.kind === "ready" ? (
-                          <>
-                            <img
-                              src={slip.previewUrl}
-                              alt="ตัวอย่างสลิป"
-                            />
-                            <span className="reg-upload__name">
-                              {slip.file.name}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <strong>แตะเพื่ออัปโหลดสลิป</strong>
-                            <small>รองรับ JPG, PNG · สูงสุด 5 MB</small>
-                          </>
-                        )}
-                      </label>
-                      {slip.kind === "error" ? (
-                        <p className="reg-field-error">{slip.message}</p>
-                      ) : null}
-                    </div>
+                    <TransferBankBlock />
+                    {canPay ? (
+                      <div className="reg-field">
+                        <span>
+                          แนบสลิปโอนเงิน <em className="req">*</em>
+                        </span>
+                        <label className="reg-upload">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                            onChange={onFile}
+                          />
+                          {slip.kind === "ready" ? (
+                            <>
+                              <img
+                                src={slip.previewUrl}
+                                alt="ตัวอย่างสลิป"
+                              />
+                              <span className="reg-upload__name">
+                                {slip.file.name}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <strong>แตะเพื่ออัปโหลดสลิป</strong>
+                              <small>รองรับ JPG, PNG · สูงสุด 5 MB</small>
+                            </>
+                          )}
+                        </label>
+                        {slip.kind === "error" ? (
+                          <p className="reg-field-error">{slip.message}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </section>
                   {error ? <p className="reg-form-error">{error}</p> : null}
                   <button
                     type="submit"
                     className="reg-btn reg-btn--primary"
-                    disabled={busy || slip.kind !== "ready"}
+                    disabled={busy || !canPay || slip.kind !== "ready"}
                   >
-                    {busy ? "กำลังส่ง…" : "ส่งคำขอต่ออายุ"}
+                    {busy ? "กำลังส่ง…" : "ตรวจสอบก่อนส่ง"}
                   </button>
+                  {!canPay ? (
+                    <p className="reg-submit-hint" role="status">
+                      {NO_TRANSFER_ACCOUNT_SUBMIT_HINT}
+                    </p>
+                  ) : null}
                 </form>
               )}
             </>

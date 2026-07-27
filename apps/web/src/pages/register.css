@@ -221,11 +221,28 @@
   color: var(--page-green-primary);
 }
 
+.reg-bank__number {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 .reg-bank small {
   display: block;
   margin-top: 0.25rem;
   color: var(--abta-muted);
   font-size: 0.78rem;
+}
+
+.reg-bank--empty p {
+  color: var(--page-ink);
+  font-weight: 600;
+}
+
+.reg-submit-hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.84rem;
+  color: var(--page-muted, #4a5c52);
+  text-align: center;
 }
 
 .reg-upload {
@@ -287,6 +304,28 @@
 .reg-form-error a {
   color: var(--page-green-primary);
   font-weight: 600;
+}
+
+.reg-checklist {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem 0.75rem 1.35rem;
+  border-radius: 12px;
+  background: #f7faf7;
+  border: 1px solid var(--page-line, #d5e0d9);
+  color: var(--page-muted, #4a5c52);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.reg-checklist li + li {
+  margin-top: 0.28rem;
+}
+
+.reg-info a {
+  color: #f4e9cc;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
 }
 
 .reg-btn {
@@ -766,6 +805,40 @@ label.reg-legacy-match {
   color: #5a6b61;
 }
 
+.reg-confirm__summary {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: var(--page-bg-soft);
+  border: 1px solid var(--page-line, #d5e0d9);
+}
+
+.reg-confirm__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+}
+
+.reg-confirm__row + .reg-confirm__row {
+  border-top: 1px solid var(--page-line-soft, #dce6e0);
+}
+
+.reg-confirm__row dt {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--page-muted, #4a5c52);
+}
+
+.reg-confirm__row dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--page-ink);
+  text-align: right;
+  word-break: break-word;
+}
+
 .reg-confirm__warn {
   margin: 1rem 0;
   padding: 0.75rem 0.9rem;
@@ -778,6 +851,22 @@ label.reg-legacy-match {
 
 .reg-confirm__actions {
   margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.reg-confirm .reg-btn--ghost-light {
+  margin-top: 0;
+  color: #4a5c52;
+  border-color: #b7c9bf;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.reg-confirm .reg-btn--ghost-light:hover {
+  color: #2f3f36;
+  border-color: #8fa89a;
+  background: #fff;
 }
 
 .reg-success--legacy .reg-success__id {

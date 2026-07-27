@@ -27,9 +27,23 @@ import {
 } from "../../lib/admin-api";
 import MemberDetailDrawer from "../MemberDetailDrawer";
 import { ListPager } from "../ListPager";
+import { clickableRowProps } from "../clickableRow";
 
 const DEFAULT_SORT: MemberListSort = "updated_desc";
 const DEFAULT_PAGE_SIZE: ListPageSize = 10;
+
+const ERROR_LABEL: Record<string, string> = {
+  search_failed: "ค้นหาไม่สำเร็จ — ลองใหม่หรือลดเงื่อนไข",
+  reload_failed: "โหลดรายการใหม่ไม่สำเร็จ — ลองรีเฟรชอีกครั้ง",
+  detail_failed: "โหลดรายละเอียดสมาชิกไม่สำเร็จ — ลองเปิดใหม่อีกครั้ง",
+  auth_required: "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่",
+  not_authorized: "ไม่มีสิทธิ์ดูรายการสมาชิก",
+};
+
+function errorMessage(err: unknown, fallback: string): string {
+  const code = err instanceof Error ? err.message : fallback;
+  return ERROR_LABEL[code] ?? (ERROR_LABEL[fallback] ?? code);
+}
 
 export default function DashboardPage(props: {
   me: AdminMe;
@@ -119,7 +133,7 @@ export default function DashboardPage(props: {
           setError(null);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "search_failed");
+        setError(errorMessage(err, "search_failed"));
         setListRows([]);
         setMatched(0);
       } finally {
@@ -149,8 +163,8 @@ export default function DashboardPage(props: {
         setPage(list.page);
         setListMode("recent");
       })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorMessage(err, "reload_failed"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -172,8 +186,8 @@ export default function DashboardPage(props: {
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorMessage(err, "detail_failed"));
       })
       .finally(() => {
         if (!cancelled) setDetailLoading(false);
@@ -207,7 +221,7 @@ export default function DashboardPage(props: {
         pageSize,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "reload_failed");
+      setError(errorMessage(err, "reload_failed"));
     }
   }
 
@@ -473,11 +487,23 @@ export default function DashboardPage(props: {
               <tbody>
                 {listRows.map((row: QueueItem) => {
                   const name = memberNameParts(row);
+                  const selected = selectedId === row.memberId;
+                  const label = [
+                    name.firstName,
+                    name.lastName,
+                    row.memberId,
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
                   return (
                     <tr
                       key={row.memberId}
-                      className={`bo-row-clickable${selectedId === row.memberId ? " selected" : ""}`}
-                      onClick={() => openMember(row.memberId)}
+                      className={`bo-row-clickable${selected ? " selected" : ""}`}
+                      {...clickableRowProps({
+                        onActivate: () => openMember(row.memberId),
+                        label: `เปิดรายละเอียด ${label}`,
+                        selected,
+                      })}
                     >
                       <td data-label="ชื่อ">{name.firstName}</td>
                       <td data-label="นามสกุล">{name.lastName}</td>

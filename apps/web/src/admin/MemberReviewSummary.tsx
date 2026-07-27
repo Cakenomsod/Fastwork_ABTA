@@ -65,6 +65,18 @@ function receiptStatusLabel(status?: string): string {
   return status || "—";
 }
 
+function paymentStatusLabel(status?: string): string {
+  if (!status) return "—";
+  if (status === "awaiting_payment") return "รอชำระเงิน";
+  if (status === "payment_received") return "ได้รับหลักฐานการชำระเงินแล้ว";
+  if (status === "data_review") return "รอตรวจสอบข้อมูล";
+  if (status === "temp_receipt_issued") return "ออกใบเสร็จชั่วคราวแล้ว";
+  if (status === "slip_review") return "รอตรวจสอบสลิป (เหรัญญิก)";
+  if (status === "payment_confirmed") return "ยืนยันการชำระเงินแล้ว";
+  if (status === "official_receipt_issued") return "ออกใบเสร็จตัวจริงแล้ว";
+  return status;
+}
+
 function NameFields(props: { detail: MemberDetail }) {
   const name = memberNameParts(props.detail);
   return (
@@ -109,7 +121,7 @@ export default function MemberReviewSummary(props: MemberReviewSummaryProps) {
             ) : null}
           </ReviewField>
           <ReviewField label="สถานะการชำระ">
-            {detail.paymentStatus || "—"}
+            {paymentStatusLabel(detail.paymentStatus)}
           </ReviewField>
         </ReviewSection>
 

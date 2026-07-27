@@ -10,6 +10,7 @@
   --page-green-active: #157a52;
   --page-gold: #c9a24b;
   --page-gold-soft: #e4ce93;
+  --page-gold-pale: #f4e9cc;
   --page-muted: #4a5c52;
   --page-ink: #12211b;
   --page-bg: #eef2ea;
@@ -17,7 +18,23 @@
   --page-form-surface: #f7faf7;
   --page-line: #dce6e0;
   --page-field-muted: #3d5248;
+  --page-green-mist: #d4e8dc;
   --page-green-text-soft: #bcd8c9;
   --page-green-text-muted: #9fc4b2;
+  --page-success: #027a48;
+  --page-warn: #b54708;
+  --page-danger: #b42318;
   --page-white: #fff;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

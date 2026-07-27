@@ -46,6 +46,22 @@ const PRICING_LABEL: Record<string, string> = {
   member_paid: "สมาชิก · เสียเงิน",
 };
 
+const REG_STATUS_LABEL: Record<string, string> = {
+  registered: "รอพิจารณา",
+  paid: "ชำระแล้ว",
+  confirmed: "ยืนยันแล้ว",
+  rejected: "ปฏิเสธ",
+};
+
+const ERROR_LABEL: Record<string, string> = {
+  load_failed: "โหลดข้อมูลไม่สำเร็จ",
+  save_failed: "บันทึกงานสัมมนาไม่สำเร็จ",
+  deactivate_failed: "ปิดงานสัมมนาไม่สำเร็จ",
+  decide_failed: "บันทึกผลการพิจารณาไม่สำเร็จ",
+  reason_required: "กรุณาระบุเหตุผลการปฏิเสธ",
+  not_found: "ไม่พบใบสมัคร",
+};
+
 const emptyForm: SeminarForm = {
   title: "",
   description: "",
@@ -56,6 +72,11 @@ const emptyForm: SeminarForm = {
   publicFee: "0",
   memberFee: "0",
 };
+
+function errorMessage(err: unknown, fallback: string): string {
+  const code = err instanceof Error ? err.message : fallback;
+  return ERROR_LABEL[code] ?? code;
+}
 
 function formatFee(n: number): string {
   if (n <= 0) return "ฟรี";
@@ -113,6 +134,19 @@ function formPayload(form: SeminarForm) {
   };
 }
 
+function regStatusBadge(status: string) {
+  const label = REG_STATUS_LABEL[status] ?? status;
+  const cls =
+    status === "confirmed"
+      ? "active"
+      : status === "rejected"
+        ? "expired"
+        : status === "paid"
+          ? "slip"
+          : "pending";
+  return <span className={`bo-badge ${cls}`}>{label}</span>;
+}
+
 export default function SeminarsPage() {
   const [seminars, setSeminars] = useState<Seminar[]>([]);
   const [regs, setRegs] = useState<Registration[]>([]);
@@ -121,11 +155,20 @@ export default function SeminarsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [closingBusy, setClosingBusy] = useState(false);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
   const [closing, setClosing] = useState<Seminar | null>(null);
+  const [rejecting, setRejecting] = useState<Registration | null>(null);
 
   const isEditing = editingId != null;
   const audienceOk = form.allowPublic || form.allowMember;
+
+  const seminarById = useMemo(() => {
+    const map = new Map<string, Seminar>();
+    for (const s of seminars) map.set(s.seminarId, s);
+    return map;
+  }, [seminars]);
 
   const previewLines = useMemo(() => {
     const lines: string[] = [];
@@ -170,7 +213,9 @@ export default function SeminarsPage() {
   }
 
   useEffect(() => {
-    void reload().catch((err: Error) => setError(err.message));
+    void reload().catch((err: unknown) =>
+      setError(errorMessage(err, "load_failed")),
+    );
   }, []);
 
   async function saveSeminar() {
@@ -182,7 +227,7 @@ export default function SeminarsPage() {
       setFormError("เลือกอย่างน้อยหนึ่งกลุ่มผู้เข้าได้");
       return;
     }
-    setBusy(true);
+    setSaving(true);
     setError(null);
     setFormError(null);
     try {
@@ -195,15 +240,15 @@ export default function SeminarsPage() {
       closeForm();
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "save_failed");
+      setError(errorMessage(err, "save_failed"));
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
 
   async function confirmCloseSeminar() {
     if (!closing) return;
-    setBusy(true);
+    setClosingBusy(true);
     setError(null);
     try {
       await deactivateAdminSeminar(closing.seminarId);
@@ -211,25 +256,52 @@ export default function SeminarsPage() {
       setClosing(null);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "deactivate_failed");
+      setError(errorMessage(err, "deactivate_failed"));
     } finally {
-      setBusy(false);
+      setClosingBusy(false);
     }
   }
 
-  async function decide(registrationId: string, approve: boolean) {
-    const reason = approve ? undefined : window.prompt("เหตุผลที่ปฏิเสธ") ?? "";
-    if (!approve && !reason.trim()) return;
-    setBusy(true);
+  async function approveRegistration(registrationId: string) {
+    setDecidingId(registrationId);
+    setError(null);
     try {
-      await decideSeminarRegistration({ registrationId, approve, reason });
+      await decideSeminarRegistration({
+        registrationId,
+        approve: true,
+      });
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "decide_failed");
+      setError(errorMessage(err, "decide_failed"));
     } finally {
-      setBusy(false);
+      setDecidingId(null);
     }
   }
+
+  async function confirmReject(reason?: string) {
+    if (!rejecting || !reason?.trim()) return;
+    const registrationId = rejecting.registrationId;
+    setDecidingId(registrationId);
+    setError(null);
+    try {
+      await decideSeminarRegistration({
+        registrationId,
+        approve: false,
+        reason: reason.trim(),
+      });
+      setRejecting(null);
+      await reload();
+    } catch (err) {
+      setError(errorMessage(err, "decide_failed"));
+    } finally {
+      setDecidingId(null);
+    }
+  }
+
+  const rejectingTitle =
+    rejecting != null
+      ? (seminarById.get(rejecting.seminarId)?.title ?? "").trim()
+      : "";
 
   return (
     <div className="bo-seminar-page">
@@ -249,7 +321,7 @@ export default function SeminarsPage() {
             <button
               type="button"
               className="bo-btn bo-btn-ghost bo-btn-sm"
-              disabled={busy}
+              disabled={saving}
               onClick={closeForm}
             >
               ยกเลิก
@@ -465,7 +537,7 @@ export default function SeminarsPage() {
               <button
                 type="button"
                 className="bo-btn bo-btn-ghost"
-                disabled={busy}
+                disabled={saving}
                 onClick={closeForm}
               >
                 ยกเลิก
@@ -473,10 +545,10 @@ export default function SeminarsPage() {
               <button
                 type="button"
                 className="bo-btn bo-btn-primary"
-                disabled={busy || !audienceOk}
+                disabled={saving || !audienceOk}
                 onClick={() => void saveSeminar()}
               >
-                {busy
+                {saving
                   ? "กำลังบันทึก…"
                   : isEditing
                     ? "บันทึกการแก้ไข"
@@ -515,7 +587,7 @@ export default function SeminarsPage() {
                   <strong>{s.title}</strong>
                   <p>
                     {[s.eventDate, s.location].filter(Boolean).join(" · ") ||
-                      s.seminarId}
+                      "ยังไม่ระบุวัน/สถานที่"}
                   </p>
                   <span className="bo-seminar-list__pricing">
                     {pricingSummary(s.pricing)}
@@ -525,7 +597,7 @@ export default function SeminarsPage() {
                   <button
                     type="button"
                     className="bo-btn bo-btn-ghost bo-btn-sm"
-                    disabled={busy}
+                    disabled={closingBusy}
                     onClick={() => openEdit(s)}
                   >
                     แก้ไข
@@ -533,7 +605,7 @@ export default function SeminarsPage() {
                   <button
                     type="button"
                     className="bo-btn bo-btn-danger-ghost bo-btn-sm"
-                    disabled={busy}
+                    disabled={closingBusy}
                     onClick={() => setClosing(s)}
                   >
                     ปิดงาน
@@ -557,7 +629,7 @@ export default function SeminarsPage() {
                 <th>งาน</th>
                 <th>ประเภท</th>
                 <th>สถานะ</th>
-                <th />
+                <th>การดำเนินการ</th>
               </tr>
             </thead>
             <tbody>
@@ -568,43 +640,49 @@ export default function SeminarsPage() {
                   </td>
                 </tr>
               ) : (
-                regs.map((r) => (
-                  <tr key={r.registrationId}>
-                    <td>
-                      {r.firstName} {r.lastName}
-                    </td>
-                    <td>
-                      <code>{r.seminarId}</code>
-                    </td>
-                    <td>
-                      {PRICING_LABEL[r.applicantType] ?? r.applicantType} (
-                      {formatFee(r.feeThb)})
-                    </td>
-                    <td>{r.status}</td>
-                    <td>
-                      {r.status !== "confirmed" && r.status !== "rejected" ? (
-                        <div className="bo-seminar-reg-actions">
-                          <button
-                            type="button"
-                            className="bo-btn bo-btn-primary bo-btn-sm"
-                            disabled={busy}
-                            onClick={() => void decide(r.registrationId, true)}
-                          >
-                            อนุมัติ
-                          </button>
-                          <button
-                            type="button"
-                            className="bo-btn bo-btn-ghost bo-btn-sm"
-                            disabled={busy}
-                            onClick={() => void decide(r.registrationId, false)}
-                          >
-                            ปฏิเสธ
-                          </button>
-                        </div>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))
+                regs.map((r) => {
+                  const rowBusy = decidingId === r.registrationId;
+                  const seminarTitle =
+                    seminarById.get(r.seminarId)?.title?.trim() ?? "";
+                  return (
+                    <tr key={r.registrationId}>
+                      <td>
+                        {r.firstName} {r.lastName}
+                      </td>
+                      <td>{seminarTitle}</td>
+                      <td>
+                        {PRICING_LABEL[r.applicantType] ?? r.applicantType} (
+                        {formatFee(r.feeThb)})
+                      </td>
+                      <td>{regStatusBadge(r.status)}</td>
+                      <td>
+                        {r.status !== "confirmed" &&
+                        r.status !== "rejected" ? (
+                          <div className="bo-seminar-reg-actions">
+                            <button
+                              type="button"
+                              className="bo-btn bo-btn-primary bo-btn-sm"
+                              disabled={rowBusy || decidingId != null}
+                              onClick={() =>
+                                void approveRegistration(r.registrationId)
+                              }
+                            >
+                              {rowBusy ? "กำลังบันทึก…" : "อนุมัติ"}
+                            </button>
+                            <button
+                              type="button"
+                              className="bo-btn bo-btn-ghost bo-btn-sm"
+                              disabled={rowBusy || decidingId != null}
+                              onClick={() => setRejecting(r)}
+                            >
+                              ปฏิเสธ
+                            </button>
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -621,11 +699,33 @@ export default function SeminarsPage() {
         }
         confirmLabel="ปิดงาน"
         variant="danger"
-        busy={busy}
+        busy={closingBusy}
         onCancel={() => {
-          if (!busy) setClosing(null);
+          if (!closingBusy) setClosing(null);
         }}
         onConfirm={() => void confirmCloseSeminar()}
+      />
+
+      <ConfirmDialog
+        open={rejecting != null}
+        title="ปฏิเสธใบสมัครนี้?"
+        description={
+          rejecting
+            ? rejectingTitle
+              ? `ปฏิเสธใบสมัครของ ${rejecting.firstName} ${rejecting.lastName} สำหรับ “${rejectingTitle}”`
+              : `ปฏิเสธใบสมัครของ ${rejecting.firstName} ${rejecting.lastName}`
+            : undefined
+        }
+        confirmLabel="ยืนยันปฏิเสธ"
+        variant="danger"
+        requireReason
+        reasonLabel="เหตุผลการปฏิเสธ (จำเป็น)"
+        reasonPlaceholder="ระบุเหตุผลการปฏิเสธ"
+        busy={decidingId != null && decidingId === rejecting?.registrationId}
+        onCancel={() => {
+          if (decidingId == null) setRejecting(null);
+        }}
+        onConfirm={(reason) => void confirmReject(reason)}
       />
     </div>
   );

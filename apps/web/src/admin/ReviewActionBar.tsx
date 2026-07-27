@@ -14,6 +14,8 @@ export interface ReviewActionBarProps {
   approveConfirmMessage?: string;
   note?: string;
   approveDisabled?: boolean;
+  /** Disables all approve/reject controls (e.g. detail still loading / id mismatch). */
+  actionsDisabled?: boolean;
   rejectTextareaId?: string;
   /**
    * Called when the user clicks Approve (before the built-in confirm).
@@ -41,11 +43,13 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
     approveConfirmMessage = "ยืนยันการอนุมัติ?",
     note,
     approveDisabled = false,
+    actionsDisabled = false,
     rejectTextareaId = "review-reject-reason",
     gateApprove,
   } = props;
 
   async function handleApproveClick() {
+    if (actionsDisabled) return;
     if (gateApprove) {
       setGating(true);
       try {
@@ -59,6 +63,7 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
   }
 
   function handleApproveConfirm() {
+    if (actionsDisabled) return;
     setShowApproveConfirm(false);
     onApprove();
   }
@@ -67,7 +72,7 @@ export default function ReviewActionBar(props: ReviewActionBarProps) {
     setShowApproveConfirm(false);
   }
 
-  const locked = busy || gating;
+  const locked = busy || gating || actionsDisabled;
 
   return (
     <div className="bo-review-actions">

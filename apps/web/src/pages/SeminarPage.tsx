@@ -2,6 +2,12 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { apiBase, fetchRenewDraft } from "../lib/api";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import { isValidThaiMobile } from "./PhoneDigitInput";
+import {
+  hasTransferAccount,
+  NO_TRANSFER_ACCOUNT_SUBMIT_HINT,
+  PaymentConfirmPanel,
+  TransferBankBlock,
+} from "./TransferBank";
 import "./register.css";
 
 type Seminar = {
@@ -45,8 +51,11 @@ export default function SeminarPage() {
   });
   const [slip, setSlip] = useState<SlipState>({ kind: "empty" });
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const canPay = hasTransferAccount();
 
   useEffect(() => {
     void initLiff().then(async (phase) => {
@@ -127,9 +136,10 @@ export default function SeminarPage() {
       file,
       previewUrl: URL.createObjectURL(file),
     });
+    setConfirmOpen(false);
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onRequestSubmit(e: FormEvent) {
     e.preventDefault();
     if (!selected || membersOnly) return;
     if (liff.phase === "error") {
@@ -140,6 +150,25 @@ export default function SeminarPage() {
       setError("กรุณากรอกเบอร์โทร 10 หลักให้ครบ");
       return;
     }
+    if (fee > 0) {
+      if (!canPay) {
+        setError(NO_TRANSFER_ACCOUNT_SUBMIT_HINT);
+        return;
+      }
+      if (slip.kind !== "ready") {
+        setError(seminarErrorCopy("slip_required"));
+        return;
+      }
+      setError(null);
+      setConfirmOpen(true);
+      return;
+    }
+    void doSubmit();
+  }
+
+  async function doSubmit() {
+    if (!selected || membersOnly) return;
+    if (fee > 0 && (!canPay || slip.kind !== "ready")) return;
     setBusy(true);
     setError(null);
     try {
@@ -171,6 +200,7 @@ export default function SeminarPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "error";
       setError(seminarErrorCopy(msg));
+      setConfirmOpen(false);
     } finally {
       setBusy(false);
     }
@@ -239,6 +269,7 @@ export default function SeminarPage() {
                           onClick={() => {
                             setSelected(s);
                             setSlip({ kind: "empty" });
+                            setConfirmOpen(false);
                             setError(null);
                             const keys = Object.keys(s.pricing);
                             const preferred = isMember
@@ -269,13 +300,14 @@ export default function SeminarPage() {
                 )}
               </section>
             ) : (
-              <form className="reg-form" onSubmit={(e) => void onSubmit(e)}>
+              <form className="reg-form" onSubmit={onRequestSubmit}>
                 <button
                   type="button"
                   className="reg-btn reg-btn--ghost reg-seminar-back"
                   onClick={() => {
                     setSelected(null);
                     setSlip({ kind: "empty" });
+                    setConfirmOpen(false);
                     setError(null);
                   }}
                 >
@@ -290,6 +322,32 @@ export default function SeminarPage() {
                   <div className="reg-legacy-empty">
                     <p>สัมมานี้สำหรับสมาชิกเท่านั้น</p>
                   </div>
+                ) : confirmOpen && fee > 0 && slip.kind === "ready" ? (
+                  <PaymentConfirmPanel
+                    title="ยืนยันสมัครสัมมนา"
+                    lead="ตรวจสอบยอดและสลิปก่อนส่งคำขอ"
+                    rows={[
+                      { label: "งาน", value: selected.title },
+                      {
+                        label: "ผู้สมัคร",
+                        value: `${form.firstName} ${form.lastName}`,
+                      },
+                      {
+                        label: "ประเภท",
+                        value: pricingLabel(form.applicantType),
+                      },
+                      {
+                        label: "ค่าสมัคร",
+                        value: `${fee.toLocaleString("th-TH")} บาท`,
+                      },
+                    ]}
+                    slipPreviewUrl={slip.previewUrl}
+                    confirmLabel="ยืนยันสมัครสัมมนา"
+                    busy={busy}
+                    error={error}
+                    onConfirm={() => void doSubmit()}
+                    onBack={() => setConfirmOpen(false)}
+                  />
                 ) : (
                   <>
                     <section className="reg-section">
@@ -360,12 +418,14 @@ export default function SeminarPage() {
                           <span>ประเภทผู้สมัคร</span>
                           <select
                             value={form.applicantType}
-                            onChange={(e) =>
+                            onChange={(e) => {
                               setForm((f) => ({
                                 ...f,
                                 applicantType: e.target.value,
-                              }))
-                            }
+                              }));
+                              setConfirmOpen(false);
+                              setError(null);
+                            }}
                           >
                             {pricingOptions.map((k) => (
                               <option key={k} value={k}>
@@ -388,44 +448,40 @@ export default function SeminarPage() {
                             {fee.toLocaleString("th-TH")} บาท
                           </strong>
                         </div>
-                        <div className="reg-bank">
-                          <span className="reg-bank__label">บัญชีรับโอน</span>
-                          <p>รอข้อมูลจากสมาคม</p>
-                          <small>
-                            จะแสดงชื่อบัญชี เลขบัญชี และธนาคารเมื่อสมาคมยืนยันแล้ว
-                          </small>
-                        </div>
-                        <div className="reg-field">
-                          <span>
-                            แนบสลิปโอนเงิน <em className="req">*</em>
-                          </span>
-                          <label className="reg-upload">
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                              onChange={onSlipChange}
-                            />
-                            {slip.kind === "ready" ? (
-                              <>
-                                <img
-                                  src={slip.previewUrl}
-                                  alt="ตัวอย่างสลิป"
-                                />
-                                <span className="reg-upload__name">
-                                  {slip.file.name}
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <strong>แตะเพื่ออัปโหลดสลิป</strong>
-                                <small>รองรับ JPG, PNG · สูงสุด 5 MB</small>
-                              </>
-                            )}
-                          </label>
-                          {slip.kind === "error" ? (
-                            <p className="reg-field-error">{slip.message}</p>
-                          ) : null}
-                        </div>
+                        <TransferBankBlock />
+                        {canPay ? (
+                          <div className="reg-field">
+                            <span>
+                              แนบสลิปโอนเงิน <em className="req">*</em>
+                            </span>
+                            <label className="reg-upload">
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                                onChange={onSlipChange}
+                              />
+                              {slip.kind === "ready" ? (
+                                <>
+                                  <img
+                                    src={slip.previewUrl}
+                                    alt="ตัวอย่างสลิป"
+                                  />
+                                  <span className="reg-upload__name">
+                                    {slip.file.name}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <strong>แตะเพื่ออัปโหลดสลิป</strong>
+                                  <small>รองรับ JPG, PNG · สูงสุด 5 MB</small>
+                                </>
+                              )}
+                            </label>
+                            {slip.kind === "error" ? (
+                              <p className="reg-field-error">{slip.message}</p>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </section>
                     ) : null}
 
@@ -471,20 +527,30 @@ export default function SeminarPage() {
                         />
                       </label>
                     </section>
+
+                    <button
+                      type="submit"
+                      className="reg-btn reg-btn--primary"
+                      disabled={
+                        busy ||
+                        liff.phase === "loading" ||
+                        membersOnly ||
+                        (fee > 0 && (!canPay || slip.kind !== "ready"))
+                      }
+                    >
+                      {busy
+                        ? "กำลังส่ง…"
+                        : fee > 0
+                          ? "ตรวจสอบก่อนส่ง"
+                          : "สมัครสัมมนา"}
+                    </button>
+                    {fee > 0 && !canPay ? (
+                      <p className="reg-submit-hint" role="status">
+                        {NO_TRANSFER_ACCOUNT_SUBMIT_HINT}
+                      </p>
+                    ) : null}
                   </>
                 )}
-
-                <button
-                  type="submit"
-                  className="reg-btn reg-btn--primary"
-                  disabled={
-                    busy ||
-                    liff.phase === "loading" ||
-                    membersOnly
-                  }
-                >
-                  {busy ? "กำลังส่ง…" : "สมัครสัมมนา"}
-                </button>
               </form>
             )}
           </>

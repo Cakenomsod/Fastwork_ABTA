@@ -27,7 +27,16 @@ export type SlipResubmitResult =
       statusUrl: string;
       receiptNumber?: string;
     }
-  | { ok: false; error: string; status: number };
+  | { ok: false; error: string; status: number; statusUrl?: string };
+
+export type SlipDraftResult =
+  | {
+      ok: true;
+      memberId: string;
+      statusUrl: string;
+      rejectReason?: string;
+    }
+  | { ok: false; error: string; status: number; statusUrl?: string };
 
 function decodeSlip(base64: string): Buffer {
   const cleaned = base64.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
@@ -74,6 +83,44 @@ async function uploadSlip(
   return { ok: true, slipUrl: `gs://${bucket.name}/${slipPath}` };
 }
 
+function memberStatusUrl(memberId: string, publicToken?: string): string {
+  const token = resolvePublicToken(publicToken);
+  return `${WEB_ORIGIN}/status?m=${encodeURIComponent(memberId)}&t=${token}`;
+}
+
+/** Prefill / context for LIFF slip resubmit (rejected payment only). */
+export async function getSlipDraft(idToken: string): Promise<SlipDraftResult> {
+  const verified = await verifyLineUser(idToken);
+  if (!verified.ok) return verified;
+
+  const member = await findMemberByLineUserId(verified.lineUserId);
+  if (!member) return { ok: false, error: "not_linked", status: 404 };
+
+  const statusUrl = memberStatusUrl(member.memberId, member.publicToken);
+
+  if (member.dataReviewStatus !== "approved") {
+    return { ok: false, error: "data_not_approved", status: 409, statusUrl };
+  }
+
+  const payment = await findLatestPayment(member.memberId);
+  if (!payment) {
+    return { ok: false, error: "payment_not_found", status: 404, statusUrl };
+  }
+  if (payment.receiptStatus !== "rejected") {
+    return { ok: false, error: "slip_not_rejected", status: 409, statusUrl };
+  }
+
+  // Same source as status-view: member.rejectReason ?? payment.rejectReason
+  const rejectReason = member.rejectReason ?? payment.rejectReason;
+
+  return {
+    ok: true,
+    memberId: member.memberId,
+    statusUrl,
+    ...(rejectReason ? { rejectReason } : {}),
+  };
+}
+
 export async function resubmitSlip(input: {
   idToken: string;
   slipContentType: string;
@@ -100,21 +147,23 @@ export async function resubmitSlip(input: {
 
   const member = await findMemberByLineUserId(verified.lineUserId);
   if (!member) return { ok: false, error: "not_linked", status: 404 };
+  const statusUrl = memberStatusUrl(member.memberId, member.publicToken);
   if (member.dataReviewStatus !== "approved") {
-    return { ok: false, error: "data_not_approved", status: 409 };
+    return { ok: false, error: "data_not_approved", status: 409, statusUrl };
   }
 
   const payment = await findLatestPayment(member.memberId);
-  if (!payment) return { ok: false, error: "payment_not_found", status: 404 };
+  if (!payment) {
+    return { ok: false, error: "payment_not_found", status: 404, statusUrl };
+  }
   if (payment.receiptStatus !== "rejected") {
-    return { ok: false, error: "slip_not_rejected", status: 409 };
+    return { ok: false, error: "slip_not_rejected", status: 409, statusUrl };
   }
 
   const uploaded = await uploadSlip(member.memberId, contentType, slipBuf);
   if (!uploaded.ok) return uploaded;
 
   const token = resolvePublicToken(member.publicToken);
-  const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
   const now = Timestamp.now();
   const db = getFirestore();
 

@@ -466,6 +466,12 @@ export async function fetchMemberPayments(
   return data.items;
 }
 
+export type LegacyImportWarning = {
+  sheet: "Member" | "Transaction";
+  row: number;
+  reason: "missing_member_id" | "incomplete_row";
+};
+
 export interface LegacyImportResult {
   members: number;
   payments: number;
@@ -477,6 +483,10 @@ export interface LegacyImportResult {
     status: string;
     memberTypeLabel?: string;
   }>;
+  skippedMembers?: number;
+  skippedPayments?: number;
+  warnings?: LegacyImportWarning[];
+  dryRun?: boolean;
 }
 
 export type LegacyBindFilter = "all" | "bound" | "unbound";
@@ -540,10 +550,13 @@ export async function searchLegacyMembersAdmin(input: {
   );
 }
 
-/** Upload NewMemDatabase-style .xlsx → upsert legacyMembers / legacyPayments. */
+/** Upload NewMemDatabase-style .xlsx → upsert legacyMembers / legacyPayments.
+ * Pass dryRun: true to parse/preview without writing.
+ */
 export async function importLegacyXlsx(input: {
   fileName: string;
   contentBase64: string;
+  dryRun?: boolean;
 }): Promise<LegacyImportResult> {
   return adminFetch<LegacyImportResult>("/admin/legacy/import", {
     method: "POST",
