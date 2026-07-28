@@ -1,4 +1,8 @@
-import { effectiveAppPath } from "./lib/member-links";
+import {
+  effectiveAppPath,
+  hasConfiguredLiffEntry,
+  liffPageUrl,
+} from "./lib/member-links";
 import { firebaseConfig } from "./lib/firebase";
 import AdminApp from "./admin/AdminApp";
 import ReceiptPage from "./pages/ReceiptPage";
@@ -45,30 +49,70 @@ function App() {
 }
 
 function Landing() {
-  const liffId = import.meta.env.VITE_LIFF_ID ?? "";
-  const projectId = firebaseConfig.projectId;
+  const canOpenLine = hasConfiguredLiffEntry();
+  const registerHref = canOpenLine ? liffPageUrl("/register") : "/register";
 
   return (
     <main className="page">
-      <p className="brand">ABTA สมาชิก</p>
-      <h1>ระบบสมาชิก</h1>
-      <p className="lead">
-        เปิดจาก LINE Official Account เพื่อสมัคร / เช็คสถานะ / สัมมนา
-      </p>
-      <dl className="meta">
-        <div>
-          <dt>Firebase</dt>
-          <dd>{projectId || "—"}</dd>
-        </div>
-        <div>
-          <dt>LIFF</dt>
-          <dd>{liffId || "ยังไม่ตั้งค่า VITE_LIFF_ID"}</dd>
-        </div>
-      </dl>
-      <p className="lead" style={{ marginTop: "1.5rem" }}>
-        <a href="/register">ไปหน้าสมัครสมาชิก</a>
-        {" · "}
-        <a href="/admin">Back Office</a>
+      <h1 className="brand">ABTA สมาชิก</h1>
+      <p className="tagline">ระบบสมาชิก</p>
+
+      {canOpenLine ? (
+        <p className="lead">
+          ใช้งานผ่าน LINE เป็นหลัก — กดปุ่มสมัครด้านล่างเพื่อเปิดใน LINE
+        </p>
+      ) : (
+        <>
+          <p className="lead">
+            ระบบสมาชิกใช้งานผ่าน LINE Official Account ของสมาคมเป็นหลัก
+          </p>
+          <ol className="howto">
+            <li>เปิดแอป LINE แล้วเข้า Official Account ของสมาคม ABTA</li>
+            <li>เลือกเมนูสมาชิกหรือสมัครสมาชิกจากเมนูในแชท</li>
+            <li>
+              หากต้องการดูแบบฟอร์มบนเบราว์เซอร์ก่อน
+              ใช้ปุ่มสมัครด้านล่างได้ (บางขั้นตอนยังต้องเปิดจาก LINE)
+            </li>
+          </ol>
+        </>
+      )}
+
+      <div className="cta-stack">
+        <a className="landing-btn landing-btn--primary" href={registerHref}>
+          {canOpenLine ? "เปิดสมัครใน LINE" : "ไปหน้าสมัครสมาชิก"}
+        </a>
+        {!canOpenLine ? null : (
+          <a className="landing-btn landing-btn--secondary" href="/register">
+            ไปหน้าสมัครบนเบราว์เซอร์
+          </a>
+        )}
+      </div>
+
+      {import.meta.env.DEV ? (
+        <dl className="meta">
+          <div>
+            <dt>Firebase</dt>
+            <dd>{firebaseConfig.projectId || "—"}</dd>
+          </div>
+          <div>
+            <dt>LIFF ID</dt>
+            <dd>
+              {(import.meta.env.VITE_LIFF_ID as string | undefined)?.trim() ||
+                "ยังไม่ตั้งค่า VITE_LIFF_ID"}
+            </dd>
+          </div>
+          <div>
+            <dt>LIFF URL</dt>
+            <dd>
+              {(import.meta.env.VITE_LIFF_URL as string | undefined)?.trim() ||
+                "ยังไม่ตั้งค่า VITE_LIFF_URL"}
+            </dd>
+          </div>
+        </dl>
+      ) : null}
+
+      <p className="staff-link">
+        <a href="/admin">สำหรับเจ้าหน้าที่ — Back Office</a>
       </p>
     </main>
   );

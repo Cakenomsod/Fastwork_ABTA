@@ -22,12 +22,18 @@ type Seminar = {
 type Registration = {
   registrationId: string;
   seminarId: string;
+  seminarTitle?: string;
   firstName: string;
   lastName: string;
   applicantType: string;
   feeThb: number;
   status: string;
 };
+
+/** Actionable queue: awaiting staff decide (รอพิจารณา + ชำระแล้ว). */
+type RegFilter = "pending" | "all";
+
+const PENDING_STATUSES = new Set(["registered", "paid"]);
 
 type SeminarForm = {
   title: string;
@@ -52,6 +58,18 @@ const REG_STATUS_LABEL: Record<string, string> = {
   confirmed: "ยืนยันแล้ว",
   rejected: "ปฏิเสธ",
 };
+
+function pricingLabel(applicantType: string): string {
+  return PRICING_LABEL[applicantType] ?? "ประเภทอื่น";
+}
+
+function statusLabel(status: string): string {
+  return REG_STATUS_LABEL[status] ?? "ไม่ทราบสถานะ";
+}
+
+function isPendingReg(status: string): boolean {
+  return PENDING_STATUSES.has(status);
+}
 
 const ERROR_LABEL: Record<string, string> = {
   load_failed: "โหลดข้อมูลไม่สำเร็จ",
@@ -135,7 +153,7 @@ function formPayload(form: SeminarForm) {
 }
 
 function regStatusBadge(status: string) {
-  const label = REG_STATUS_LABEL[status] ?? status;
+  const label = statusLabel(status);
   const cls =
     status === "confirmed"
       ? "active"
@@ -144,12 +162,33 @@ function regStatusBadge(status: string) {
         : status === "paid"
           ? "slip"
           : "pending";
-  return <span className={`bo-badge ${cls}`}>{label}</span>;
+  return (
+    <span className={`bo-badge ${cls}`} title={status}>
+      {label}
+    </span>
+  );
+}
+
+function resolveSeminarTitle(
+  seminarId: string,
+  regTitle: string | undefined,
+  titleById: Map<string, string>,
+): string {
+  const fromReg = regTitle?.trim();
+  if (fromReg) return fromReg;
+  const fromMap = titleById.get(seminarId)?.trim();
+  if (fromMap) return fromMap;
+  return "";
 }
 
 export default function SeminarsPage() {
   const [seminars, setSeminars] = useState<Seminar[]>([]);
   const [regs, setRegs] = useState<Registration[]>([]);
+  /** Persists titles across deactivate (active list drops closed seminars). */
+  const [titleById, setTitleById] = useState<Map<string, string>>(
+    () => new Map(),
+  );
+  const [regFilter, setRegFilter] = useState<RegFilter>("pending");
   const [form, setForm] = useState<SeminarForm>(emptyForm);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -164,11 +203,15 @@ export default function SeminarsPage() {
   const isEditing = editingId != null;
   const audienceOk = form.allowPublic || form.allowMember;
 
-  const seminarById = useMemo(() => {
-    const map = new Map<string, Seminar>();
-    for (const s of seminars) map.set(s.seminarId, s);
-    return map;
-  }, [seminars]);
+  const pendingCount = useMemo(
+    () => regs.filter((r) => isPendingReg(r.status)).length,
+    [regs],
+  );
+
+  const filteredRegs = useMemo(() => {
+    if (regFilter === "all") return regs;
+    return regs.filter((r) => isPendingReg(r.status));
+  }, [regs, regFilter]);
 
   const previewLines = useMemo(() => {
     const lines: string[] = [];
@@ -180,6 +223,24 @@ export default function SeminarsPage() {
     }
     return lines;
   }, [form.allowPublic, form.allowMember, form.publicFee, form.memberFee]);
+
+  function mergeTitles(
+    nextSeminars: Seminar[],
+    nextRegs: Registration[],
+  ): void {
+    setTitleById((prev) => {
+      const map = new Map(prev);
+      for (const s of nextSeminars) {
+        const t = s.title?.trim();
+        if (t) map.set(s.seminarId, t);
+      }
+      for (const r of nextRegs) {
+        const t = r.seminarTitle?.trim();
+        if (t) map.set(r.seminarId, t);
+      }
+      return map;
+    });
+  }
 
   function openCreate() {
     setEditingId(null);
@@ -208,8 +269,11 @@ export default function SeminarsPage() {
       fetchAdminSeminars(),
       fetchAdminSeminarRegistrations(),
     ]);
-    setSeminars((s.items as Seminar[]) ?? []);
-    setRegs((r.items as Registration[]) ?? []);
+    const nextSeminars = (s.items as Seminar[]) ?? [];
+    const nextRegs = (r.items as Registration[]) ?? [];
+    setSeminars(nextSeminars);
+    setRegs(nextRegs);
+    mergeTitles(nextSeminars, nextRegs);
   }
 
   useEffect(() => {
@@ -300,7 +364,11 @@ export default function SeminarsPage() {
 
   const rejectingTitle =
     rejecting != null
-      ? (seminarById.get(rejecting.seminarId)?.title ?? "").trim()
+      ? resolveSeminarTitle(
+          rejecting.seminarId,
+          rejecting.seminarTitle,
+          titleById,
+        )
       : "";
 
   return (
@@ -618,8 +686,41 @@ export default function SeminarsPage() {
       </section>
 
       <section className="bo-panel">
-        <div className="bo-panel-head">
-          <h2>ใบสมัคร</h2>
+        <div className="bo-panel-head bo-seminar-regs-head">
+          <div className="bo-seminar-regs-title">
+            <h2>คิวใบสมัคร</h2>
+            {pendingCount > 0 ? (
+              <span className="bo-review-queue-count" title="รอพิจารณา">
+                {pendingCount}
+              </span>
+            ) : null}
+          </div>
+          <div className="bo-filter-group">
+            <span className="bo-filter-label" id="sem-reg-filter-label">
+              สถานะ
+            </span>
+            <div
+              className="bo-seg"
+              role="group"
+              aria-labelledby="sem-reg-filter-label"
+            >
+              <button
+                type="button"
+                className={`bo-seg-btn${regFilter === "pending" ? " is-active" : ""}`}
+                onClick={() => setRegFilter("pending")}
+              >
+                รอพิจารณา
+                {pendingCount > 0 ? ` (${pendingCount})` : ""}
+              </button>
+              <button
+                type="button"
+                className={`bo-seg-btn${regFilter === "all" ? " is-active" : ""}`}
+                onClick={() => setRegFilter("all")}
+              >
+                ทั้งหมด ({regs.length})
+              </button>
+            </div>
+          </div>
         </div>
         <div className="bo-table-wrap">
           <table className="bo-table">
@@ -633,17 +734,24 @@ export default function SeminarsPage() {
               </tr>
             </thead>
             <tbody>
-              {regs.length === 0 ? (
+              {filteredRegs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ color: "var(--bo-muted)" }}>
-                    ยังไม่มีใบสมัคร
+                  <td colSpan={5} className="bo-seminar-regs-empty">
+                    {regs.length === 0
+                      ? "ยังไม่มีใบสมัคร"
+                      : regFilter === "pending"
+                        ? "ไม่มีใบสมัครรอพิจารณา — ดู «ทั้งหมด» เพื่อประวัติ"
+                        : "ยังไม่มีใบสมัคร"}
                   </td>
                 </tr>
               ) : (
-                regs.map((r) => {
+                filteredRegs.map((r) => {
                   const rowBusy = decidingId === r.registrationId;
-                  const seminarTitle =
-                    seminarById.get(r.seminarId)?.title?.trim() ?? "";
+                  const seminarTitle = resolveSeminarTitle(
+                    r.seminarId,
+                    r.seminarTitle,
+                    titleById,
+                  );
                   return (
                     <tr key={r.registrationId}>
                       <td>
@@ -651,8 +759,9 @@ export default function SeminarsPage() {
                       </td>
                       <td>{seminarTitle}</td>
                       <td>
-                        {PRICING_LABEL[r.applicantType] ?? r.applicantType} (
-                        {formatFee(r.feeThb)})
+                        <span title={r.applicantType}>
+                          {pricingLabel(r.applicantType)} ({formatFee(r.feeThb)})
+                        </span>
                       </td>
                       <td>{regStatusBadge(r.status)}</td>
                       <td>
@@ -662,7 +771,7 @@ export default function SeminarsPage() {
                             <button
                               type="button"
                               className="bo-btn bo-btn-primary bo-btn-sm"
-                              disabled={rowBusy || decidingId != null}
+                              disabled={rowBusy}
                               onClick={() =>
                                 void approveRegistration(r.registrationId)
                               }
@@ -672,7 +781,7 @@ export default function SeminarsPage() {
                             <button
                               type="button"
                               className="bo-btn bo-btn-ghost bo-btn-sm"
-                              disabled={rowBusy || decidingId != null}
+                              disabled={rowBusy}
                               onClick={() => setRejecting(r)}
                             >
                               ปฏิเสธ

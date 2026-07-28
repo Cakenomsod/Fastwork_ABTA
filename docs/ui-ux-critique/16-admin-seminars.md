@@ -1,233 +1,197 @@
-# UI/UX Critique: Admin Seminars (Back Office)
+# 16 — Admin Seminars (`/admin/seminars`)
 
-> Method: ⚠️ DEGRADED: single-context (nested under Multitask parent; no further sub-agents) · Detector: detect.mjs · Date: 2026-07-27  
-> Target: `apps/web/src/admin/pages/SeminarsPage.tsx` + seminar rules in `apps/web/src/admin/admin.css`  
-> Score: **20/40** · P0: **1** · P1: **3** · Band: Acceptable
+⚠️ **DEGRADED: single-context** (nested Multitask subagent — dual Assessment A/B spawn blocked; design review + `detect.mjs` ran inline)
+
+| Meta | Value |
+|------|--------|
+| **Score** | **28 / 40** · Good |
+| **Prior** | **20 / 40** · Acceptable → **+8** after fixes |
+| **P0** | 0 |
+| **P1** | 2 |
+| **P2** | 3 |
+| **P3** | 2 |
+| **Files** | `SeminarsPage.tsx`, `ConfirmDialog.tsx` (`requireReason`), `admin.css` (`.bo-seminar-*`) |
+| **Detect** | `detect.mjs --json` → `[]` (clean, exit 0) |
+| **Browser** | Skipped — page requires admin Google auth; no reliable live overlay |
+| **Date** | 2026-07-27 (re-critique after fixes) |
+
+**Fixes verified:** Reject `ConfirmDialog` + `requireReason` (no `window.prompt`) · `REG_STATUS_LABEL` + `.bo-badge` · registration «งาน» column joins `seminar.title` · Thai `ERROR_LABEL` · per-row `decidingId` busy label on approve
 
 ---
 
 ## สรุปสำหรับอ่าน (ภาษาไทย)
 
-### คะแนนสุขภาพดีไซน์
+### คะแนนรวม: 28/40 (Good) · เดิม 20/40
 
-| # | Heuristic | คะแนน | ประเด็นหลัก |
-|---|-----------|-------|-------------|
-| 1 | Visibility of System Status | 2 | ไม่มี skeleton ตอนโหลด; ไม่มี toast สำเร็จ; สถานะใบสมัครเป็นอังกฤษดิบ |
-| 2 | Match System / Real World | 2 | ฟอร์มสร้างงานภาษาไทยดี แต่ตารางใบสมัครใช้ `seminarId` + status ดิบ |
-| 3 | User Control and Freedom | 3 | มียกเลิกฟอร์ม + ConfirmDialog ปิดงาน; แต่ reject ใช้ `window.prompt` |
-| 4 | Consistency and Standards | 2 | ปิดงานใช้ ConfirmDialog แต่ปฏิเสธใช้ prompt — ขัดหลัก BO |
-| 5 | Error Prevention | 2 | ยืนยันก่อนปิดงานดี; ปฏิเสธไม่มี UI เหตุผลที่ปลอดภัย |
-| 6 | Recognition Rather Than Recall | 1 | บังคับจำ/แมป UUID ของงานในตารางใบสมัคร |
-| 7 | Flexibility and Efficiency | 1 | `busy` ล็อกทั้งหน้า; ไม่มีกรองคิวรอ / bulk |
-| 8 | Aesthetic and Minimalist Design | 3 | บล็อกเลือกกลุ่มผู้เข้าชัด; ตารางใบสมัครยังดูเป็น CRUD ดิบ |
-| 9 | Error Recovery | 2 | error ฟอร์มไทยดี; API error อาจเป็น `save_failed` |
-| 10 | Help and Documentation | 2 | มี hint ในฟอร์มสร้าง; ไม่มีคำแนะนำคิวอนุมัติใบสมัคร |
-| **รวม** | | **20/40** | **Acceptable — ต้องแก้ก่อน staff ใช้จริงเป็นคิวงาน** |
+คิวใบสมัครไม่ใช่ CRUD ดิบอีกต่อไปในจุดที่เคยทำร้ายความน่าเชื่อถือ: ปฏิเสธใช้ `ConfirmDialog` พร้อมเหตุผลบังคับ, สถานะเป็นไทย+badge, คอลัมน์งานแสดงชื่อสัมมนาแทน UUID — สอดคล้องหลัก «ยืนยันก่อนทำลาย» และ «สถานะชัดก่อนสวย»
 
-### ความประทับใจรวม
+**จุดแข็ง**
+1. **Audience picker + สรุปสิทธิ์** — toggle กลุ่ม/ราคา + `aria-live` preview ยังเป็นจุดเด่นของหน้า
+2. **ConfirmDialog สองเส้นทาง** — ปิดงาน (danger) และปฏิเสธ (`requireReason`) ใช้ pattern เดียวกัน
+3. **สถานะ + ชื่องานอ่านได้** — badge ไทย + join title จากรายการงาน
 
-ฟอร์มสร้าง/แก้สัมมนา (โดยเฉพาะตัวเลือกกลุ่มผู้เข้า + ราคา + สรุปสิทธิ์) ออกแบบมาดีและตรงเสียงสมาคม แต่หน้าที่ “งานจริง” ของเจ้าหน้าที่คือ **คิวใบสมัคร** ยังเป็นตาราง CRUD ที่บังคับจำ UUID, แสดงสถานะอังกฤษ, และปฏิเสธด้วย `window.prompt` ซึ่งขัด PRODUCT.md โดยตรง โอกาสใหญ่ที่สุดคือทำให้แผงใบสมัครเป็น queue-first เหมือน Data/Slip Review
+**P0:** ไม่มี — `window.prompt` หายแล้ว
 
-### จุดแข็ง
-
-1. **Audience picker** — toggle กลุ่มทั่วไป/สมาชิก, ช่องราคาโผล่เมื่อเลือก, preview `aria-live`, copy ไทยชัด  
-2. **ConfirmDialog ปิดงาน** — อธิบายผลกระทบต่อรายการรับสมัคร; danger variant ถูกต้อง  
-3. **Empty state สร้างงาน** — บอกให้กด “สร้างงานสัมมนา”; responsive + `prefers-reduced-motion` ใน CSS seminar
-
-### ปัญหาเรียงตามความสำคัญ (P0–P3)
-
-#### [P0] ปฏิเสธใบสมัครใช้ `window.prompt`
-- **อะไร**: `decide(..., false)` เรียก `window.prompt("เหตุผลที่ปฏิเสธ")`
-- **ทำไมสำคัญ**: ขัด anti-reference ของโปรเจกต์; ไม่มี context, a11y แย่, ยกเลิก/ว่างเงียบ ๆ; การปฏิเสธเป็น high-stakes
-- **แก้**: แทนด้วย ConfirmDialog / inline reason field + ปุ่มยืนยัน (แบบเดียวกับ BO อื่น)
-- **คำสั่ง**: `/impeccable harden` + `/impeccable clarify`
-
-#### [P1] ตารางใบสมัครโชว์ `seminarId` แทนชื่องาน
-- **อะไร**: คอลัมน์ “งาน” เป็น `<code>{r.seminarId}</code>`
-- **ทำไมสำคัญ**: บังคับ recall — เจ้าหน้าที่ต้องจำ UUID; ช้าและผิดพลาดง่ายเมื่อมีหลายงาน
-- **แก้**: join กับ `seminars` แสดง `title` (+ วันที่); เก็บ id เป็น secondary / tooltip
-- **คำสั่ง**: `/impeccable clarify` + `/impeccable layout`
-
-#### [P1] สถานะใบสมัครเป็นอังกฤษดิบ (`pending` / `confirmed` / `rejected`)
-- **อะไร**: เรนเดอร์ `r.status` ตรง ๆ ไม่มี badge/label ไทย
-- **ทำไมสำคัญ**: ขัดหลัก “สถานะชัดก่อนสวย”; staff ต้องแปลเอง; ไม่มี semantic color
-- **แก้**: map เป็นไทย + `.bo-badge` success/warn/danger
-- **คำสั่ง**: `/impeccable clarify` + `/impeccable colorize`
-
-#### [P1] ไม่ใช่ queue-first — ไม่กรองคิวรอ, `busy` ล็อกทั้งหน้า
-- **อะไร**: แสดงใบสมัครทั้งหมดคละสถานะ; ปุ่มทุกอัน `disabled={busy}` รวมกัน
-- **ทำไมสำคัญ**: หลัก BO คือคิวเป็นศูนย์กลาง; staff หาของที่ต้องทำยาก; อนุมัติทีละใบช้า
-- **แก้**: default filter “รอพิจารณา”; นับ badge; busy ต่อแถว; (ถ้าเหมาะ) bulk approve
-- **คำสั่ง**: `/impeccable distill` + `/impeccable harden`
-
-#### [P2] ไม่มี feedback สำเร็จ / loading เริ่มต้น
-- **อะไร**: โหลดครั้งแรกไม่มี skeleton; บันทึกสำเร็จแค่ปิดฟอร์ม
-- **แก้**: skeleton หรือ “กำลังโหลด…”; toast/inline success สั้น ๆ
-- **คำสั่ง**: `/impeccable polish`
-
-#### [P2] API / fallback error เป็นรหัสอังกฤษ
-- **อะไร**: `"save_failed"`, `"deactivate_failed"`, `"decide_failed"`; list fallback เป็น `seminarId`
-- **แก้**: ข้อความไทยที่ actionable; list ใช้ “ไม่มีวัน/สถานที่” แทน UUID
-- **คำสั่ง**: `/impeccable clarify`
-
-#### [P3] ตารางไม่ใช้ pattern การ์ดบนมือถือ; `<th />` ว่าง; inline style
-- **แก้**: `bo-table--cards` หรือ actions label; ย้ายสีไป class
-- **คำสั่ง**: `/impeccable adapt`
-
-### ธงแดงตาม Persona
-
-**Alex (Power User / เจ้าหน้าที่ประจำ)**  
-- ไม่มี bulk / คีย์ลัด; `busy` ล็อกทั้งหน้าหลังอนุมัติใบเดียว  
-- ต้องสแกน UUID ในตาราง — ช้ากว่า Data Review มาก  
-- `window.prompt` ตัด flow คีย์บอร์ด
-
-**Sam (Accessibility)**  
-- `window.prompt` ไม่ใช่ dialog ที่ควบคุมโฟกัส/ประกาศได้ดี  
-- คอลัมน์ actions เป็น `<th />` ว่าง — screen reader ไม่รู้ชื่อคอลัมน์  
-- สถานะพึ่งข้อความดิบ ไม่มี `aria` / badge ที่มีชื่อ
-
-**นายทะเบียน ABTA (persona โปรเจกต์)**  
-- ต้องการอนุมัติ/ปฏิเสธเร็วและไม่ผิดงาน — ตอนนี้ต้องแมป id กับชื่องานเอง  
-- เหตุผลปฏิเสธไม่มี UI ที่บันทึก/ทบทวนชัดก่อนส่ง  
-- ภาษาสถานะอังกฤษไม่ตรงเสียง “สุภาพ ตรงไปตรงมา” ของสมาคม
-
-### ข้อสังเกตเล็กน้อย
-
-- ปุ่มยกเลิกซ้ำ (หัวฟอร์ม + ท้ายฟอร์ม) — ใช้ได้ แต่ซ้ำ  
-- `openEdit` scroll ไปบนสุดขณะฟอร์มเปิดทับรายการ — OK แต่รายการด้านล่างยังแข่งโฟกัส  
-- Detector: ส่วนใหญ่เป็น font-size/radius/color นอก DESIGN.md (advisory) ในบล็อก `.bo-seminar-*` — ไม่ใช่ AI-slop รุนแรง; มี eyebrow เล็กที่ “สรุปสิทธิ์” (uppercase tracked) หนึ่งจุด  
-- สี tag “ทั่วไป” (`#8a6540`, `#f3e7d4`) นอก palette — ตั้งใจแยกจากเขียวสมาชิกได้ แต่ควรเป็น token
-
-### คำถามที่ควรคิด
-
-- หน้าที่หลักของหน้านี้คือ “สร้างงาน” หรือ “เคลียร์คิวใบสมัคร”? ถ้าเป็นคิว ทำไมสร้างฟอร์มอยู่บนสุดเสมอ?
-- ถ้ามีงานเปิดพร้อมกัน 3+ งาน การโชว์ UUID ยังยอมรับได้หรือไม่?
-- ควรแยก “งานที่ปิดแล้ว” ออกจากรายการเปิด หรือ soft-delete แล้วซ่อนทั้งหมด?
+**Top 3 ที่เหลือ**
+1. **[P1]** ยังไม่ queue-first — ไม่มีกรอง «รอพิจารณา» / นับ badge; ใบสมัครคละสถานะทั้งหมด
+2. **[P1]** คอลัมน์งานเป็นช่องว่างเมื่องานไม่อยู่ในรายการที่เปิด (ปิดงานแล้ว) — ควร fallback ข้อความ
+3. **[P2]** ไม่มี loading เริ่มต้น / toast สำเร็จ; `decidingId != null` ล็อกปุ่มทุกแถวระหว่างตัดสินใจใบเดียว
 
 ---
 
-## English (for follow-up fix agents)
+## English — Full critique for fix agents
 
-### Design Health Score
+### Method & evidence
 
-| # | Heuristic | Score | Key Issue |
-|---|-----------|-------|-----------|
-| 1 | Visibility of System Status | 2 | No initial loading UI; no success confirmation; raw English statuses |
-| 2 | Match System / Real World | 2 | Create form Thai is strong; registration table speaks IDs/codes |
-| 3 | User Control and Freedom | 3 | Form cancel + close ConfirmDialog OK; reject trapped in native prompt |
-| 4 | Consistency and Standards | 2 | ConfirmDialog for close vs `window.prompt` for reject |
-| 5 | Error Prevention | 2 | Close guarded; reject reason UX unsafe / easy to abandon silently |
-| 6 | Recognition Rather Than Recall | 1 | Registration “งาน” column is opaque `seminarId` |
-| 7 | Flexibility and Efficiency | 1 | Page-wide `busy`; no pending filter / bulk |
-| 8 | Aesthetic and Minimalist Design | 3 | Audience composer is intentional; regs table is bare CRUD |
-| 9 | Error Recovery | 2 | Thai field errors good; API fallbacks are English codes |
-| 10 | Help and Documentation | 2 | Create hints good; no guidance for approval queue |
-| **Total** | | **20/40** | **Acceptable** |
+⚠️ DEGRADED: single-context (nested Multitask; dual A/B disallowed)
 
-### Anti-Patterns Verdict
+- **Assessment A:** source read of post-fix `SeminarsPage.tsx` + `ConfirmDialog` `requireReason` path + seminar CSS patterns.
+- **Assessment B:** `node .cursor/skills/impeccable/scripts/detect.mjs --json apps/web/src/admin/pages/SeminarsPage.tsx apps/web/src/admin/ConfirmDialog.tsx` → **`[]`**.
+- **Agreement:** Detector clean. Prior P0 (`window.prompt`) and prior title/status recognition gaps are **resolved** in happy path. Remaining work is queue IA + closed-seminar title fallback + feedback polish.
+- **Browser overlay:** not available (auth-gated BO).
 
-**LLM assessment**: Not generic SaaS gray-blue. The create/edit composer (audience cards, fee reveal, preview) feels product-specific and on-brand. The failure mode is **strangeness without purpose on the queue surface**: `<code>` IDs, raw statuses, and `window.prompt` — exactly the anti-references PRODUCT.md calls out. One mild uppercase tracked label (“สรุปสิทธิ์”) — not a page-wide eyebrow scaffold.
+### Heuristics scoring
 
-**Deterministic scan (`detect.mjs`)**: Exit code 2. **191** advisory hits when scanning `SeminarsPage.tsx` + full `admin.css` (mostly global admin.css drift). **~31** hits in the `.bo-seminar-*` block (~lines 2629–3100): `design-system-font-size`, `design-system-radius` (`10px`, `999px`), `design-system-color` (warm public-tag browns `#5b4630` / `#8a6540` / `#f3e7d4`, greens `#d8eee3`, etc.). **No** absolute bans (side-stripe, gradient text, glassmorphism, hero-metric). Treat token drift as P3 documentation/`document` follow-up, not the UX blockers.
+| # | Heuristic | Score | Key issue |
+|---|-----------|------:|-----------|
+| 1 | Visibility of System Status | 3 | Thai status badges + row «กำลังบันทึก…»; no initial load skeleton; no success toast after approve/reject/save |
+| 2 | Match System / Real World | 3 | Thai create form + status + errors; unknown `status` / `applicantType` still fall through raw |
+| 3 | User Control and Freedom | 3 | Cancel/Escape on both ConfirmDialogs; form cancel; no undo after reject (acceptable if rare) |
+| 4 | Consistency and Standards | 3 | Close + reject both use branded ConfirmDialog; reg table still not `bo-table--cards` |
+| 5 | Error Prevention | 3 | Danger + required reason on reject; deactivate confirm; queue still mixed so wrong-row risk remains |
+| 6 | Recognition Rather Than Recall | 3 | Title column via `seminarById`; **blank cell** when seminar not in active list |
+| 7 | Flexibility and Efficiency | 2 | Row busy label; but `decidingId != null` disables *all* row actions; no pending filter / bulk |
+| 8 | Aesthetic and Minimalist Design | 3 | Audience block still focused; reg table is denser but purposeful |
+| 9 | Error Recovery | 3 | Thai `ERROR_LABEL` incl. `reason_required` / `decide_failed`; unknown codes may still surface raw |
+| 10 | Help and Documentation | 2 | Create-form hints strong; no guidance for registration queue workflow |
+| **Total** | | **28/40** | **Good** |
 
-**Visual overlays**: Skipped — no reliable browser mutation/injection in this Multitask subagent run (source + detector only).
+### Anti-patterns verdict
 
-### Overall Impression
+**LLM:** Does not look AI-generated. The previous anti-reference hit (`window.prompt` for reject) is **gone**. Surface now matches BO ConfirmDialog vocabulary. Residual “CRUD list” feel remains because the registrations panel is still not queue-first.
 
-Strong **create/edit** craft; weak **operations queue**. Biggest opportunity: make registrations queue-first (title, Thai status badges, proper reject dialog, pending filter) so staff trust this like Slip/Data Review.
+**Deterministic scan:** 0 findings on SeminarsPage / ConfirmDialog markup.
 
-### What's Working
+**Visual overlays:** none (auth).
 
-1. Audience + pricing progressive disclosure with live summary (`aria-live="polite"`, `aria-pressed`).
-2. Destructive close uses shared `ConfirmDialog` with consequence copy.
-3. Empty create CTA, labeled fields, mobile collapse of audience grid, reduced-motion on seminar animations.
+### Overall impression
 
-### Priority Issues
+Create/edit seminar (audience + pricing) was already the strong half; the registration half is now **safe enough to use** for approve/reject. The biggest remaining gap vs PRODUCT «คิวเป็นศูนย์กลาง» is that staff still scan a mixed-status table instead of a default pending queue — and closed-seminar rows can show an empty title cell.
 
-1. **[P0] Reject via `window.prompt`**  
-   - **What**: `decide()` uses native prompt for reject reason.  
-   - **Why**: Product bans context-free native confirms; a11y + error-prevention failure on a high-stakes action.  
-   - **Fix**: Reason field in `ConfirmDialog` or inline panel; require non-empty reason; Esc/cancel without silent failure confusion.  
-   - **Suggested command**: `/impeccable harden`
+### What's working
 
-2. **[P1] Registrations show `seminarId` not title**  
-   - **What**: `<code>{r.seminarId}</code>` in “งาน” column.  
-   - **Why**: Forces recall across seminars; slows approval and invites wrong-seminar decisions.  
-   - **Fix**: Resolve title from `seminars` state; show date as secondary.  
-   - **Suggested command**: `/impeccable clarify`
+1. **Reject ConfirmDialog + `requireReason`** — danger variant, Thai labels, reason passed to `decideSeminarRegistration`; cancel gated while busy.
+2. **Thai status badges** — `REG_STATUS_LABEL` + semantic `.bo-badge` classes (`pending` / `slip` / `active` / `expired`).
+3. **Title column** — `seminarById.get(r.seminarId)?.title` replaces raw `<code>{seminarId}</code>`; reject modal also names the seminar when known.
+4. **Audience picker** — still the page’s craft highlight (toggle + price reveal + `aria-live` summary).
 
-3. **[P1] Raw English registration status**  
-   - **What**: `r.status` rendered verbatim.  
-   - **Why**: Breaks “สถานะชัดก่อนสวย”; no semantic badge system.  
-   - **Fix**: Thai labels + status chips (pending/confirmed/rejected).  
-   - **Suggested command**: `/impeccable clarify` + `/impeccable colorize`
+### Priority issues
 
-4. **[P1] Not queue-first; global `busy`**  
-   - **What**: All regs mixed; every button disabled while any request runs.  
-   - **Why**: Staff primary job is clearing pending applications; current IA treats create form as equal weight.  
-   - **Fix**: Default “รอพิจารณา” filter + counts; per-row busy; optional bulk approve.  
-   - **Suggested command**: `/impeccable distill`
+#### [P1] Registrations panel is not queue-first
+- **What:** All registrations render mixed; no default «รอพิจารณา» filter, count badge, or pending-only view.
+- **Why:** PRODUCT principle is queue-centric BO. Staff hunting actionable rows among confirmed/rejected is slow and error-prone.
+- **Fix:** Default filter to actionable statuses (`registered` / `paid`); show count; optional tabs or chips; keep “ทั้งหมด” as secondary.
+- **Command:** `/impeccable distill SeminarsPage queue` + `/impeccable harden`
 
-5. **[P2] Weak success/loading + English error codes**  
-   - **Fix**: Initial loading state; short success feedback; Thai API error strings; never fall back list meta to raw id.  
-   - **Suggested command**: `/impeccable polish` + `/impeccable clarify`
+#### [P1] Title cell blank when seminar not in active list
+- **What:** `seminarTitle = seminarById.get(...)?.title?.trim() ?? ""` — deactivated/closed seminars drop out of «งานที่เปิดอยู่», leaving empty «งาน» cells (and weaker reject copy).
+- **Why:** Recognition regresses exactly when historical registrations matter most.
+- **Fix:** Fallback «งานที่ปิดแล้ว» / keep closed seminars in a lookup map / show truncated id as secondary only when title missing.
+- **Command:** `/impeccable clarify SeminarsPage title fallback`
 
-### Persona Red Flags
+#### [P2] Feedback + global decide lock
+- **What:** No initial loading state (empty flash «ยังไม่มีงานสัมมนา» / empty regs); save/approve/reject success is silent (list just refreshes). While `decidingId != null`, **every** row’s approve/reject is disabled.
+- **Why:** Alex loses parallel triage; Casey/Jordan get no confirmation peak after a high-stakes reject.
+- **Fix:** Page-level loading flag; short inline success; disable only the active row (`rowBusy`), leave siblings enabled.
+- **Command:** `/impeccable polish SeminarsPage feedback`
 
-**Alex**: No batch approve; full-page busy lock; UUID scanning; prompt interrupts keyboard flow.  
-**Sam**: Native prompt; empty actions `<th>`; status not announced as structured status.  
-**นายทะเบียน**: High mis-approve risk when multiple open seminars; reject reason not reviewable in a proper dialog.
+#### [P2] Unknown status / applicantType fall through
+- **What:** `REG_STATUS_LABEL[status] ?? status` and `PRICING_LABEL[…] ?? applicantType` can show English API tokens.
+- **Fix:** Explicit «ไม่ทราบสถานะ» / «ประเภทอื่น» fallbacks + keep raw in `title` for support.
+- **Command:** `/impeccable clarify`
 
-### Minor Observations
+#### [P3] Table / empty markup polish
+- Empty regs cell uses inline `style={{ color: "var(--bo-muted)" }}`; no `bo-table--cards` / `data-label` on narrow viewports; actions column has label (good) but still dense.
+- **Command:** `/impeccable adapt`
 
-- Duplicate Cancel in create panel header/footer.
-- Inline `style={{ color: "var(--bo-muted)" }}` on empty regs cell.
-- Table lacks `bo-table--cards` pattern used elsewhere in admin.
-- Public audience warm browns should become `--bo-*` tokens if kept.
+#### [P3] ConfirmDialog focus restore (shared)
+- Same shared gap as Staff: focus not restored to trigger on close.
+- **Command:** `/impeccable audit ConfirmDialog focus restore`
 
-### Questions to Consider
+### Cognitive load
 
-- Is the primary job create-seminar or clear-registration-queue?
-- Should closed seminars be browsable in an archive tab?
-- Does reject need audit-visible reason UI beyond a one-line field?
+| Checklist item | Pass? |
+|----------------|-------|
+| Single focus | Fail — create form + open list + full reg table compete |
+| Chunking | Pass (audience grid ≤2) |
+| Grouping | Pass |
+| Visual hierarchy | Pass on create; weaker on regs |
+| One thing at a time | Pass for reject modal |
+| Minimal choices | Fail on regs — all statuses visible with no filter |
+| Working memory | Pass for title (happy path); Fail for closed-seminar blank |
+| Progressive disclosure | Pass — price fields appear when audience selected |
 
-### Detector Findings (JSON summary)
+**Failures: 3 → moderate.** Create path is low load; registration queue still adds extraneous load.
 
-```json
-{
-  "exitCode": 2,
-  "targets": [
-    "apps/web/src/admin/pages/SeminarsPage.tsx",
-    "apps/web/src/admin/admin.css"
-  ],
-  "totalFindings": 191,
-  "byAntipattern": {
-    "design-system-font-size": 118,
-    "design-system-radius": 43,
-    "design-system-color": 29,
-    "design-system-font": 1
-  },
-  "seminarBlockApproxFindings": 31,
-  "severity": "all advisory",
-  "absoluteBans": 0,
-  "note": "Most hits are admin.css global drift; seminar block adds warm public-tag colors and dense rem sizes/radii outside DESIGN.md"
-}
+### Persona red flags
+
+**Alex (power user / เจ้าหน้าที่ประจำ)**  
+- Reject no longer blocked by native prompt.  
+- Still no pending filter / bulk; deciding one row locks all actions.  
+- Soft success feedback missing → re-checks table to confirm.
+
+**Sam (a11y)**  
+- ConfirmDialog reason field focusable; Escape works.  
+- Status color + Thai text (not color alone) — good.  
+- No live region for decide success/errors beyond top `bo-error`.
+
+**Jordan / นายทะเบียน (first-time)**  
+- Create form still teachable.  
+- Mixed reg table without “what do I do next?” guidance.  
+- Blank title on closed seminars looks like a bug.
+
+**Riley (edge)**  
+- Reject without reason blocked by `requireReason`.  
+- Empty title fallback missing when seminar map miss.  
+- Initial empty flash before fetch completes.
+
+### Minor observations
+
+- Approve path has no confirm (by design for speed) — OK if pending filter lands first.
+- Pricing summary on open seminars list uses Thai fee formatting — consistent with create preview.
+- Detector clean; no AI-slop markup rules triggered.
+
+### Questions to consider
+
+- Should closed seminars stay in a hidden lookup for titles, or should the API return `seminarTitle` on each registration?
+- Default queue = `registered` only, or `registered` + `paid`?
+- Is bulk approve in scope for Phase 1, or only filter + per-row busy?
+
+### Detector summary
+
+```text
+detect.mjs targets: SeminarsPage.tsx, ConfirmDialog.tsx
+result: [] (exit 0)
+false positives: n/a
 ```
 
-### Concrete fix backlog for next chat
+---
 
-Scoped to `SeminarsPage.tsx` + seminar section of `admin.css` (and shared `ConfirmDialog` if extended):
+## Concrete fix backlog
 
-1. **Replace `window.prompt` reject** with ConfirmDialog (or inline) reason field; block confirm when empty; keep approve one-click or soft-confirm.
-2. **Map `seminarId → title`** in registrations table (lookup from `seminars`); show date/location secondary; hide raw id behind title or copy affordance.
-3. **Thai status labels + badges** for `pending` / `confirmed` / `rejected` (reuse existing `.bo-badge*` / semantic tokens if present).
-4. **Queue defaults**: filter tabs or chips — รอพิจารณา (default) / ทั้งหมด / อนุมัติแล้ว / ปฏิเสธ; show counts in panel head.
-5. **Per-row / per-action busy** instead of page-wide `disabled={busy}` on every control.
-6. **Initial load state**: skeleton or “กำลังโหลดงานสัมมนา…”; don’t flash empty then populate without cue.
-7. **Success feedback**: toast or inline banner after save / approve / reject / close.
-8. **Localize error fallbacks**: replace `save_failed` / `deactivate_failed` / `decide_failed` with Thai actionable copy; keep `err.message` when already human.
-9. **List meta fallback**: if no date/location, show “ยังไม่ระบุวัน/สถานที่” — never raw `seminarId` as the only subtitle.
-10. **Table a11y/adapt**: label actions column (`การดำเนินการ`); consider `bo-table--cards` under 720px; move empty-cell color to CSS class.
-11. **Optional P3**: tokenise public-tag browns; align radii to DESIGN.md scale; document intentional rem steps.
+| # | Sev | Task | Files | Suggested command |
+|---|-----|------|-------|-------------------|
+| 1 | P1 | Default pending/actionable filter + count on regs panel | `SeminarsPage.tsx` | `/impeccable distill` / `harden` |
+| 2 | P1 | Title fallback when seminar missing from active list | `SeminarsPage.tsx` (+ API if needed) | `/impeccable clarify` |
+| 3 | P2 | Initial loading; success feedback; disable only active row | `SeminarsPage.tsx` | `/impeccable polish` |
+| 4 | P2 | Unknown status/type Thai fallbacks | `SeminarsPage.tsx` | `/impeccable clarify` |
+| 5 | P3 | `bo-table--cards` + drop inline empty color | `SeminarsPage.tsx` | `/impeccable adapt` |
+| 6 | P3 | Focus restore on ConfirmDialog close | `ConfirmDialog.tsx` | `/impeccable audit` |
 
-**Suggested command sequence**: `/impeccable harden` → `/impeccable clarify` → `/impeccable distill` → `/impeccable colorize` → `/impeccable adapt` → `/impeccable polish`
+**Recommended sequence:** `distill`/`harden` (1) → `clarify` (2,4) → `polish` (3) → `adapt` (5) → optional shared `audit` (6).
+
+---
+
+## Trend / snapshot
+
+Re-critique after P0/P1 fixes. Prior docs score **20/40** → **28/40**. Impeccable storage slug: `apps-web-src-admin-pages-seminarspage-tsx`.

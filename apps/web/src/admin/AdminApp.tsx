@@ -283,7 +283,7 @@ export default function AdminApp() {
   }
 
   const titleMap: Record<AdminRoute, string> = {
-    dashboard: "Dashboard",
+    dashboard: "ค้นหาสมาชิก",
     data: "ตรวจข้อมูลสมาชิก",
     slips: "ตรวจสลิป / ใบเสร็จ",
     legacy: "สมาชิกเก่า",
@@ -377,7 +377,7 @@ export default function AdminApp() {
             <NavBtn
               active={route === "dashboard"}
               onClick={() => go("dashboard")}
-              label="Dashboard"
+              label="ค้นหาสมาชิก"
             />
             {canSeeData && (
               <NavBtn

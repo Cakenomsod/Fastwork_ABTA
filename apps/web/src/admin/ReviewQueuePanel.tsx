@@ -1,3 +1,4 @@
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import type { QueueItem } from "../lib/admin-api";
 
 export interface ReviewQueuePanelProps {
@@ -32,6 +33,56 @@ export default function ReviewQueuePanel(props: ReviewQueuePanelProps) {
     onSelect,
     onRefresh,
   } = props;
+
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    optionRefs.current = optionRefs.current.slice(0, items.length);
+  }, [items.length]);
+
+  function focusOption(index: number) {
+    const el = optionRefs.current[index];
+    el?.focus();
+  }
+
+  function moveSelection(fromIndex: number, nextIndex: number) {
+    if (nextIndex < 0 || nextIndex >= items.length || nextIndex === fromIndex) {
+      return;
+    }
+    onSelect(items[nextIndex]!.memberId);
+    // Focus after parent clears detail / updates selection (detailReady lock stays intact).
+    queueMicrotask(() => focusOption(nextIndex));
+  }
+
+  function onOptionKeyDown(e: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (items.length === 0) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        moveSelection(index, Math.min(index + 1, items.length - 1));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        moveSelection(index, Math.max(index - 1, 0));
+        break;
+      case "Home":
+        e.preventDefault();
+        moveSelection(index, 0);
+        break;
+      case "End":
+        e.preventDefault();
+        moveSelection(index, items.length - 1);
+        break;
+      default:
+        break;
+    }
+  }
+
+  const activeIndex = selectedId
+    ? items.findIndex((row) => row.memberId === selectedId)
+    : -1;
+  const tabbableIndex = activeIndex >= 0 ? activeIndex : 0;
 
   return (
     <aside className="bo-review-queue" aria-label={title}>
@@ -82,16 +133,21 @@ export default function ReviewQueuePanel(props: ReviewQueuePanelProps) {
           </div>
         ) : (
           <ul className="bo-review-queue-list" role="listbox" aria-label={title}>
-            {items.map((row) => {
+            {items.map((row, index) => {
               const selected = selectedId === row.memberId;
               return (
                 <li key={row.paymentId || row.memberId}>
                   <button
+                    ref={(el) => {
+                      optionRefs.current[index] = el;
+                    }}
                     type="button"
                     role="option"
                     aria-selected={selected}
+                    tabIndex={index === tabbableIndex ? 0 : -1}
                     className={`bo-review-queue-item${selected ? " selected" : ""}`}
                     onClick={() => onSelect(row.memberId)}
+                    onKeyDown={(e) => onOptionKeyDown(e, index)}
                   >
                     <span className="bo-review-queue-item-name">{row.fullName}</span>
                     {variant === "data" ? (

@@ -1,41 +1,41 @@
 # 15 — Admin Staff (`/admin/staff`)
 
-⚠️ DEGRADED: single-context (nested Multitask subagent; dual Assessment A/B spawn disallowed)
+⚠️ **DEGRADED: single-context** (nested Multitask subagent — dual Assessment A/B spawn blocked; design review + `detect.mjs` ran inline)
 
 | Meta | Value |
 |------|--------|
-| **Score** | **22 / 40** · Acceptable |
+| **Score** | **29 / 40** · Good |
+| **Prior** | **22 / 40** · Acceptable → **+7** after fixes |
 | **P0** | 0 |
-| **P1** | 3 |
-| **Files** | `apps/web/src/admin/pages/StaffPage.tsx`, `apps/web/src/admin/admin.css` (`.bo-staff-*`, `.bo-modal*`), `apps/web/src/admin/ConfirmDialog.tsx` (exists, **not wired**) |
-| **Detect** | `detect.mjs --json` → `[]` (clean) |
+| **P1** | 0 |
+| **P2** | 3 |
+| **P3** | 2 |
+| **Files** | `StaffPage.tsx`, `ConfirmDialog.tsx`, `clickableRow.ts`, `AdminApp.tsx` (`me` prop), `admin.css` (`.bo-staff-*`, `.bo-row-clickable:focus-visible`) |
+| **Detect** | `detect.mjs --json` → `[]` (clean, exit 0) |
 | **Browser** | Skipped — page requires admin Google auth; no reliable live overlay |
-| **Date** | 2026-07-27 |
+| **Date** | 2026-07-27 (re-critique after fixes) |
+
+**Fixes verified:** ConfirmDialog danger delete · self-delete disabled + Thai `ERROR_LABEL` · `clickableRowProps` keyboard rows · `<th>จัดการ</th>` · roles `fieldset`/`legend` · `me` from AdminApp
 
 ---
 
 ## สรุปสำหรับอ่าน (ภาษาไทย)
 
-### คะแนนรวม: 22/40 (Acceptable)
+### คะแนนรวม: 29/40 (Good) · เดิม 22/40
 
-หน้าจัดการเจ้าหน้าที่โครงสร้างชัด — ตารางรายชื่อ + ฟอร์มเพิ่ม/แก้ไข ใช้ token Back Office (`--bo-*`) สอดคล้องกับหน้าอื่น ป้ายบทบาทเป็นภาษาไทย (แอดมิน / นายทะเบียน / เหรัญญิก) และมีโน้ตท้ายฟอร์มอธิบายว่าต้องใช้อีเมล Google
+หน้าจัดการเจ้าหน้าที่ปิดช่องโหว่ความน่าเชื่อถือหลักแล้ว: ลบใช้ `ConfirmDialog` (danger + ผลลัพธ์ชัด + Escape/busy), ปุ่มลบแถวตัวเองถูกปิดพร้อมคำอธิบาย, error API เป็นภาษาไทย, แถวแก้ไขใช้คีย์บอร์ด Enter/Space และมีหัวคอลัมน์ «จัดการ»
 
 **จุดแข็ง**
-1. แยก list / form ชัด โหมดเพิ่ม vs แก้ไขมีหัวข้อต่างกัน มีปุ่มยกเลิกตอนแก้ไข
-2. Super-admin ล็อกเป็นอ่านอย่างเดียว — กันพลาดดี
-3. Empty state บอกให้ไปเพิ่มด้านล่าง ไม่ทิ้งผู้ใช้ไว้เฉยๆ
+1. **ยืนยันก่อนทำลายตรง PRODUCT** — modal อธิบายว่าเข้า BO ไม่ได้อีก; busy กันกดซ้ำ
+2. **กันลบตัวเองใน UI** — ไม่พาไป error ดิบอีก; มี `cannot_delete_self` / `cannot_delete_super_admin` ไทยสำรอง
+3. **แถว + ฟอร์ม a11y พื้นฐาน** — `clickableRow` + focus-visible, fieldset บทบาท, โหมดเพิ่ม/แก้ไขชัด
 
-**ปัญหาหลัก (เรียงตามความสำคัญ)**
-1. **[P1] ลบใช้ `window.confirm`** — ขัด Design Principle «ยืนยันก่อนทำลาย» และ anti-reference ของ PRODUCT.md โดยตรง ทั้งที่โปรเจกต์มี `ConfirmDialog` (danger) ใช้อยู่แล้วใน Templates / Seminars / Broadcast / Member delete
-2. **[P1] ลบตัวเองได้ใน UI แต่ API ปฏิเสธ** — ปุ่ม «ลบ» โผล่ที่แถวของตัวเอง → confirm → error ดิบ `cannot_delete_self` (อังกฤษ) ไม่มีใน `ERROR_LABEL`
-3. **[P1] แถวคลิกได้แต่ไม่มีคีย์บอร์ด / semantics** — `<tr onClick>` ไม่มี `tabIndex` / `role` / Enter·Space; คอลัมน์ actions ไม่มีหัวตาราง; checkbox บทบาทไม่มี `fieldset`
+**P0 / P1:** ไม่มี — งานหลักทำครบและสอดคล้อง Back Office อื่น
 
-**P0:** ไม่มี (งานหลักทำครบได้ แต่เสี่ยงพลาดและไม่สม่ำเสมอ)
-
-**Top 3 ที่ควรแก้ก่อน**
-1. เปลี่ยนลบเป็น `ConfirmDialog` variant danger + คำอธิบายผลกระทบ
-2. ซ่อน/ปิดปุ่มลบแถวของตัวเอง + แปล error `cannot_delete_self` / `cannot_delete_super_admin`
-3. ทำแถวแก้ไขเข้าถึงได้ด้วยคีย์บอร์ด + หัวคอลัมน์ «จัดการ» + `fieldset` สำหรับบทบาท
+**Top 3 ที่เหลือ (P2)**
+1. Busy label ปุ่มบันทึก + หลีกเลี่ยง flash «กำลังโหลด…» ทั้งแผงตอน soft reload หลังบันทึก/ลบ
+2. ตารางยังไม่มี `bo-table--cards` + `data-label` — บีบบนแท็บเล็ต
+3. สำเร็จ/error ฟอร์มยังไม่มี `aria-live` + hint ความสามารถของแต่ละบทบาท
 
 ---
 
@@ -43,30 +43,32 @@
 
 ### Method & evidence
 
-- **Assessment A (design review):** source read of `StaffPage.tsx`, staff CSS, `ConfirmDialog.tsx`, staff API/handlers (`cannot_delete_self`).
-- **Assessment B (detector):** `node .cursor/skills/impeccable/scripts/detect.mjs --json apps/web/src/admin/pages/StaffPage.tsx apps/web/src/admin/ConfirmDialog.tsx` → **`[]`**.
-- **Agreement:** Detector clean (no markup AI-slop). LLM issues are interaction / consistency / a11y — not visual slop rules.
+⚠️ DEGRADED: single-context (nested Multitask; dual A/B disallowed)
+
+- **Assessment A:** source read of post-fix `StaffPage.tsx`, `ConfirmDialog.tsx`, `clickableRow.ts`, AdminApp `me` wiring, staff CSS / row focus styles.
+- **Assessment B:** `node .cursor/skills/impeccable/scripts/detect.mjs --json apps/web/src/admin/pages/StaffPage.tsx apps/web/src/admin/ConfirmDialog.tsx` → **`[]`**.
+- **Agreement:** Detector clean. Remaining issues are polish / responsive / AT announcement — not visual slop or missing confirm.
 - **Browser overlay:** not available (auth-gated BO).
 
 ### Heuristics scoring
 
 | # | Heuristic | Score | Key issue |
 |---|-----------|------:|-----------|
-| 1 | Visibility of System Status | 2 | List loading + form success/error exist; delete has no success feedback; Save label never becomes “กำลังบันทึก…”; full-list reload flash after save |
-| 2 | Match System / Real World | 3 | Thai role labels + Google email note; badge text `super` is English jargon |
-| 3 | User Control and Freedom | 2 | Cancel on edit OK; delete uses browser dialog (no rich exit/context); no undo after delete |
-| 4 | Consistency and Standards | 2 | BO tokens/buttons match shell; **confirm pattern diverges** from every other destructive BO flow |
-| 5 | Error Prevention | 1 | `window.confirm` is PRODUCT anti-ref; self-delete offered then fails; no consequence copy in confirm |
-| 6 | Recognition Rather Than Recall | 3 | Actions visible; role meanings not explained (what each role can do) |
-| 7 | Flexibility and Efficiency | 2 | Row-click to edit helps; no search/filter; no keyboard row activation |
-| 8 | Aesthetic and Minimalist Design | 3 | Clean list+form; not SaaS-gray; no card-grid slop |
-| 9 | Error Recovery | 2 | Thai fallbacks for load/save/delete; API codes like `cannot_delete_self` leak as raw English |
-| 10 | Help and Documentation | 2 | Bottom `bo-note` helps; roles lack capability hints |
-| **Total** | | **22/40** | **Acceptable** |
+| 1 | Visibility of System Status | 3 | Delete/save success strings exist; Save label never → «กำลังบันทึก…»; soft reload still replaces list with full «กำลังโหลด…» |
+| 2 | Match System / Real World | 3 | Thai roles + errors; badge text `super` / note «super-admin» still English jargon |
+| 3 | User Control and Freedom | 3 | ConfirmDialog Escape/cancel/overlay; edit Cancel; no undo after delete (acceptable for rare staff CRUD) |
+| 4 | Consistency and Standards | 3 | Confirm + `clickableRow` align with BO; Staff table still lacks `bo-table--cards` used elsewhere |
+| 5 | Error Prevention | 3 | Danger confirm + consequence copy; self/super delete blocked in UI; zero-roles still only caught on save |
+| 6 | Recognition Rather Than Recall | 3 | Actions labeled; role *capabilities* still unexplained |
+| 7 | Flexibility and Efficiency | 3 | Row keyboard activate via shared helper; no search (OK if list stays tiny) |
+| 8 | Aesthetic and Minimalist Design | 3 | Clean list+form; restrained BO; no card-grid / side-stripe slop |
+| 9 | Error Recovery | 3 | Broad Thai `ERROR_LABEL` map; unknown codes may still surface raw |
+| 10 | Help and Documentation | 2 | Bottom Google-email note; no one-line role capability hints |
+| **Total** | | **29/40** | **Good** |
 
 ### Anti-patterns verdict
 
-**LLM:** Does not look “AI-generated” visually — restrained BO product UI. Failure mode is **product inconsistency**: inventing a browser confirm for a high-stakes staff delete while a branded `ConfirmDialog` already exists. That matches PRODUCT anti-reference *“Modal/confirm แบบ window.confirm ไม่มี context”* and principle *“ยืนยันก่อนทำลาย”*.
+**LLM:** Does not look AI-generated. Prior failure mode (browser `window.confirm` vs branded ConfirmDialog) is **resolved**. Residual product gaps are polish density (busy/loading, tablet cards, AT live regions) and copy (`super` badge).
 
 **Deterministic scan:** 0 findings on StaffPage / ConfirmDialog markup.
 
@@ -74,95 +76,89 @@
 
 ### Overall impression
 
-Solid CRUD skeleton for a rare admin task. The single biggest opportunity is **wiring destructive delete into the shared ConfirmDialog** and closing the self-delete / error-copy gaps so the page feels as trustworthy as member delete elsewhere.
+Staff management now feels trustworthy for access-control work: destroy path matches the rest of Back Office, self-harm is blocked before the API, and keyboard users can select a row like mouse users. Biggest remaining opportunity is **feedback polish** (busy labels + soft list refresh + `aria-live`) so status never blanks the panel.
 
 ### What's working
 
-1. Clear add vs edit modes, disabled email when editing (identity key), cancel escape.
-2. Super-admin row is read-only with explicit “อ่านอย่างเดียว”.
-3. Empty state points to the form below; role badges use shared `bo-badge` vocabulary.
+1. **ConfirmDialog danger** with consequence line (`white-space: pre-line`), busy gate, Escape/cancel — aligns with PRODUCT principle «ยืนยันก่อนทำลาย».
+2. **Self-delete disabled** (title + `aria-label`) using `props.me.email`; Thai maps for `cannot_delete_self` / `cannot_delete_super_admin` / auth codes.
+3. **Shared `clickableRowProps`** + focus-visible ring; actions `<th>จัดการ</th>`; roles in `fieldset`/`legend`; super-admin still read-only.
 
 ### Priority issues
 
-#### [P1] Delete uses `window.confirm` instead of `ConfirmDialog`
-- **What:** `onDelete` → `window.confirm(\`ลบเจ้าหน้าที่ ${row.email}?\`)` while `ConfirmDialog` (danger, Escape, focus trap pattern, busy label) is unused on this page.
-- **Why:** Inconsistent with Templates/Seminars/Broadcast/MemberDelete; browser dialog has no consequence copy, no ABTA styling, easy to dismiss by habit; violates PRODUCT design principle #3.
-- **Fix:** Local state `deleteTarget: StaffRow | null`; render `<ConfirmDialog open variant="danger" title="ลบเจ้าหน้าที่" description={…} confirmLabel="ลบเจ้าหน้าที่" busy={busy} />`.
-- **Command:** `/impeccable harden StaffPage confirm dialog`
-
-#### [P1] Self-delete affordance + untranslated API errors
-- **What:** Non-super rows always show Delete, including the signed-in user. API throws `cannot_delete_self` / `cannot_delete_super_admin`; `ERROR_LABEL` only maps `load_failed|save_failed|delete_failed` → user sees raw code.
-- **Why:** Support-ticket bait; feels broken after a confident confirm; undermines trust on an access-control page.
-- **Fix:** Pass current user email (from AdminApp/`me`); hide or disable self-delete with “ไม่สามารถลบบัญชีของตัวเอง”; extend `ERROR_LABEL` with Thai strings for those codes; optional success toast after delete.
-- **Command:** `/impeccable clarify StaffPage delete errors`
-
-#### [P1] Clickable rows lack keyboard / table semantics
-- **What:** `<tr className="bo-row-clickable" onClick={selectForEdit}>` only; empty `<th></th>` for actions; role checkboxes under a non-associated `<label>` (not `fieldset`/`legend`).
-- **Why:** Sam (keyboard/SR) cannot activate row selection the same way as mouse; actions column unnamed; role group announced poorly.
-- **Fix:** Prefer relying on the existing «แก้ไข» button (or add `tabIndex={0}` + Enter/Space + `aria-selected` on selected row); set `<th>จัดการ</th>`; wrap roles in `<fieldset><legend>บทบาท…</legend>`.
-- **Command:** `/impeccable audit StaffPage table a11y`
-
-#### [P2] Busy / success feedback gaps
-- Save stays labeled «บันทึก» while `busy`; delete has no success message; `reload()` sets full-list `loading` and flashes «กำลังโหลด…».
-- **Fix:** Button busy labels; soft list refresh without replacing with empty loading; optional `aria-live` region for form success.
+#### [P2] Busy / soft-reload feedback gaps
+- **What:** Primary Save stays labeled «บันทึก» while `busy`; after save/delete, `reload()` sets full-panel `loading` → flash empty «กำลังโหลด…». Form success/error lack `aria-live`.
+- **Why:** Status disappears mid-task; AT may miss «บันทึกแล้ว» / delete success.
+- **Fix:** Busy label on Save; soft refresh (keep rows, optional inline spinner); `aria-live="polite"` on success / `role="alert"` on form error.
 - **Command:** `/impeccable polish StaffPage feedback`
 
-#### [P2] Narrow viewports — table not cardized
-- Other BO tables use `bo-table--cards` + `data-label`; Staff table does not → horizontal squeeze on tablet.
+#### [P2] Staff table not cardized on narrow viewports
+- **What:** `<table className="bo-table">` without `bo-table--cards` + `data-label` (Dashboard pattern).
+- **Why:** Tablet BO users get horizontal squeeze; actions column cramped next to badges.
+- **Fix:** Add `bo-table--cards` and per-cell `data-label` matching headers.
 - **Command:** `/impeccable adapt StaffPage table`
 
+#### [P2] Role meaning still recall-heavy
+- **What:** Checkboxes labeled แอดมิน / นายทะเบียน / เหรัญญิก only — no one-line capability hint.
+- **Why:** First-time staff manager (Jordan / นายทะเบียน) must guess what each role unlocks; working-memory fail on cognitive checklist.
+- **Fix:** Short note under fieldset (e.g. แอดมิน = จัดการเจ้าหน้าที่/ระบบ · นายทะเบียน = ตรวจข้อมูล · เหรัญญิก = ตรวจสลิป).
+- **Command:** `/impeccable clarify StaffPage roles`
+
 #### [P3] Copy polish
-- Badge `super` → «ซูเปอร์แอดมิน» or «บัญชีหลัก»; one-line role capability hint under checkboxes.
-- **Command:** `/impeccable clarify StaffPage roles copy`
+- Badge `super` → «ซูเปอร์แอดมิน»; note still says «super-admin» in English mix; optional microcopy when email locked in edit («อีเมลใช้ล็อกอิน แก้ไม่ได้»).
+- **Command:** `/impeccable clarify StaffPage copy`
+
+#### [P3] ConfirmDialog focus restore
+- Focus moves into modal on open but does not return to the Delete trigger on close — shared component gap.
+- **Command:** `/impeccable audit ConfirmDialog focus restore` (shared; out of Staff-only scope if desired)
 
 ### Cognitive load
 
 | Checklist item | Pass? |
 |----------------|-------|
-| Single focus | Pass (list then form) |
+| Single focus | Pass |
 | Chunking | Pass |
 | Grouping | Pass |
 | Visual hierarchy | Pass |
 | One thing at a time | Pass |
 | Minimal choices | Pass (3 roles) |
-| Working memory | Fail — role capabilities not shown; must recall what “แอดมิน” unlocks |
-| Progressive disclosure | Fail — delete consequence only in tiny browser dialog |
+| Working memory | Fail — role capabilities still not shown |
+| Progressive disclosure | Pass — delete consequence in ConfirmDialog |
 
-**Failures: 2 → moderate.** Decision points ≤4. Extraneous load mainly from inconsistent confirm + error codes.
+**Failures: 1 → low.** Extraneous load from inconsistent confirm / raw English errors is gone.
 
 ### Persona red flags
 
 **Alex (power user / แอดมิน)**  
-- Row click is fine; still no Esc-to-cancel edit (only Cancel button).  
-- Browser confirm interrupts flow differently than in-app modals elsewhere.  
-- No search if staff list grows.
+- Keyboard row edit works; Esc closes confirm.  
+- Soft-reload flash still interrupts flow.  
+- No search if staff list grows (defer unless >~20).
 
 **Sam (a11y)**  
-- Row click not keyboard-equivalent.  
-- Empty actions header.  
-- Role group not a fieldset.  
-- Live success/error may not be announced (`aria-live` missing).
+- Row is keyboard-activatable with focus-visible; Edit button remains a second path.  
+- `role="button"` on `<tr>` is a mild table-semantics compromise (shared BO pattern).  
+- Success/error may not be announced (`aria-live` missing).
 
 **นายทะเบียน / Jordan (first-time staff manager)**  
-- «super» badge unclear.  
-- Unchecking all roles → validation only on save; no live hint.  
-- Self-delete path ends in English error code — confidence collapse.
+- Self-delete no longer dead-ends in English codes.  
+- «super» badge still unclear.  
+- Role checkboxes lack capability hints.
 
 **Riley (edge)**  
-- Confirms self-delete → `cannot_delete_self` raw.  
-- Double-click delete while busy partially gated (`disabled={busy}`) but confirm race still possible with `window.confirm` before busy set.
+- Self / super delete blocked in UI; confirm race gated by `busy`.  
+- Unchecking all roles still only fails on Save (client message exists).
 
 ### Minor observations
 
-- After successful save, `resetForm()` then `setFormSuccess` works (last write wins) — OK.
-- Email locked when editing with no microcopy (“อีเมลใช้เป็นคีย์ล็อกอิน แก้ไม่ได้”).
-- `ConfirmDialog` focus returns imperfectly (no focus restore to trigger) — fix when wiring, if time.
+- Delete success lands in form panel (`formSuccess`) — visible on same page; OK for desktop BO.
+- Disabled self-delete button kept visible (recognition) with Thai title — good choice vs hide.
+- Detector clean; no AI-slop markup rules triggered.
 
 ### Questions to consider
 
-- Should removing the last non-super `admin` role be blocked in UI, or only by policy later?
-- Is staff list expected to stay tiny (<20), or do we need search soon?
-- Typed confirm (email) for delete — overkill for Phase 1, or match member-delete severity?
+- Soft-reload spinner in panel head vs keep last rows — which matches other BO lists?
+- Is staff list expected to stay tiny (<20), or schedule search now?
+- Role capability copy: one shared glossary component for Staff + sidebar foot badges?
 
 ### Detector summary
 
@@ -176,21 +172,18 @@ false positives: n/a
 
 ## Concrete fix backlog
 
-Ordered for a follow-up fix chat. Do not expand scope beyond Staff page + shared ConfirmDialog wiring.
-
 | # | Sev | Task | Files | Suggested command |
 |---|-----|------|-------|-------------------|
-| 1 | P1 | Replace `window.confirm` with `ConfirmDialog` danger; state for pending delete row; busy + Escape | `StaffPage.tsx` | `/impeccable harden` |
-| 2 | P1 | Hide/disable delete for current user; map `cannot_delete_self`, `cannot_delete_super_admin` to Thai in `ERROR_LABEL`; show delete success | `StaffPage.tsx` (+ `me` from shell if needed) | `/impeccable clarify` |
-| 3 | P1 | Actions `<th>จัดการ</th>`; keyboard parity for edit; `fieldset`/`legend` for roles | `StaffPage.tsx` | `/impeccable audit` |
-| 4 | P2 | Busy labels on Save/Delete; avoid full-panel loading flash on soft reload; `aria-live` for form messages | `StaffPage.tsx` | `/impeccable polish` |
-| 5 | P2 | Apply `bo-table--cards` + `data-label` for ≤700px | `StaffPage.tsx`, `admin.css` if needed | `/impeccable adapt` |
-| 6 | P3 | Rename `super` badge; short role capability note under checkboxes; email-locked hint when editing | `StaffPage.tsx` | `/impeccable clarify` |
+| 1 | P2 | Busy Save label; soft list refresh; `aria-live` / alert on form messages | `StaffPage.tsx` | `/impeccable polish` |
+| 2 | P2 | `bo-table--cards` + `data-label` | `StaffPage.tsx` | `/impeccable adapt` |
+| 3 | P2 | One-line role capability hints under fieldset | `StaffPage.tsx` | `/impeccable clarify` |
+| 4 | P3 | Rename `super` badge + locked-email hint; Thai note wording | `StaffPage.tsx` | `/impeccable clarify` |
+| 5 | P3 | Focus restore to trigger on ConfirmDialog close | `ConfirmDialog.tsx` | `/impeccable audit` |
 
-**Recommended sequence:** `harden` (1) → `clarify` (2, 6) → `audit` (3) → `adapt` (5) → `polish` (4).
+**Recommended sequence:** `polish` (1) → `adapt` (2) → `clarify` (3–4) → optional shared `audit` (5).
 
 ---
 
 ## Trend / snapshot
 
-First docs critique for this page. Impeccable storage slug: `apps-web-src-admin-pages-staffpage-tsx`.
+Re-critique after P1 fixes. Prior docs score **22/40** → **29/40**. Impeccable storage slug: `apps-web-src-admin-pages-staffpage-tsx`.

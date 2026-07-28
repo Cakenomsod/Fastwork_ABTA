@@ -580,15 +580,25 @@ export const LEGACY_BIND_FILTER_OPTIONS: Array<{
 export const LEGACY_STATUS_FILTER_OPTIONS: Array<{
   value: "" | LegacyStatusFilter;
   label: string;
+  /** Excel / API code for power users (tooltip). */
+  code?: string;
 }> = [
   { value: "", label: "ทุกสถานะ" },
-  { value: "active", label: "Active" },
-  { value: "expired", label: "Expired" },
-  { value: "non_active", label: "NonActive" },
-  { value: "pending", label: "Pending" },
+  { value: "active", label: "ใช้งาน", code: "Active" },
+  { value: "expired", label: "หมดอายุ", code: "Expired" },
+  { value: "non_active", label: "ไม่ใช้งาน", code: "NonActive" },
+  { value: "pending", label: "รอดำเนินการ", code: "Pending" },
 ];
 
 export const LEGACY_STATUS_LABEL: Record<string, string> = {
+  active: "ใช้งาน",
+  expired: "หมดอายุ",
+  non_active: "ไม่ใช้งาน",
+  pending: "รอดำเนินการ",
+};
+
+/** Excel sheet codes corresponding to normalized legacy status keys. */
+export const LEGACY_STATUS_EXCEL_CODE: Record<string, string> = {
   active: "Active",
   expired: "Expired",
   non_active: "NonActive",

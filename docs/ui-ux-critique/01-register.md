@@ -1,7 +1,8 @@
 # UI/UX Critique: Register (`/register`)
 
-> Method: single-agent page critique · Detector: detect.mjs · Date: 2026-07-27
-> Score: 26/40 · P0: 1 · P1: 3
+> Method: dual-agent (A: a5ee7712 · B: f8d170b0) · Detector: detect.mjs · Date: 2026-07-27 (re-critique after fixes)
+> Score: 28/40 · P0: 0 · P1: 3
+> Prior: 26/40 · Δ +2 · Bank empty = accepted product constraint (not scored as defect)
 
 ## สรุปสำหรับอ่าน (ภาษาไทย)
 
@@ -9,97 +10,108 @@
 
 | # | Heuristic | คะแนน | ประเด็นหลัก |
 |---|-----------|-------|-------------|
-| 1 | Visibility of System Status | 3 | มี loading / submitting / ขั้น legacy / สำเร็จ — แต่ validation ฟิลด์โผล่ตอน submit |
-| 2 | Match System / Real World | 3 | ภาษาไทยสมาคมดี · คำว่า Member ID / บางศัพท์ปนอังกฤษ |
-| 3 | User Control and Freedom | 3 | สลับโหมด + ย้อนกลับใน legacy ได้ · ฟอร์มใหม่ไม่มีขั้นทบทวน |
-| 4 | Consistency and Standards | 2 | แบรนด์เขียว/ทองสอดคล้อง · แท็บไม่มี ARIA · phone label พังใน legacy |
-| 5 | Error Prevention | 2 | ล็อกเลข 0 + ตรวจสลิปดี · **บัญชีรับโอนยัง placeholder** · ไม่มี review ก่อนส่ง |
-| 6 | Recognition Rather Than Recall | 3 | ป้ายชัด · confirm legacy โชว์การ์ดซ้ำ · ชำระเงินไม่มีข้อมูลให้จำ/ดู |
+| 1 | Visibility of System Status | 3 | loading / submitting / legacy steps / success ชัด · validation ฟิลด์ยังโผล่ตอน submit + ท้ายฟอร์ม |
+| 2 | Match System / Real World | 3 | ภาษาไทยสมาคมดี · “Member ID” / “ขั้นตอนเดียว” ขัดกับฟอร์มยาว |
+| 3 | User Control and Freedom | 3 | Confirm ย้อนกลับ + legacy back ดี · สลับโหมดล้างฟอร์มโดยไม่เตือน |
+| 4 | Consistency and Standards | 2 | PaymentConfirmPanel / TransferBank ร่วมกันดี · phone label + แท็บโหมด ARIA อ่อน |
+| 5 | Error Prevention | 3 | **↑** Confirm ก่อนส่ง + `!canPay` ปิดสลิป/submit · ล็อกหลัก 0 + ตรวจสลิป |
+| 6 | Recognition Rather Than Recall | 3 | Confirm สรุปชื่อ/เบอร์/ค่าธรรมเนียม/สลิป · ฟิลด์เสริมยังโชว์ตลอด |
 | 7 | Flexibility and Efficiency | 2 | paste เบอร์ + `?flow=legacy` · ช่องทีละหลักทำร้าย autofill |
-| 8 | Aesthetic and Minimalist Design | 3 | เชลล์สมาคมชัด ไม่ใช่ SaaS เทา-น้ำเงิน · ฟอร์มใหม่ยาวซ้อน callout |
-| 9 | Error Recovery | 3 | ข้อความ error ไทย actionable + `role="alert"` · อยู่ท้ายฟอร์มบ่อย |
-| 10 | Help and Documentation | 2 | มี hint บางจุด · ไม่มีวิธีโอนเมื่อบัญชียัง “รอข้อมูล” |
-| **รวม** | | **26/40** | **Acceptable** |
+| 8 | Aesthetic and Minimalist Design | 3 | เชลล์เขียว/ทองสมาคม · ฟอร์มใหม่ยังซ้อน callout + 6 ฟิลด์ส่วนบุคคล |
+| 9 | Error Recovery | 3 | `errorCopy` ไทย + `role="alert"` · ยังท้ายฟอร์มบ่อย ไม่ focus ไปฟิลด์ผิด |
+| 10 | Help and Documentation | 3 | **↑** hint เมื่อบัญชีว่าง + legacy info · ไม่มี help เชิงลึกกว่านั้น |
+| **รวม** | | **28/40** | **Good** |
 
 ### ความประทับใจรวม
 
-หน้า Register มีตัวตนสมาคม (เขียว + ทอง) และแยกโหมด “สมัครใหม่ / สมาชิกเก่า” ได้ดี โดยเฉพาะ wizard 3 ขั้นของ legacy ที่มี confirm ก่อนผูก LINE — สอดคล้องหลัก “สถานะชัด” และ “ยืนยันก่อนทำลาย” ของโปรดักต์ ช่องโหว่ใหญ่สุดอยู่ที่ **ฟอร์มสมัครใหม่**: บังคับแนบสลิปทั้งที่บัญชีรับโอนยังเป็น placeholder และยัดทุกฟิลด์ในหน้าเดียวโดยไม่มี progressive disclosure ซึ่งเป็น anti-pattern ที่ PRODUCT.md ระบุชัด
+หลังแก้รอบก่อน หน้า Register แข็งขึ้นชัด: มี **PaymentConfirmPanel** (“ตรวจสอบก่อนส่ง”) และ **เกต `canPay`** (ซ่อนสลิป / ปิด CTA / hint เมื่อบัญชียังว่างตามเจตนา product owner) — ไม่นับบัญชีว่างเป็นบั๊กอีกต่อไป คะแนนขึ้นจาก 26 → 28 (Acceptable → Good) ช่องโหว่ที่เหลืออยู่ที่ฝั่งสมัครใหม่: ฟอร์มยาวหน้าเดียว, PhoneDigitInput a11y/autofill, และ error ท้ายฟอร์ม
 
 ### จุดแข็ง
 
-1. **แยกโหมดชัด + wizard legacy** — แท็บสองทาง, สี amber สำหรับสมาชิกเก่า, ขั้น 1→2→3 พร้อมยืนยันก่อน bind
-2. **สถานะและ copy ภาษาไทย** — error map ตาม code, สำเร็จโชว์ Member ID + CTA ไปหน้าสถานะ, resubmit โชว์เหตุผลไม่ผ่าน
-3. **PhoneDigitInput มี guardrails** — ล็อกหลักแรกเป็น 0, paste ปกติเป็น 10 หลัก, `prefers-reduced-motion` ถูก knobs ใน CSS
+1. **แยกโหมด + wizard legacy** — แท็บใหม่/เก่า, ขั้น 1→2→3 พร้อมยืนยันก่อนผูก LINE
+2. **Confirm-before-submit (ใหม่)** — `onRequestConfirm` → `PaymentConfirmPanel` สรุปชื่อ เบอร์ ค่าธรรมเนียม พรีวิวสลิป + ย้อนกลับ
+3. **เกตชำระเงินตรงไปตรงมาเมื่อบัญชีว่าง** — ไม่บังคับอัปโหลดสลิปเมื่อโอนไม่ได้ · copy สถานะชัดโดยไม่ invent ข้อมูลบัญชี
 
 ### ปัญหาเรียงตามความสำคัญ (P0–P3)
 
-#### P0 — บัญชีรับโอนเป็น placeholder แต่บังคับแนบสลิป
-- **อะไร:** `.reg-bank` แสดง “รอข้อมูลจากสมาคม” ขณะที่สลิปเป็น required
-- **ทำไมสำคัญ:** สมาชิกบน LINE ทำธุรกรรมหลัก (โอนแล้วอัปโหลด) ไม่ได้สำเร็จ — ผิดหลัก “สถานะชัดก่อนสวย” และบล็อก task completion
-- **แก้ยังไง:** ใส่ชื่อบัญชี/เลขบัญชี/ธนาคารจริง (หรือดึงจาก config) · ถ้ายังไม่มีข้อมูล ให้บล็อก submit พร้อมข้อความชัด หรือซ่อนขั้นอัปโหลดจนกว่าจะพร้อม
-- **คำสั่งที่แนะนำ:** `/impeccable harden /register`
+#### P0 — ไม่มี
+บัญชีรับโอนว่างเป็น **ข้อจำกัดผลิตภัณฑ์ที่ยอมรับแล้ว** (ไม่ treat เป็น blocking bug)
 
 #### P1 — ฟอร์มสมัครใหม่ยาวหน้าเดียว (ไม่มี progressive disclosure)
-- **อะไร:** ส่วนบุคคล 6 ฟิลด์ + ค่าธรรมเนียม + ธนาคาร + อัปโหลด + คำเตือน ในสกอร์ลเดียว · ขณะที่ legacy มี 3 ขั้นแล้ว
-- **ทำไมสำคัญ:** cognitive load สูงบน LIFF มือถือ · ตรง anti-reference “ฟอร์มยาวไม่มี progressive disclosure”
-- **แก้ยังไง:** แยกอย่างน้อย 2 ขั้น (ข้อมูล → ชำระ/สลิป) หรือยุบฟิลด์เสริม (อีเมล/ตึก) ไว้หลัง “เพิ่มเติม”
-- **คำสั่งที่แนะนำ:** `/impeccable distill /register` หรือ `/impeccable shape register new-flow`
+- **อะไร:** ส่วนบุคคล 6 ฟิลด์ + ค่าธรรมเนียม + ธนาคาร + (เมื่อจ่ายได้) สลิป + คำเตือน ในสกอร์ลเดียว · kicker “ขั้นตอนเดียว” · legacy มีขั้นแล้ว
+- **ทำไมสำคัญ:** cognitive load สูงบน LIFF · ตรง anti-reference ใน PRODUCT.md
+- **แก้ยังไง:** แยก ≥2 ขั้น (ข้อมูล → ชำระ/สลิป) หรือยุบอีเมล/ตึกไว้หลัง “ข้อมูลเพิ่มเติม”
+- **คำสั่งที่แนะนำ:** `/impeccable distill /register`
 
-#### P1 — PhoneDigitInput ผูก label ผิดในโหมด legacy + autofill อ่อน
-- **อะไร:** `aria-labelledby` ฮาร์ดโค้ดเป็น `reg-phone-label` ทั้งที่ legacy ใช้ `legacy-phone-label` · ช่องหลักที่ 2–10 ใส่ `autocomplete="one-time-code"`
-- **ทำไมสำคัญ:** Sam (a11y) ได้ label ผิด/ว่าง · Casey พิมพ์เบอร์ทีละช่องช้าและ autofill เบอร์ไม่ช่วย
-- **แก้ยังไง:** ส่ง `aria-labelledby` เป็น prop จาก parent · พิจารณา input เบอร์เดียว `tel` บนมือถือ หรือ autocomplete `tel-national` ทั้งกลุ่ม
-- **คำสั่งที่แนะนำ:** `/impeccable audit /register` (แล้ว fix ใน `PhoneDigitInput.tsx`)
+#### P1 — PhoneDigitInput ผูก label ผิดใน legacy + autofill อ่อน
+- **อะไร:** `aria-labelledby` ฮาร์ดโค้ด `reg-phone-label` ทั้งที่ legacy ใช้ `legacy-phone-label` · หลัก 2–10 ใช้ `autocomplete="one-time-code"`
+- **ทำไมสำคัญ:** Sam ได้ label ผิด/ว่าง · Casey พิมพ์ช้าและเสีย phone autofill
+- **แก้ยังไง:** ส่ง `aria-labelledby` เป็น prop · พิจารณา `tel` เดียวหรือ `tel-national` ทั้งกลุ่ม
+- **คำสั่งที่แนะนำ:** `/impeccable audit /register`
 
 #### P1 — Error โผล่ท้ายฟอร์ม ไม่ชิดฟิลด์ที่พลาด
-- **อะไร:** `required_fields_missing` / `invalid_phone` / submit errors อยู่ที่ `.reg-form-error` ใต้ฟอร์ม · มี `aria-invalid` เฉพาะเบอร์
-- **ทำไมสำคัญ:** บนมือถือต้องเลื่อนหาว่าผิดตรงไหน · เพิ่มโอกาสส่งซ้ำ/ละทิ้ง
-- **แก้ยังไง:** inline error ใต้ชื่อ/นามสกุล/เบอร์ · focus ไปฟิลด์แรกที่ invalid หลัง submit
+- **อะไร:** `required_fields_missing` / `invalid_phone` อยู่ที่ `.reg-form-error` · `aria-invalid` เฉพาะเบอร์ · ไม่ `focus()` ฟิลด์แรกที่ผิด
+- **ทำไมสำคัญ:** บนมือถือไม่รู้ว่าผิดตรงไหน → ส่งซ้ำหรือละทิ้ง
+- **แก้ยังไง:** inline error ใต้ชื่อ/นามสกุล/เบอร์ · focus ฟิลด์แรกหลัง confirm/submit fail
 - **คำสั่งที่แนะนำ:** `/impeccable clarify /register`
 
-#### P2 — ฟิลด์เบอร์ใน legacy บอกว่า “ช่วยตรวจสอบ” แต่ไม่ถูกส่งไป API
-- **อะไร:** hint “ไม่บังคับ · ใช้ช่วยตรวจสอบเท่านั้น” แต่ `searchLegacyMembers` ไม่รับ phone
-- **ทำไมสำคัญ:** copy หลอกลวง · ภาระพิมพ์โดยไม่มีประโยชน์
-- **แก้ยังไง:** ลบฟิลด์ออก หรือส่ง phone ไปค้น/ยืนยันจริง แล้วอัปเดต hint ให้ตรงพฤติกรรม
+#### P2 — เมื่อ `!canPay` ยังเปิดฟอร์มยาวให้กรอก
+- **อะไร:** ผู้ใช้กรอกครบแล้วเจอ CTA disabled + hint (informational ภายใต้ข้อจำกัดบัญชีว่าง)
+- **ทำไมสำคัญ:** เสียแรงบน LINE ก่อนรู้ว่ายังสมัครผ่านระบบไม่ได้
+- **แก้ยังไง:** นำด้วยสถานะ “ยังเปิดรับสมัครผ่านระบบไม่ได้” · เลื่อนฟอร์มยาวออกจนกว่า `canPay`
+- **คำสั่งที่แนะนำ:** `/impeccable onboard /register`
+
+#### P2 — ฟิลด์เบอร์ใน legacy บอกว่าช่วยตรวจสอบแต่ไม่ถูกส่ง API
+- **อะไร:** hint “ใช้ช่วยตรวจสอบเท่านั้น” แต่ `searchLegacyMembers` / bind ไม่รับ phone
+- **ทำไมสำคัญ:** copy หลอกลวง
+- **แก้ยังไง:** ลบฟิลด์ หรือส่ง phone จริงแล้วอัปเดต hint
 - **คำสั่งที่แนะนำ:** `/impeccable clarify /register`
 
 ### ธงแดงตาม Persona
 
 **Jordan (First-Timer)**
-- เห็นสองแท็บทันทีโดยยังไม่รู้ว่าตัวเองเป็นสมาชิกเก่าหรือใหม่ — info box ช่วยได้แต่ยังต้องตัดสินใจก่อนกรอก
-- Kicker “ขั้นตอนเดียว” ขัดกับความยาวฟอร์ม + การโอนเงินที่ยังไม่มีบัญชี
-- สำเร็จแล้วได้ Member ID แต่คำว่า “สมาชิกชั่วคราว” อาจไม่เข้าใจสิทธิ์อะไรใช้ได้ทันที
+- ต้องเลือกแท็บใหม่/เก่าก่อนเข้าใจว่าตัวเองอยู่กลุ่มไหน
+- “ขั้นตอนเดียว” ขัดกับความยาวฟอร์ม
+- สิทธิ์สมาชิกชั่วคราวหลังสำเร็จอาจยังไม่ชัด
 
 **Casey (Mobile / LIFF)**
-- ฟอร์มใหม่ยาว · CTA หลักอยู่ท้ายหน้า (ต้องเลื่อน) · ช่องเบอร์ 10 ช่องแคบบนจอเล็ก (มี wrap ที่ ≤340px แต่ยังเหนื่อย)
-- สลิป upload ดี (แตะพื้นที่ใหญ่) แต่ไม่มีบัญชีให้โอนก่อนอัปโหลด
-- สลับแอปไปแอพธนาคารแล้วกลับมา — ไม่มี draft persist นอก draft resubmit จากเซิร์ฟเวอร์
+- ฟอร์มใหม่ยาว · CTA ท้ายหน้า · ช่องเบอร์ 10 ช่อง
+- ไม่มี client draft ถ้าสลับไปแอพธนาคาร (ยกเว้น path resubmit จากเซิร์ฟเวอร์)
 
 **Sam (a11y)**
-- `PhoneDigitInput` `aria-labelledby="reg-phone-label"` พังใน legacy (`legacy-phone-label`)
-- โหมดแท็บเป็น `<button>` ใน `<nav>` ไม่มี `aria-selected` / `role="tab"`
-- สถานะ match ใช้สี + ข้อความ (ดีที่ไม่พึ่งสีอย่างเดียว) · loading เป็นข้อความอย่างเดียว ไม่มี `aria-live` ชัดบน shell
+- `PhoneDigitInput` ชี้ `reg-phone-label` พังใน legacy
+- แท็บโหมดไม่มี `role="tab"` / `aria-selected`
+- loading ยังไม่มี live region ชัดบน shell
 
 **สมาชิก ABTA บน LINE**
-- ต้องการโอนเงิน + แนบสลิปให้จบใน LINE — ติดที่บัญชีรับโอนว่าง
-- กลัวผูก LINE ผิดคน — legacy มีขั้นยืนยันดี · ฟอร์มใหม่ไม่มีสรุปก่อนส่ง
-- ต้องการเช็คสถานะหลังสมัคร — success ชี้ไปสถานะและคำว่า “เช็คสถานะ” ดี
+- Confirm ก่อนส่ง/ผูก LINE สร้างความมั่นใจ (ดีขึ้นจากรอบก่อน)
+- บัญชีว่างบล็อกเส้นทางเงินอย่างถูกต้องตามเจตนา — ยังเสี่ยงกรอกฟอร์มยาวก่อนพบว่ายังจ่ายไม่ได้
 
 ### ข้อสังเกตเล็กน้อย
 
-- Detector `detect.mjs` คืน `[]` — ไม่มี AI-slop rule hit บน markup ที่สแกน
-- `.reg-kicker` uppercase + tracking ใช้แบบจุดเดียวต่อหน้า (ยอมรับได้ในแบรนด์ ไม่ใช่ eyebrow ทุกเซกชัน)
-- `rounded-full` บนปุ่ม/แท็บเข้ากับ LIFF CTA · ไม่ใช่ pill cluster รก
-- Resubmit prefill + แสดง `rejectReason` ทำงานดีมากสำหรับ emotional recovery
-- โหมด legacy เก็บ phone ในฟอร์มแต่ search/bind ไม่ใช้ — dead UI
-- Success copy ชัดเรื่องสิทธิ์ชั่วคราว vs ใบเสร็จหลังอนุมัติ — เก็บไว้
+- Detector `detect.mjs` → `[]` (exit 0)
+- Browser overlay ข้าม: LIFF OAuth 400 (invalid `redirectUri` localhost) — ฟอร์มไม่โหลด
+- `prefers-reduced-motion` ถูก knobs บน shell/ปุ่ม
+- Resubmit + `rejectReason` ยังเป็นจุด recovery ที่แข็ง
+- สลับโหมดล้างข้อมูลโดยไม่ confirm
 
 ### คำถามที่ควรคิด
 
-1. บัญชีรับโอนจะมาจาก config/CMS เมื่อไหร่ — หรือต้อง soft-launch โดยปิดการสมัครใหม่จนกว่าจะพร้อม?
-2. ฟอร์มใหม่ควรยืมโครงสร้าง 3 ขั้นของ legacy หรือยุบฟิลด์เสริมก็พอ?
-3. PhoneDigitInput คุ้มค่าความถูกต้องของรูปแบบ 0XXXXXXXXX มากกว่าความเร็วพิมพ์บนมือถือหรือยัง?
-4. ควรมีขั้น “สรุปก่อนส่ง” สำหรับสมัครใหม่ เหมือน confirm ของ legacy หรือไม่?
+1. ถ้าบัญชีว่างอีกหลายสัปดาห์ ควรปิด “สมัครใหม่” เป็น closed state แทนฟอร์มยาว + ปุ่ม disabled หรือไม่?
+2. ทำไม legacy ได้ wizard 3 ขั้น แต่เส้นทางเงิน (สมัครใหม่) ยังเป็น “ขั้นตอนเดียว”?
+3. ช่องเบอร์ 10 ช่องคุ้มค่าความถูกต้องมากกว่า autofill บนมือถือหรือยัง?
+4. สลับแท็บโหมดควร confirm ก่อนล้างฟิลด์ที่พิมพ์ไว้หรือไม่?
+
+### สถานะเทียบรอบก่อน
+
+| ประเด็นเดิม | สถานะ |
+|-------------|--------|
+| P0 บัญชีว่าง + บังคับสลิป | **แก้/ยอมรับแล้ว** — เกต `canPay` · ไม่ re-P0 |
+| P1 ฟอร์มใหม่ยาว | **ยังเปิด** |
+| P1 PhoneDigitInput label/autofill | **ยังเปิด** |
+| P1 error ท้ายฟอร์ม | **ยังเปิด** |
+| P2 legacy phone ไม่ใช้ | **ยังเปิด** |
+| Confirm ก่อนส่ง | **เพิ่มแล้ว — ให้เครดิต** (`PaymentConfirmPanel`) |
 
 ---
 
@@ -109,104 +121,105 @@
 
 | # | Heuristic | Score | Key Issue |
 |---|-----------|-------|-----------|
-| 1 | Visibility of System Status | 3 | Loading/submit/legacy steps/success clear; field validation only after submit |
-| 2 | Match System / Real World | 3 | Strong Thai association voice; “Member ID” English leak |
-| 3 | User Control and Freedom | 3 | Mode switch + legacy back/confirm; new path lacks review/cancel affordance |
-| 4 | Consistency and Standards | 2 | Brand tokens consistent; tabs not ARIA tabs; phone label id mismatch |
-| 5 | Error Prevention | 2 | Digit lock + slip checks; **bank TBD while slip required**; no pre-submit review |
-| 6 | Recognition Rather Than Recall | 3 | Labels + legacy confirm card; payment details missing to recognize |
+| 1 | Visibility of System Status | 3 | Loading/submit/legacy/success clear; field validation late + footer |
+| 2 | Match System / Real World | 3 | Strong Thai voice; “Member ID” / “ขั้นตอนเดียว” vs long form |
+| 3 | User Control and Freedom | 3 | Confirm back + legacy back; mode switch wipes form without warn |
+| 4 | Consistency and Standards | 2 | Shared payment components good; phone label + mode tabs ARIA weak |
+| 5 | Error Prevention | 3 | **↑** Confirm panel + `!canPay` gates slip/submit; digit lock + slip checks |
+| 6 | Recognition Rather Than Recall | 3 | Confirm summarizes fields; optionals always visible |
 | 7 | Flexibility and Efficiency | 2 | Paste + `?flow=legacy`; per-digit boxes hurt tel autofill |
-| 8 | Aesthetic and Minimalist Design | 3 | Association green/gold shell (not SaaS gray-blue); new form stacks callouts |
-| 9 | Error Recovery | 3 | Actionable Thai `errorCopy` + `role="alert"`; often bottom-of-form only |
-| 10 | Help and Documentation | 2 | Some hints; stranded when bank is “รอข้อมูลจากสมาคม” |
-| **Total** | | **26/40** | **Acceptable** |
+| 8 | Aesthetic and Minimalist Design | 3 | On-brand green/gold; new form still stacks callouts + 6 personal fields |
+| 9 | Error Recovery | 3 | Actionable Thai `errorCopy` + `role="alert"`; often footer-only, no focus-to-field |
+| 10 | Help and Documentation | 3 | **↑** Empty-bank hint + legacy info; no deeper task help |
+| **Total** | | **28/40** | **Good** |
 
 ### Anti-Patterns Verdict
 
-**LLM:** Passes the product AI-slop test visually — committed association green + gold, not generic SaaS gray-blue; no side-stripe accents, gradient text, or glow. Detector agrees (`[]`). The real product anti-pattern is **long new-member form without progressive disclosure** (called out in PRODUCT.md), plus a **blocking payment stub** (bank placeholder + required slip). Uppercase kickers and pill CTAs are intentional brand/LIFF choices, not decorative noise.
+**LLM:** Passes product AI-slop visually — association green + gold, not generic SaaS. Absolute bans mostly avoided. Remaining product-strangeness: **10-box OTP-style phone** for a normal Thai mobile, and **long new-member form without progressive disclosure** (named PRODUCT anti-reference). Empty bank is an **accepted constraint**, not a defect.
 
-**Deterministic scan:** `detect.mjs --json` on `RegisterPage.tsx` + `PhoneDigitInput.tsx` → `[]` (exit 0). No overlay run (source critique; LIFF auth gate).
+**Deterministic scan:** `detect.mjs --json` on `RegisterPage.tsx` + `PhoneDigitInput.tsx` → `[]` (exit 0). No overlay (LIFF OAuth 400 on localhost `/register`).
 
 ### Overall Impression
 
-Strong brand shell and an excellent legacy bind wizard; the new-registration path is the weak half — cognitively heavy and currently unable to complete payment. Biggest opportunity: ship real bank details and split (or collapse) the new form to match the clarity already earned by the legacy steps.
+Confirm-before-submit and honest payment gating lifted the page from Acceptable (26) to Good (28). Biggest remaining opportunity: split/collapse the new registration path to match the clarity already earned by the legacy wizard, then fix phone a11y/autofill and inline validation.
 
 ### What's Working
 
-1. **Dual-mode identity** — green “new” vs amber “legacy,” with a real 3-step legacy flow and explicit bind confirmation.
-2. **Status-first Thai copy** — coded errors, blocked/already-registered recovery, success with Member ID + status CTA, resubmit reject reason.
-3. **Phone constraints** — locked leading `0`, paste normalization, reduced-motion honored on shell animation.
+1. **Dual-mode IA** — New vs legacy; legacy 1→2→3 with bind confirm is the strongest flow.
+2. **Confirm-before-submit (new)** — `PaymentConfirmPanel` with summary + slip preview + back.
+3. **Honest empty-bank gating** — Slip hidden, CTA disabled, `NO_TRANSFER_ACCOUNT_SUBMIT_HINT` — status clear without inventing account data.
 
 ### Priority Issues
 
-1. **[P0] Bank account placeholder while slip is required**  
-   - **What:** `.reg-bank` shows “รอข้อมูลจากสมาคม”; slip upload is mandatory.  
-   - **Why:** Blocks the primary member task (pay → attach proof) inside LINE.  
-   - **Fix:** Inject real account fields from config; or disable submit / hide upload until bank data exists, with clear status copy.  
-   - **Suggested command:** `/impeccable harden /register`
-
-2. **[P1] New registration is one long form (no progressive disclosure)**  
-   - **What:** Six personal fields + fee + bank + upload + warn in one scroll; legacy already has steps.  
-   - **Why:** High extraneous load on LIFF; matches a named product anti-reference.  
-   - **Fix:** Split into data → payment steps, or collapse optional fields behind disclosure.  
+1. **[P1] New registration is still one long form**  
+   - **What:** Six personal fields + fee + bank + (when paying) slip + warn; kicker says one step.  
+   - **Why:** High LIFF cognitive load; PRODUCT anti-reference.  
+   - **Fix:** ≥2 steps (data → payment/slip) or collapse email/building.  
    - **Suggested command:** `/impeccable distill /register`
 
-3. **[P1] PhoneDigitInput label wiring + autofill friction**  
-   - **What:** Hardcoded `aria-labelledby="reg-phone-label"` breaks legacy (`legacy-phone-label`); digits use `autocomplete="one-time-code"`.  
-   - **Why:** Screen reader association fails; mobile entry/autofill suffers.  
-   - **Fix:** Pass labelledby (and optionally `aria-describedby`) as props; prefer single `tel` input or proper tel autocomplete on the group.  
+2. **[P1] PhoneDigitInput label wiring + autofill friction**  
+   - **What:** Hardcoded `aria-labelledby="reg-phone-label"` vs legacy `legacy-phone-label`; digits misuse `one-time-code`.  
+   - **Why:** Screen reader fail; mobile autofill/typing suffer.  
+   - **Fix:** Pass labelledby prop; prefer single `tel` or group `tel-national`.  
    - **Suggested command:** `/impeccable audit /register`
 
-4. **[P1] Errors appear at form footer, not at the failing field**  
-   - **What:** Submit/`required_fields_missing`/`invalid_phone` surface in `.reg-form-error` only; only phone gets `aria-invalid`.  
-   - **Why:** On mobile, users miss the cause and resubmit or abandon.  
-   - **Fix:** Inline errors under name/phone; focus first invalid control after submit.  
+3. **[P1] Errors still footer-centric**  
+   - **What:** Missing/invalid fields surface in `.reg-form-error`; only phone gets `aria-invalid`; no focus first invalid.  
+   - **Why:** Mobile users miss the cause.  
+   - **Fix:** Inline errors under name/phone; focus first invalid after failed confirm.  
    - **Suggested command:** `/impeccable clarify /register`
 
-5. **[P2] Legacy phone field claims to help verification but is unused**  
-   - **What:** Hint says it helps verification; `searchLegacyMembers` / `bindLegacyMember` omit phone.  
-   - **Why:** Misleading copy and wasted input.  
-   - **Fix:** Remove the field or wire it into search/bind and update copy.  
+4. **[P2] Full personal form still open when `!canPay`**  
+   - **What:** Users can fill everything then hit disabled CTA (informational under empty-bank constraint).  
+   - **Why:** Wasted effort before discovering registration can’t complete payment.  
+   - **Fix:** Lead with closed/unavailable status; defer long form until `canPay`.  
+   - **Suggested command:** `/impeccable onboard /register`
+
+5. **[P2] Legacy phone field unused**  
+   - **What:** Hint claims verification help; search/bind omit phone.  
+   - **Why:** Misleading copy.  
+   - **Fix:** Remove or wire into API and update hint.  
    - **Suggested command:** `/impeccable clarify /register`
 
 ### Cognitive load checklist (8)
 
 | Item | Result | Notes |
 |------|--------|-------|
-| Single focus | Fail (new) | Tabs + info + fee + bank + upload + warn compete |
-| Chunking | Fail (new) | Personal section shows 6 fields (>4) |
-| Grouping | Pass | `reg-section` groups are clear |
-| Visual hierarchy | Pass | Hero → form card → primary CTA |
-| One thing at a time | Fail (new) / Pass (legacy) | New asks data + payment together |
+| Single focus | Fail (new) | Tabs + fields + fee/bank/warn compete |
+| Chunking | Fail (new) | Personal section = 6 fields (>4) |
+| Grouping | Pass | `reg-section` groups clear |
+| Visual hierarchy | Pass | Hero → form → primary CTA |
+| One thing at a time | Fail (new) / Pass (legacy) | New asks data (+ payment when open) together |
 | Minimal choices | Pass | 2 modes; actions usually ≤4 |
-| Working memory | Fail (payment) | Must know where to transfer; bank not shown |
-| Progressive disclosure | Fail (new) / Pass (legacy) | Legacy 1→2→3 is the model |
+| Working memory | Pass | Confirm / legacy step 3 re-show data |
+| Progressive disclosure | Fail (new) / Pass (legacy) | Legacy wizard is the model |
 
-**Failures: 5 on new path → high cognitive load (critical for new registration).** Legacy path is low–moderate.
+**Failures: 4 on new path → high cognitive load.** Legacy path is low–moderate.
 
 ### Persona Red Flags
 
-**Jordan (First-Timer):** Must choose new vs legacy before understanding; “ขั้นตอนเดียว” undersells payment friction; temporary membership rights may be unclear after success.
+**Jordan:** Must choose new vs legacy early; “ขั้นตอนเดียว” undersells length; temporary membership rights may be unclear after success.
 
-**Casey (Mobile):** Long scroll; primary CTA below fold; 10 digit boxes; interruption risk with no client draft; cannot complete transfer without bank details.
+**Casey:** Long scroll; CTA below fold; 10 digit boxes; no client draft if interrupted mid-new-flow.
 
-**Sam (a11y):** Broken `aria-labelledby` on legacy phone; mode controls lack tab semantics/`aria-selected`; loading text without strong live-region pattern on shell.
+**Sam:** Broken legacy phone `aria-labelledby`; mode controls lack tab semantics; loading without strong live region.
 
-**สมาชิก ABTA บน LINE:** Payment blocked by empty bank block; fears wrong LINE bind (legacy confirm helps; new path has no summary); post-submit status path is good once they get there.
+**สมาชิก ABTA บน LINE:** Confirm before send/bind builds trust; empty bank correctly blocks payment (accepted); still risk filling a long form before discovering payment isn’t open yet.
 
 ### Minor Observations
 
 - Detector clean (`[]`).
-- Resubmit + reject reason is a strong recovery moment — keep.
-- Ghost secondary buttons correctly recolored inside the white form card.
-- Success footers reinforcing “เช็คสถานะ” in LINE OA match product voice.
+- Browser evidence blocked by LIFF OAuth invalid localhost redirectUri.
+- Resubmit + reject reason remains a strong recovery moment.
+- Mode switch resets typed data without confirm.
+- Reduced-motion honored on shell animation.
 
 ### Questions to Consider
 
-1. Soft-launch: hide/disable new registration until bank details ship?
-2. Should new registration reuse the legacy 3-step pattern?
-3. Is per-digit phone UX worth the mobile cost vs a single `tel` field with the same `isValidThaiMobile` guard?
-4. Does new submit need a confirm/summary step like legacy bind?
+1. If bank stays empty for weeks, should “สมัครใหม่” be a closed state instead of a fillable form + disabled button?
+2. Why does legacy earn a 3-step wizard while the money path stays “one step”?
+3. Is 10-box phone accuracy worth killing autofill for every LINE member on a phone?
+4. Should switching modes confirm before wiping typed fields?
 
 ### Detector Findings (JSON summary)
 
@@ -216,19 +229,21 @@ Strong brand shell and an excellent legacy bind wizard; the new-registration pat
   "exitCode": 0,
   "findings": [],
   "count": 0,
-  "note": "No deterministic AI-slop / quality rule hits on scanned TSX markup. CSS-only anti-patterns not fully covered by detector."
+  "browser": "skipped — LIFF OAuth 400 invalid redirectUri for http://localhost:5173/register; register DOM never loaded; no detect.js injection",
+  "note": "No deterministic AI-slop / quality rule hits on scanned TSX markup."
 }
 ```
 
 ### Concrete fix backlog for next chat
 
-- Replace bank placeholder in `RegisterPage.tsx` / `.reg-bank` with real account name, number, bank (from env/config API); gate slip+submit if missing
 - Split new registration into ≥2 steps (personal → payment/slip) mirroring legacy `legacyStep`, or collapse email/building behind “ข้อมูลเพิ่มเติม”
 - Fix `PhoneDigitInput.tsx`: accept `aria-labelledby` prop (default `reg-phone-label`); pass `legacy-phone-label` from legacy form; stop misusing `autocomplete="one-time-code"` on phone digits
-- Add inline field errors + `aria-invalid` for firstName/lastName/phone; on submit error, `focus()` first invalid control
+- Add inline field errors + `aria-invalid` for firstName/lastName/phone; on confirm/submit fail, `focus()` first invalid control
 - Move `.reg-form-error` association via `aria-describedby` on the form or fields
 - Add `aria-selected` (and preferably tab pattern) on `.reg-mode-tab` buttons
+- When `!canPay`, lead with closed/unavailable status and defer the long personal form
 - Remove unused legacy phone field or include phone in `searchLegacyMembers` / bind payload and align hint copy
 - Add `aria-live="polite"` on loading/submitting status text in `reg-shell`
-- Optional: single `input type="tel"` fallback under 360px width while keeping digit UI on larger phones
+- Optional: confirm before mode-tab switch if form dirty
 - Optional: client-side draft in `sessionStorage` for Casey interruption recovery (non-resubmit path)
+- **Do not** invent bank account data — empty bank remains intentional product constraint

@@ -48,6 +48,11 @@ export default function DataReviewPage(props: {
       !detailLoading,
   );
 
+  const effectiveMemberId =
+    detailReady && detail
+      ? effectiveIdOnConfirm(detail.memberId, detail.pendingMemberId)
+      : "";
+
   async function reload() {
     setLoading(true);
     setError(null);
@@ -332,6 +337,12 @@ export default function DataReviewPage(props: {
                 fullName={detail!.fullName}
                 memberIdLabel="เลขชั่วคราว"
                 memberId={detail!.memberId}
+                effectiveIdLabel="เลขที่จะได้เมื่ออนุมัติ"
+                effectiveId={effectiveMemberId || undefined}
+                effectiveIdHighlight={Boolean(
+                  detail!.pendingMemberId?.trim() &&
+                    effectiveMemberId !== detail!.memberId,
+                )}
               />
 
               {error ? <div className="bo-error">{error}</div> : null}
@@ -412,9 +423,9 @@ export default function DataReviewPage(props: {
               onRejectToggle={() => setShowReject((v) => !v)}
               onRejectConfirm={() => void onReject()}
               onRejectReasonChange={setRejectReason}
-              approveLabel="อนุมัติ — promote + ใบเสร็จชั่วคราว"
+              approveLabel="อนุมัติ — เลื่อนเป็นสมาชิกถาวร + ออกใบเสร็จชั่วคราว"
               rejectPlaceholder="เช่น ชื่อไม่ตรงกับสลิป / ข้อมูลไม่ครบ"
-              approveConfirmMessage={`อนุมัติข้อมูลนี้? เลขสมาชิกถาวรจะเป็น ${effectiveIdOnConfirm(detail!.memberId, detail!.pendingMemberId)} และออกใบเสร็จชั่วคราว`}
+              approveConfirmMessage={`อนุมัติข้อมูลนี้? เลขสมาชิกถาวรจะเป็น ${effectiveMemberId} และออกใบเสร็จชั่วคราว`}
               rejectTextareaId="data-reject-reason"
               note="เมื่อไม่ผ่าน: ไม่ส่งต่อเหรัญญิก · ใบเสร็จยังไม่ออก · สมาชิกแก้ไขแล้ววนกลับคิวนายทะเบียน"
             />

@@ -32,6 +32,13 @@ import { clickableRowProps } from "../clickableRow";
 const DEFAULT_SORT: MemberListSort = "updated_desc";
 const DEFAULT_PAGE_SIZE: ListPageSize = 10;
 
+/** Queue-first chips stay visible; the rest sit under “เพิ่มเติม”. */
+const STATUS_PRIMARY_VALUES = new Set<"" | MemberListStatusFilter>([
+  "",
+  "pending_data",
+  "pending_slip",
+]);
+
 const ERROR_LABEL: Record<string, string> = {
   search_failed: "ค้นหาไม่สำเร็จ — ลองใหม่หรือลดเงื่อนไข",
   reload_failed: "โหลดรายการใหม่ไม่สำเร็จ — ลองรีเฟรชอีกครั้ง",
@@ -43,6 +50,27 @@ const ERROR_LABEL: Record<string, string> = {
 function errorMessage(err: unknown, fallback: string): string {
   const code = err instanceof Error ? err.message : fallback;
   return ERROR_LABEL[code] ?? (ERROR_LABEL[fallback] ?? code);
+}
+
+function goAdminPath(path: "/admin/data" | "/admin/slips") {
+  window.history.pushState({}, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+function canReviewData(me: AdminMe): boolean {
+  return (
+    me.isSuperAdmin ||
+    me.roles.includes("admin") ||
+    me.roles.includes("registrar")
+  );
+}
+
+function canReviewSlips(me: AdminMe): boolean {
+  return (
+    me.isSuperAdmin ||
+    me.roles.includes("admin") ||
+    me.roles.includes("treasurer")
+  );
 }
 
 export default function DashboardPage(props: {
@@ -57,6 +85,7 @@ export default function DashboardPage(props: {
   const [statusFilter, setStatusFilter] = useState<"" | MemberListStatusFilter>(
     "",
   );
+  const [statusMoreOpen, setStatusMoreOpen] = useState(false);
   const [receiptIdTFilter, setReceiptIdTFilter] = useState<"" | ReceiptIdTFilter>(
     "",
   );
@@ -321,6 +350,7 @@ export default function DashboardPage(props: {
   async function clearFilters() {
     setQuery("");
     setStatusFilter("");
+    setStatusMoreOpen(false);
     setReceiptIdTFilter("");
     setSort(DEFAULT_SORT);
     setPage(1);
@@ -334,8 +364,31 @@ export default function DashboardPage(props: {
     });
   }
 
+  async function applyStatusFilter(value: "" | MemberListStatusFilter) {
+    if (!STATUS_PRIMARY_VALUES.has(value)) {
+      setStatusMoreOpen(true);
+    }
+    await onStatusChange(value);
+  }
+
+  function onPendingDataStat() {
+    if (canReviewData(props.me)) {
+      goAdminPath("/admin/data");
+      return;
+    }
+    void applyStatusFilter("pending_data");
+  }
+
+  function onPendingSlipStat() {
+    if (canReviewSlips(props.me)) {
+      goAdminPath("/admin/slips");
+      return;
+    }
+    void applyStatusFilter("pending_slip");
+  }
+
   if (loading) {
-    return <div className="bo-empty">กำลังโหลด Dashboard…</div>;
+    return <div className="bo-empty">กำลังโหลดค้นหาสมาชิก…</div>;
   }
   if (error && !data) {
     return <div className="bo-error">{error}</div>;
@@ -352,26 +405,43 @@ export default function DashboardPage(props: {
   const rangeStart = matched === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, matched);
 
+  const statusMoreActive =
+    Boolean(statusFilter) && !STATUS_PRIMARY_VALUES.has(statusFilter);
+  const showStatusMore = statusMoreOpen || statusMoreActive;
+
   return (
     <>
-      <div className="bo-stats">
-        <div className="bo-stat">
-          <div className="num">{data.totalMembers}</div>
-          <div className="lbl">สมาชิกทั้งหมด</div>
-        </div>
-        <div className="bo-stat">
+      <div className="bo-queue-strip" aria-label="คิวรอตรวจ">
+        <button
+          type="button"
+          className={`bo-stat bo-stat--btn${statusFilter === "pending_data" ? " is-active" : ""}`}
+          onClick={onPendingDataStat}
+        >
           <div className="num">{data.pendingDataReviews}</div>
           <div className="lbl">รอตรวจข้อมูล</div>
-        </div>
-        <div className="bo-stat">
+          <span className="bo-stat-hint">
+            {canReviewData(props.me) ? "เปิดคิวตรวจข้อมูล" : "กรองรายการนี้"}
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`bo-stat bo-stat--btn${statusFilter === "pending_slip" ? " is-active" : ""}`}
+          onClick={onPendingSlipStat}
+        >
           <div className="num">{data.pendingSlipReviews}</div>
           <div className="lbl">รอตรวจสลิป</div>
-        </div>
-        <div className="bo-stat">
-          <div className="num">{data.activeMembers}</div>
-          <div className="lbl">สมาชิกสมบูรณ์</div>
-        </div>
+          <span className="bo-stat-hint">
+            {canReviewSlips(props.me) ? "เปิดคิวตรวจสลิป" : "กรองรายการนี้"}
+          </span>
+        </button>
       </div>
+      <p className="bo-stats-meta">
+        สมาชิกทั้งหมด {data.totalMembers.toLocaleString("th-TH")}
+        {" · "}
+        สมบูรณ์ {data.activeMembers.toLocaleString("th-TH")}
+        {" · "}
+        ชั่วคราว {data.temporaryMembers.toLocaleString("th-TH")}
+      </p>
 
       <div className="bo-panel bo-panel--has-menu" style={{ marginBottom: "1.25rem" }}>
         <div className="bo-panel-head">
@@ -401,12 +471,12 @@ export default function DashboardPage(props: {
         </form>
 
         <div className="bo-list-filters">
-          <FilterSegGroup
-            label="สถานะสมาชิก"
-            options={MEMBER_STATUS_FILTER_OPTIONS}
+          <StatusFilterGroup
             value={statusFilter}
             disabled={searching}
-            onChange={(v) => void onStatusChange(v)}
+            moreOpen={showStatusMore}
+            onToggleMore={() => setStatusMoreOpen((v) => !v)}
+            onChange={(v) => void applyStatusFilter(v)}
           />
           <FilterSegGroup
             label="เลขใบเสร็จ (T)"
@@ -449,7 +519,7 @@ export default function DashboardPage(props: {
       <div className="bo-panel">
         <div className="bo-panel-head">
           <h2>{listTitle}</h2>
-          <span style={{ fontSize: "0.8rem", color: "var(--bo-muted)" }}>
+          <span className="bo-list-meta">
             {listMode === "recent"
               ? `ชั่วคราว ${data.temporaryMembers} ราย · `
               : null}
@@ -553,6 +623,91 @@ export default function DashboardPage(props: {
         onUpdated={(member) => setDetail(member)}
       />
     </>
+  );
+}
+
+function StatusFilterGroup(props: {
+  value: "" | MemberListStatusFilter;
+  disabled?: boolean;
+  moreOpen: boolean;
+  onToggleMore: () => void;
+  onChange: (value: "" | MemberListStatusFilter) => void;
+}) {
+  const labelId = useId();
+  const primary = MEMBER_STATUS_FILTER_OPTIONS.filter((o) =>
+    STATUS_PRIMARY_VALUES.has(o.value),
+  );
+  const more = MEMBER_STATUS_FILTER_OPTIONS.filter(
+    (o) => !STATUS_PRIMARY_VALUES.has(o.value),
+  );
+  const moreActive = more.some((o) => o.value === props.value);
+
+  return (
+    <div className="bo-filter-group">
+      <span className="bo-filter-label" id={labelId}>
+        สถานะสมาชิก
+      </span>
+      <div className="bo-seg-row">
+        <div className="bo-seg" role="radiogroup" aria-labelledby={labelId}>
+          {primary.map((opt) => {
+            const active = props.value === opt.value;
+            return (
+              <button
+                key={opt.value || "all"}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={`bo-seg-btn${active ? " is-active" : ""}`}
+                disabled={props.disabled}
+                onClick={() => {
+                  if (!active) props.onChange(opt.value);
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className={`bo-seg-btn bo-seg-btn--more${props.moreOpen || moreActive ? " is-open" : ""}${moreActive ? " is-active" : ""}`}
+          aria-expanded={props.moreOpen}
+          aria-controls="bo-status-more"
+          disabled={props.disabled}
+          onClick={props.onToggleMore}
+        >
+          เพิ่มเติม
+          <span className="bo-seg-more-chevron" aria-hidden="true" />
+        </button>
+      </div>
+      {props.moreOpen ? (
+        <div
+          id="bo-status-more"
+          className="bo-seg bo-seg--more"
+          role="radiogroup"
+          aria-label="สถานะเพิ่มเติม"
+        >
+          {more.map((opt) => {
+            const active = props.value === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={`bo-seg-btn${active ? " is-active" : ""}`}
+                disabled={props.disabled}
+                onClick={() => {
+                  if (!active) props.onChange(opt.value);
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

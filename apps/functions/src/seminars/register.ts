@@ -388,7 +388,20 @@ export async function adminDeactivateSeminar(
 }
 
 export async function adminListRegistrations(seminarId?: string) {
-  return listRegistrations(seminarId);
+  const regs = await listRegistrations(seminarId);
+  const ids = [...new Set(regs.map((r) => r.seminarId).filter(Boolean))];
+  const titles = new Map<string, string>();
+  await Promise.all(
+    ids.map(async (id) => {
+      const seminar = await getSeminar(id);
+      const title = seminar?.title?.trim();
+      if (title) titles.set(id, title);
+    }),
+  );
+  return regs.map((r) => ({
+    ...r,
+    seminarTitle: titles.get(r.seminarId),
+  }));
 }
 
 export async function adminDecideRegistration(input: {

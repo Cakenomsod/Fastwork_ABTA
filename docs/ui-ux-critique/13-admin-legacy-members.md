@@ -1,49 +1,78 @@
 # 13 — Admin Legacy Members (`/admin/legacy`)
 
 > **Method:** ⚠️ DEGRADED: single-context (critique already running as nested subagent under Multitask parent — dual Assessment A/B agents not spawned)  
-> **Date:** 2026-07-27  
-> **Target:** `apps/web/src/admin/pages/LegacyMembersPage.tsx` (+ `ListPager.tsx`, filter labels in `admin-api.ts`, tokens `admin.css`)  
-> **Related (not wired here):** `MemberDetailDrawer.tsx`, `LegacyPaymentsPanel.tsx` — used from Dashboard only  
+> **Date:** 2026-07-27 (re-critique after Legacy Members + Legacy Import fix round)  
+> **Target:** `apps/web/src/admin/pages/LegacyMembersPage.tsx` + `ListPager.tsx` + `admin-api.ts` (`LEGACY_*`) + `admin.css`  
+> **Related (not wired here):** `MemberDetailDrawer.tsx`, `LegacyPaymentsPanel.tsx` — Dashboard / bound-member only  
 > **Register:** product · queue/ops BO · `--bo-*` green+gold  
 > **Design health:** **19 / 40** — Poor  
+> **Prior:** 19/40 · **Delta:** **0** (no material fixes on this surface)  
 > **P0:** 1 · **P1:** 3 · **P2:** 5 · **P3:** 2  
 > **Detector:** 1 advisory (`design-system-font-size` @ inline `0.8rem`)  
-> **Browser overlay:** skipped (no live server / injection in this subagent run)
+> **Browser overlay:** skipped (admin auth-gated / no injection in this subagent run)
 
 ---
 
 ## สรุปสำหรับอ่าน (ภาษาไทย)
 
-### คะแนนรวม: 19/40 (Poor)
+### คะแนนรวม: 19/40 (Poor) — ไม่เปลี่ยนจาก 19
 
-หน้า **สมาชิกเก่า** เป็นเครื่องมือค้นหา/กรองรายการที่นำเข้าจาก Excel — layout สอดคล้อง Back Office (panel, segment filter, table cards, pager) แต่ยังเป็น **รายการตัน (dead-end)**: แถวคลิกไม่ได้ ไม่มี drawer และ API ส่ง `phone` / `email` / `expiryDate` มาแล้ว UI ไม่แสดง ทำให้เจ้าหน้าที่ยืนยันตัวตนหลังค้นหาด้วยโทร/อีเมลไม่ได้ สถานะสมาชิกเก่าเป็นภาษาอังกฤษ (`Active` / `Expired` / `NonActive` / `Pending`) ตัดกับเสียงภาษาไทยของทั้งระบบ
+รอบแก้โฟกัสที่ **Legacy Import** (dry-run + ConfirmDialog) — **หน้าสมาชิกเก่ายังไม่แตะ** ยังเป็นรายการค้นหา/กรองที่ layout สอดคล้อง Back Office แต่เป็น **รายการตัน (dead-end)**: แถวคลิกไม่ได้ ไม่มี drawer และ API ส่ง `phone` / `email` / `expiryDate` มาแล้ว UI ไม่แสดง — เจ้าหน้าที่ยืนยันตัวตนหลังค้นหาด้วยโทร/อีเมลไม่ได้ สถานะสมาชิกเก่ายังเป็นอังกฤษ (`Active` / `Expired` / `NonActive` / `Pending`)
 
-### จุดแข็ง
+**คะแนน: 19/40 (Poor)** · P0 = 1 · P1 = 3 · **Delta 0** (ไม่มี fix บน `LegacyMembersPage` / `LEGACY_STATUS_*`)
 
-1. **โครงสร้างค้นหาใช้งานได้** — ช่องค้นหามี label ชัด, filter LINE + สถานะ, ปุ่มล้างตัวกรอง, ช่วงรายการ + pager ภาษาไทย
-2. **Empty state แยกเคส** — มีข้อความต่างกันเมื่อกรองไม่เจอ vs ยังไม่มีข้อมูล (ชี้ไปนำเข้า Excel)
-3. **แบรนด์ BO สอดคล้อง** — ใช้ `.bo-stats` / `.bo-panel` / `.bo-badge` / `.bo-table--cards` เหมือนหน้าอื่น ไม่หลุดไปเทา-น้ำเงิน generic
+### Delta vs prior
 
-### ปัญหาสำคัญ (สั้นๆ)
+| รายการ | Prior | Now |
+|--------|-------|-----|
+| Detail / drawer สำหรับแถว | **P0** ไม่มี | ❌ ยังไม่มี |
+| แสดง phone / email / expiry | **P0** ซ่อน | ❌ ยังซ่อน |
+| สถานะไทย | **P1** EN | ❌ ยัง EN |
+| สถิติคลิกกรอง + grid 3 คอลัมน์ | **P1** | ❌ ยัง vanity + `.bo-stats` 4-col |
+| Seg ARIA / live region | **P1** | ❌ ยัง `role="group"` + class only |
+| คะแนน / P0 / P1 | 19 · 1 · 3 | **19 · 1 · 3** |
+
+### จุดแข็ง (2–3)
+
+1. **โครงสร้างค้นหาใช้งานได้** — label ชัด, filter LINE + สถานะ, ปุ่มล้างตัวกรอง, ช่วงรายการ + pager ภาษาไทย
+2. **Empty state แยกเคส** — กรองไม่เจอ vs ยังไม่มีข้อมูล (ชี้ไปนำเข้า Excel)
+3. **แบรนด์ BO สอดคล้อง** — `.bo-stats` / `.bo-panel` / `.bo-badge` / `.bo-table--cards`; focus-visible บนปุ่ม/seg มีใน `admin.css` แล้ว (shared)
+
+### ปัญหาที่เหลือ (สำคัญ)
 
 | ระดับ | ปัญหา |
 |-------|--------|
 | **P0** | รายการตัน — ไม่มี detail/drawer; ซ่อน phone/email/วันหมดอายุทั้งที่ API มี → ยืนยันตัวตนไม่ได้ |
 | **P1** | ตัวกรอง/แบดจ์สถานะเป็นอังกฤษ (`Active`, `NonActive`…) ใน BO ภาษาไทย |
 | **P1** | การ์ดสถิติ 3 ใบไม่คลิกกรองได้ + grid 4 คอลัมน์เหลือช่องว่าง |
-| **P1** | Segment filter ไม่มี `aria-pressed` / radiogroup pattern; loading แทนที่ตารางทั้งก้อนไม่มี live region |
+| **P1** | Segment filter ไม่มี `aria-pressed` / radiogroup; loading แทนที่ตารางทั้งก้อนไม่มี live region |
 
 ### Top 3 ที่ควรแก้ก่อน
 
-1. เปิด detail (drawer หรือแถวขยาย) แสดง phone/email/expiry + ลิงก์ไปสมาชิกใหม่ถ้าผูกแล้ว — ใช้ของที่มีใน Dashboard ถ้าเป็นไปได้
+1. เปิด detail (drawer หรือแถวขยาย) แสดง phone/email/expiry + ลิงก์ไปสมาชิกใหม่ถ้าผูกแล้ว — reuse Dashboard drawer ถ้าเป็นไปได้
 2. แปลสถานะ legacy เป็นไทยที่เจ้าหน้าที่เข้าใจ (และนิยาม NonActive)
 3. ทำให้สถิติ “ยังไม่ยืนยัน / ยืนยัน LINE แล้ว” เป็นทางลัดตัวกรอง + แก้ grid 3 การ์ด
 
 ### Personas (สรุป)
 
 - **Alex (power):** ค้นหาแล้วจบ — คัดลอกเลข/เปิดรายละเอียด/คลิกสถิติกรองไม่ได้; ไม่มี shortcut; Submit ค้นหาแต่ filter ยิงทันที
-- **Sam (a11y):** ตารางอ่านได้อย่างเดียว (ไม่มี action); seg ไม่ประกาศ selected state; loading กลืน content โดยไม่ announce; `bo-rise` บน panel/stat ไม่เคลียร์ reduced-motion ทั้งหน้า
+- **Sam (a11y):** ตารางอ่านได้อย่างเดียว; seg ไม่ประกาศ selected state; loading กลืน content โดยไม่ announce; `bo-rise` บน panel/stat ยังไม่เคลียร์ reduced-motion ทั้งหน้า
 - **นายทะเบียน:** ต้องการยืนยัน “คนนี้ใช่ไหม” จากโทร/อีเมลหลังค้นหา — ตอนนี้เห็นแค่ชื่อ + เลขเก่า
+
+### Cognitive load
+
+Checklist failures (6 → **high**):
+
+- [x] Single focus — FAIL (stats + search + two seg groups + table)
+- [x] Chunking — FAIL (search label lists 5 field types; status seg = 5 chips)
+- [ ] Grouping — OK
+- [x] Visual hierarchy — FAIL (stats compete with find-member task)
+- [x] One thing at a time — FAIL
+- [x] Minimal choices — FAIL
+- [x] Working memory — FAIL (phone/email match not visible in row)
+- [x] Progressive disclosure — FAIL (no detail layer)
+
+Decision points >4 options: legacy status segment (5).
 
 ---
 
@@ -53,12 +82,13 @@
 
 `Method: ⚠️ DEGRADED: single-context (nested Multitask critique subagent; A/B not dual-spawned)`
 
-Sources reviewed: `LegacyMembersPage.tsx`, `ListPager.tsx`, `admin-api.ts` (`LEGACY_*` labels + `LegacyMemberListRow`), `admin.css` (`.bo-legacy-*`, stats, filters, table cards, pager, motion), related unused-on-page: `MemberDetailDrawer.tsx`, `LegacyPaymentsPanel.tsx`.  
+Sources reviewed: `LegacyMembersPage.tsx`, `ListPager.tsx`, `admin-api.ts` (`LEGACY_*` labels + `LegacyMemberListRow`), `admin.css` (`.bo-legacy-*`, stats, filters, table cards, pager, motion). Related unused-on-page: `MemberDetailDrawer.tsx`, `LegacyPaymentsPanel.tsx`.  
+Git/code check: no material UX fix on this surface since prior 19/40 (Import page fixed separately).  
 CLI: `node .cursor/skills/impeccable/scripts/detect.mjs --json apps/web/src/admin/pages/LegacyMembersPage.tsx apps/web/src/admin/ListPager.tsx`
 
 ### Design health score
 
-| # | Heuristic | Score | Key issue |
+| # | Heuristic | Score | Key Issue |
 |---|-----------|-------|-----------|
 | 1 | Visibility of system status | 2 | Loading / truncated hint exist; table replaced wholesale; no `aria-live` / `aria-busy` |
 | 2 | Match system / real world | 1 | Legacy status filters & badges in English (`NonActive`, etc.) inside Thai BO |
@@ -67,14 +97,14 @@ CLI: `node .cursor/skills/impeccable/scripts/detect.mjs --json apps/web/src/admi
 | 5 | Error prevention | 2 | English status chips invite wrong filter; long multi-field search label |
 | 6 | Recognition over recall | 1 | Search supports phone/email but results hide those fields — memory bridge |
 | 7 | Flexibility & efficiency | 1 | No row action, no clickable stats, no shortcuts, no copy-ID affordance |
-| 8 | Aesthetic & minimalist | 2 | Clean panels; hero-metric stats + 3 cards in 4-col `.bo-stats` grid |
+| 8 | Aesthetic and minimalist | 2 | Clean panels; hero-metric stats + 3 cards in 4-col `.bo-stats` grid |
 | 9 | Error recovery | 2 | `.bo-error` shown; empty copy OK; no CTA link to `/admin/legacy/import` |
-| 10 | Help & documentation | 1 | No glossary for Excel status values; only truncation hint |
+| 10 | Help and documentation | 1 | No glossary for Excel status values; only truncation hint |
 | **Total** | | **19/40** | **Poor** |
 
 ### Anti-patterns verdict
 
-**LLM assessment:** Not purple/gray SaaS slop — association green holds. Failure mode is **ops incompleteness**: a familiar admin list that looks finished but does not complete the registrar’s job (identity check after search). Hero-metric `.bo-stat` strip (big num + small label) repeats the dashboard SaaS reflex. Table headers use uppercase tracking on Thai labels (shared `.bo-table th` pattern — polish, not unique here).
+**LLM assessment:** Not purple/gray SaaS slop — association green holds. Failure mode remains **ops incompleteness**: a familiar admin list that looks finished but does not complete the registrar’s job (identity check after search). Hero-metric `.bo-stat` strip (big num + small label) repeats the dashboard SaaS reflex. Table headers use uppercase tracking on Thai labels (shared `.bo-table th` — polish, not unique).
 
 **Deterministic scan:** 1 finding, severity `advisory`:
 
@@ -84,26 +114,11 @@ CLI: `node .cursor/skills/impeccable/scripts/detect.mjs --json apps/web/src/admi
 
 False positives: none. Detector misses dead-end IA, EN status copy, and a11y on segs — review-only.
 
-**Visual overlays:** Not injected this run.
-
-### Cognitive load
-
-Checklist failures (6 → **high**):
-
-- [x] Single focus — FAIL (stats + search + two seg groups + table)
-- [x] Chunking — FAIL (search label lists 5 field types; status seg = 5 chips)
-- [ ] Grouping — OK (panels / filter groups)
-- [x] Visual hierarchy — FAIL (stats compete with find-member task)
-- [x] One thing at a time — FAIL
-- [x] Minimal choices — FAIL (3 bind + 5 status + clear + search + page size)
-- [x] Working memory — FAIL (phone/email match not visible in row)
-- [x] Progressive disclosure — FAIL (no detail layer; all chrome always on)
-
-Decision points >4 options: legacy status segment (5).
+**Visual overlays:** Not injected (admin auth-gated).
 
 ### Overall impression
 
-Competent **browse chrome**, incomplete **work tool**. Biggest opportunity: turn each row into an identity-confirm surface (show match fields + open detail / bound member), and speak status in Thai.
+Competent **browse chrome**, incomplete **work tool**. Biggest opportunity unchanged: turn each row into an identity-confirm surface (show match fields + open detail / bound member), and speak status in Thai. **Do not invent sample PII** in mocks — use empty/placeholder fields only.
 
 ### What's working
 
@@ -115,9 +130,9 @@ Competent **browse chrome**, incomplete **work tool**. Biggest opportunity: turn
 
 #### [P0] Dead-end list — cannot verify identity or open detail
 
-- **What:** Rows are non-interactive. `LegacyMemberListRow` includes `phone`, `email`, `expiryDate`, `boundFullName`, etc., but the table only shows legacy ID, name, type, EN status, LINE badge, bound member ID. No `MemberDetailDrawer` / legacy detail panel / payments panel on this route (those exist for Dashboard-bound members only).
+- **What:** Rows are non-interactive. `LegacyMemberListRow` includes `phone`, `email`, `expiryDate`, `boundFullName`, etc., but the table only shows legacy ID, name, type, EN status, LINE badge, bound member ID. No `MemberDetailDrawer` / legacy detail panel / payments panel on this route.
 - **Why:** Primary staff job after search is “คนนี้ใช่ไหม?” — especially when searching by phone/email. Hidden match fields force recall or a hop to another tool. Product principle: status/identity clarity before polish.
-- **Fix:** (Preferred) Row open → legacy detail drawer/sheet showing contact, expiry, source file, LINE bind, link to bound `memberId` (reuse drawer patterns + `LegacyPaymentsPanel` when legacy ID present). Minimum: show phone + email columns (or under name) and make bound ID a link to Dashboard/member detail.
+- **Fix:** (Preferred) Row open → legacy detail drawer/sheet showing contact, expiry, source file, LINE bind, link to bound `memberId` (reuse drawer patterns + `LegacyPaymentsPanel` when legacy ID present). Minimum: show phone + email columns (or under name) and make bound ID a link to Dashboard/member detail. Keyboard-openable.
 - **Command:** `/impeccable shape` (detail IA) then `/impeccable harden` / `/impeccable layout`.
 
 #### [P1] English legacy status in a Thai back office
@@ -146,15 +161,15 @@ Competent **browse chrome**, incomplete **work tool**. Biggest opportunity: turn
 **Alex (Power User)**  
 - Search → stare; cannot open row, copy fields in one click, or jump to bound member.  
 - Stats waste a scroll without acting as filters.  
-- Inconsistent apply model: segs refetch immediately; text search needs Submit (Enter works only because of `<form>`).  
+- Inconsistent apply model: segs refetch immediately; text search needs Submit (Enter works via `<form>`).  
 - No `/` to focus search; no export/bulk for unbound follow-up lists.
 
 **Sam (Accessibility)**  
-- No interactive row semantics (nothing to activate — but also no alternative “view details” control).  
+- No interactive row semantics (nothing to activate — also no alternative “view details” control).  
 - Selected filter state not exposed accessibly.  
 - Loading replaces content; may lose focus context.  
-- Shared `.bo-btn` lacks `:focus-visible` (same as Dashboard finding).  
-- `.bo-stat` / `.bo-panel` `bo-rise` not clearly disabled for this page under `prefers-reduced-motion` (partial coverage elsewhere in `admin.css` only).
+- Shared `.bo-btn` / `.bo-seg-btn` have `:focus-visible` (global).  
+- `.bo-stat` / `.bo-panel` `bo-rise` still not clearly disabled under `prefers-reduced-motion` for this page.
 
 **นายทะเบียน / เจ้าหน้าที่ (project)**  
 - After Excel import, needs “หาเลขเก่า → ยืนยันเบอร์ → ดูว่าผูก LINE หรือยัง”. Page covers step 1 and part of step 3 only.  
@@ -208,7 +223,7 @@ No P0/P1 from detector; human review owns dead-end IA + EN status + filter a11y.
 
 | ID | Sev | File(s) | Change |
 |----|-----|---------|--------|
-| L1 | P0 | `LegacyMembersPage.tsx`, new/reuse drawer, `LegacyPaymentsPanel.tsx`, `admin.css` | Add detail path: show phone/email/expiry at minimum; prefer drawer with bind + payments + link to bound member. Keyboard-openable. |
+| L1 | P0 | `LegacyMembersPage.tsx`, new/reuse drawer, `LegacyPaymentsPanel.tsx`, `admin.css` | Add detail path: show phone/email/expiry at minimum; prefer drawer with bind + payments + link to bound member. Keyboard-openable. Do not invent PII in fixtures. |
 | L2 | P1 | `admin-api.ts` (`LEGACY_STATUS_*`), badges in page | Thai status labels; optional Excel-code hint. |
 | L3 | P1 | `LegacyMembersPage.tsx`, `admin.css` | Clickable stats → set `bindStatus`; `.bo-stats` 3-column on this page. |
 | L4 | P1 | `LegacyMembersPage.tsx` | Seg `radiogroup`/`aria-pressed`; `aria-busy` + live region for results; avoid full-table wipe when refreshing. |
@@ -221,8 +236,8 @@ No P0/P1 from detector; human review owns dead-end IA + EN status + filter a11y.
 
 ### Trend / snapshot
 
-First documented critique for this target in `docs/ui-ux-critique/`.  
-Slug: `apps-web-src-admin-pages-legacymemberspage-tsx` (for `.impeccable/critique` storage if written).
+Re-critique: **19 → 19** (no surface fixes).  
+Slug: `apps-web-src-admin-pages-legacymemberspage-tsx`
 
 ---
 

@@ -5,7 +5,9 @@
 **Method:** single-context · **Target:** `apps/web/src/pages/SlipResubmitPage.tsx` + `register.css` / `shared.css`  
 **Product brief:** ส่งสลิปใหม่หลังเหรัญญิกปฏิเสธ — high stress · reassurance · clear next step · mobile LIFF · WCAG AA  
 **detect.mjs:** `[]` (0 findings) · **Browser overlay:** skipped (LIFF auth-gated; no reliable public preview without LINE session)  
-**Date:** 2026-07-27
+**Date:** 2026-07-27 (re-critique after fixes)  
+**Prior score:** 19/40 → **29/40**  
+**Scope note:** บัญชีธนาคารว่าง = intentional (ไม่วิพากษ์ในรอบนี้)
 
 ---
 
@@ -13,242 +15,203 @@
 
 | # | Heuristic | Score | Key Issue |
 |---|-----------|-------|-----------|
-| 1 | Visibility of System Status | 2 | Busy text on button; no reject-reason context; loading is plain lead text |
-| 2 | Match System / Real World | 3 | Thai copy clear; “เหรัญญิก” fits ABTA domain |
-| 3 | User Control and Freedom | 2 | No clear slip / cancel; LIFF error has no escape CTA |
-| 4 | Consistency and Standards | 1 | Bare `<input type="file">` vs `.reg-upload` on Register/Renew; no `reg-warn` reject reason |
-| 5 | Error Prevention | 2 | Type/size checks OK; no “what a good slip needs” checklist |
-| 6 | Recognition Rather Than Recall | 1 | Rejection reason shown on `/status` but **lost on `/slip`** |
-| 7 | Flexibility and Efficiency | 2 | One path OK for LIFF; no keyboard/accelerator gaps that matter here |
-| 8 | Aesthetic and Minimalist Design | 3 | Focused shell; missing the one high-stakes info block |
-| 9 | Error Recovery | 2 | Plain Thai errors; missing `role="alert"`; weak recovery links |
-| 10 | Help and Documentation | 1 | No tips, no bank reminder, no link back to status reason |
-| **Total** | | **19/40** | **Poor** |
+| 1 | Visibility of System Status | 3 | Reject reason + `aria-busy` / loading live; success ยังไม่มี live region |
+| 2 | Match System / Real World | 3 | Thai / “เหรัญญิก” ชัด สอดคล้องสมาคม |
+| 3 | User Control and Freedom | 3 | มีลิงก์สถานะใน draft error / form error; ยังไม่มีล้างสลิป; LIFF error แบบเดียวกับ Renew |
+| 4 | Consistency and Standards | 3 | `.reg-upload` + `.reg-warn` / checklist ตรง sibling; success ยังบางกว่า Register |
+| 5 | Error Prevention | 3 | Type/size + checklist 3 ข้อ; ไม่มีปุ่มยืนยันก่อนส่ง (ยอมรับได้สำหรับงานสั้น) |
+| 6 | Recognition Rather Than Recall | 4 | `rejectReason` จาก draft / `?reason=` + fallback `reg-info` + ลิงก์สถานะ |
+| 7 | Flexibility and Efficiency | 2 | One path เหมาะ LIFF; ไม่มี accelerator ที่จำเป็น |
+| 8 | Aesthetic and Minimalist Design | 3 | Shell โฟกัส; warn + checklist เติมบริบทโดยไม่รก |
+| 9 | Error Recovery | 3 | `role="alert"` + ลิงก์สถานะ; ยังไม่ย้ายโฟกัสไป error |
+| 10 | Help and Documentation | 3 | Checklist + fallback info; success ยังไม่บอก “แจ้งใน LINE” |
+| **Total** | | **29/40** | **Good** |
 
-**P0:** 0 · **P1:** 4 · **P2:** 5 · **P3:** 2
+**P0:** 0 · **P1:** 0 · **P2:** 4 · **P3:** 2
 
 ---
 
 ## สรุปสำหรับอ่าน (ภาษาไทย)
 
 ### คำตัดสินสั้นๆ
-หน้า `/slip` ใช้ shell เขียว-ทองของสมาชิกได้ดีและสั้นพอสำหรับงานเดียว — แต่ **พลาดจุดสำคัญที่สุดของบริบทหลังถูกปฏิเสธ**: ไม่โชว์เหตุผลที่เหรัญญิกปฏิเสธ และอัปโหลดสลิปยังเป็น native file input แทน `.reg-upload` ที่หน้าอื่นใช้แล้ว ทำให้สมาชิกเครียด จำไม่ได้ว่าต้องแก้ตรงไหน และรู้สึกว่า “หน้าส่งใหม่” ด้อยกว่าหน้าสมัคร/ต่ออายุ
+หน้า `/slip` หลังแก้รอบนี้ **ปิดช่องว่างหลักของบริบทหลังถูกปฏิเสธแล้ว**: โชว์เหตุผล (`reg-warn`) หรือ fallback + ลิงก์สถานะ, อัปโหลดใช้ `.reg-upload` เหมือนสมัคร/ต่ออายุ, มี checklist ป้องกันสลิปผิดซ้ำ, error มี `role="alert"` และทางไปสถานะ — งาน high-stress ใช้งานได้จริงในเส้นทางหลัก
 
-**คะแนน: 19/40 (Poor)** · P0 = 0 · P1 = 4
+**คะแนน: 29/40 (Good)** · P0 = 0 · P1 = 0 · ดีขึ้นจาก 19/40
 
 ### จุดแข็ง (2–3)
-1. **โฟกัสงานเดียว** — hero + ฟอร์มสั้น + CTA เดียว ไม่แข่งกับเนื้อหาอื่น
-2. **สำเนียงภาษาไทยสุภาพ** — “รอเหรัญญิกตรวจสอบครับ” / validation JPG·PNG·5MB ชัด
-3. **ยืนยันสถานะสมาชิกใน lead** — “สมาชิกยังคงสถานะสมาชิกสมบูรณ์” ช่วยลดความกลัวถูกตัดสิทธิ์ (แม้ยังไม่พอถ้าไม่มีเหตุผลปฏิเสธ)
+1. **Memory bridge แก้แล้ว** — `rejectReason` จาก draft API หรือ `?reason=` / `liff.state`; ไม่มีเหตุผลก็มี `reg-info` + ลิงก์สถานะ
+2. **อัปโหลดสอดคล้องสมาชิก** — `.reg-upload` + preview + ชื่อไฟล์ + `revokeObjectURL`
+3. **ป้องกัน + a11y พื้นฐาน** — checklist 3 ข้อ, `role="alert"`, `aria-busy`, draft error มีปุ่ม/ข้อความไปสถานะ
 
 ### ปัญหาเรียงตามความสำคัญ
 
-#### [P1] ไม่แสดงเหตุผลที่สลิปไม่ผ่านบนหน้าแก้
-- **ทำไมสำคัญ:** สมาชิกมาจาก LINE / `/status` ที่เคยเห็นเหตุผลแล้ว — พอเปิด `/slip` ต้องจำเอง (memory bridge) เสี่ยงส่งสลิปเดิมซ้ำ → วนถูกปฏิเสธ → ติดต่อเจ้าหน้าที่
-- **แก้:** ดึง `rejectReason` (จาก status draft / API ใหม่ / query) แล้วโชว์ `.reg-warn` แบบหน้า Register resubmit; ถ้าไม่มีเหตุผล ให้มี fallback ชัด
+#### [P2] ไม่มีปุ่มล้าง / เลือกสลิปใหม่ชัดเจนเมื่อมีไฟล์แล้ว
+- **ทำไมสำคัญ:** แตะ dropzone อีกครั้งได้ แต่ Casey บน LIFF อาจไม่รู้ว่าต้องแตะซ้ำ; ไม่มี “ลบรูป”
+- **แก้:** ปุ่มรอง “ลบรูป / เลือกใหม่” เมื่อ `slip.kind === "ready"`
 
-#### [P1] อัปโหลดไม่สอดคล้องกับ Register / Renew
-- **ทำไมสำคัญ:** native file input บน LIFF มือถือแตะยาก เป้าหมายเล็ก ไม่มี empty-state “แตะเพื่ออัปโหลด”
-- **แก้:** ใช้ `.reg-upload` + preview ใน dropzone + ชื่อไฟล์ เหมือน `RenewPage` / `RegisterPage`
+#### [P2] Success ยังบาง (peak-end) และไม่ประกาศให้ AT
+- **ทำไมสำคัญ:** หลังถูกปฏิเสธ สมาชิกต้องการรู้ว่า “จะแจ้งผลทาง LINE” และ screen reader ควรได้ยินความสำเร็จ
+- **แก้:** เพิ่มหนึ่งบรรทัดหลัง “รอเหรัญญิก…” + `aria-live="polite"` บน success
 
-#### [P1] ไม่มีแนวทางป้องกันสลิปผิดซ้ำ
-- **ทำไมสำคัญ:** high-stress + ไม่รู้ว่า “สลิปดี” ต้องเห็นอะไร (ยอด วันที่ ชื่อบัญชี)
-- **แก้:** checklist สั้น 2–3 ข้อใต้ฟิลด์อัปโหลด หรือ `reg-info` ก่อนฟอร์ม
+#### [P2] ไม่ย้ายโฟกัสไป error หลังส่งไม่สำเร็จ
+- **ทำไมสำคัญ:** WCAG — `role="alert"` ช่วย แต่โฟกัสค้างที่ปุ่ม ทำให้ Sam พลาดบริบท
+- **แก้:** `ref` + `focus()` ไปที่ `.reg-form-error` เมื่อ `error` ถูกตั้ง
 
-#### [P1] ข้อผิดพลาดไม่ประกาศให้ AT / ไม่มีเส้นทางกู้คืนครบ
-- **ทำไมสำคัญ:** WCAG AA — dynamic error ต้องมี `role="alert"` / `aria-live`; LIFF error ไม่มีปุ่มลองใหม่ / เปิดจาก OA
-- **แก้:** ใส่ `role="alert"` ทุก `reg-form-error`; LIFF error เพิ่ม CTA; `slip_not_rejected` ลิงก์ไปสถานะ
+#### [P2] LIFF error ยังไม่มี CTA (pattern ร่วมกับ Renew)
+- **ทำไมสำคัญ:** ติดอยู่ที่ข้อความอย่างเดียว — ไม่ใช่ blocker เฉพาะหน้านี้ แต่ยังไม่มีทางกู้ใน-UI
+- **แก้:** ปุ่ม ghost “ลองใหม่” (`location.reload`) หรือคำสั่งเปิด OA — ทำที่ member shell ร่วมกัน
 
-#### [P2] อื่นๆ
-- ไม่ `URL.revokeObjectURL` เมื่อเปลี่ยน/ถอดไฟล์ (Register/Renew ทำแล้ว)
-- ไม่มีปุ่มล้างสลิป / เลือกใหม่ชัดเจน
-- Success บาง — ไม่บอกระยะเวลาโดยประมาณหรือ “จะแจ้งใน LINE”
-- Loading เป็นข้อความอย่างเดียว ไม่มี `aria-busy` / skeleton
-- Kicker `ABTA` uppercase + tracking — ใกล้ AI eyebrow (ยอมรับได้ถ้าเป็นระบบแบรนด์ แต่ควรไม่ซ้ำทุกหน้าแบบเดียวกัน)
+#### [P3] อื่นๆ
+- Kicker `ABTA` uppercase + pill CTA — grammar ร่วมสมาชิก
+- Loading ยังเป็นข้อความอย่างเดียว (มี `aria-live` แล้ว — โอเคสำหรับ polish)
 
 ### Cognitive load
 | Checklist | ผ่าน? |
 |-----------|-------|
 | Single focus | ✅ |
 | Chunking | ✅ |
-| Grouping | ⚠️ (upload ไม่มีกลุ่ม visual ชัด) |
-| Visual hierarchy | ⚠️ (ขาด reject callout) |
+| Grouping | ✅ |
+| Visual hierarchy | ✅ |
 | One thing at a time | ✅ |
 | Minimal choices | ✅ |
-| Working memory | ❌ ต้องจำเหตุผลจากหน้าก่อน |
-| Progressive disclosure | ✅ (งานสั้นอยู่แล้ว) |
+| Working memory | ✅ (reason บนหน้า / fallback) |
+| Progressive disclosure | ✅ |
 
-**Failures: 3 → moderate–high** สำหรับงาน high-stress
+**Failures: 0 → low** สำหรับงาน high-stress
 
 ### Personas
-- **Jordan (First-Timer):** ไม่รู้ต้องแก้ตรงไหนในสลิป; native file input กวนใจ
-- **Casey (Mobile LIFF):** thumb zone ปุ่มล่างโอเค แต่ file input แย่; สลับแอปแล้วลืมเหตุผล
-- **Sam (a11y):** error ไม่มี `role="alert"`; ไม่มี live region เมื่อส่งสำเร็จ
+- **Jordan:** รู้ว่าต้องแก้ตามเหตุผล + checklist; empty-state “แตะเพื่ออัปโหลด” ชัด
+- **Casey:** hit target อัปโหลดใหญ่ขึ้น; ยังขาดปุ่มล้างไฟล์ชัด
+- **Sam:** error มี `role="alert"`; success ยังไม่ announce; โฟกัสไม่ย้าย
 
 ### Anti-patterns / AI slop
-- **LLM:** ไม่ใช่ SaaS cream / purple glow — ใช้แบรนด์เขียว-ทองจริง · แต่ uppercase tracked kicker + pill CTA 999px เป็น grammar ที่ซ้ำข้ามหน้าสมาชิก · composition “hero + white card + one field” บางเกินไปสำหรับอารมณ์หลังถูกปฏิเสธ
-- **Detector:** 0 findings (TSX ไม่ถูกสแกน CSS anti-patterns ของไฟล์ import ลึกเท่า HTML)
+- **LLM:** เขียว-ทองแบรนด์จริง ไม่ใช่ cream/purple · residual: kicker + pill ร่วมระบบ
+- **Detector:** 0 findings
 
-### Top 3 issues (สรุป)
-1. ไม่โชว์เหตุผลปฏิเสธบนหน้าแก้ (P1)
-2. อัปโหลดไม่ใช้ `.reg-upload` (P1)
-3. ไม่มี checklist / ความช่วยเหลือป้องกันสลิปผิดซ้ำ (P1)
+### Top 3 remaining
+1. ปุ่มล้าง/เลือกสลิปใหม่เมื่อมีไฟล์ (P2)
+2. Success: บรรทัด LINE + `aria-live` (P2)
+3. Focus ไป error หลัง submit fail (P2)
 
 ---
 
 ## English — Full critique for next agent
 
 ### Overall impression
-The page is structurally honest: one job, shared member shell, Thai that sounds like the association. It fails the **emotional** brief. After a treasurer rejects a slip, the member lands here stressed and under-informed. Status already has `rejectReason` + a link to `/slip`; this page drops that context and under-builds the upload affordance that sibling flows already solved. Biggest opportunity: make this the **reassurance + fix** screen, not a bare file picker.
+Re-critique after the fix pass. The page now does the emotional job: **show why it failed, make upload easy, prevent the same mistake**. Prior P1s (reject reason, `.reg-upload`, checklist, `role="alert"`, status recovery links) are in place. Remaining work is polish: clear-file, richer success peak-end, focus management. Bank account empty is **intentional / out of scope**.
 
 ### Anti-patterns verdict
 
-**LLM assessment:** Not generic AI cream/purple. Brand green/gold atmosphere matches DESIGN.md. Residual slop: uppercase tracked `ABTA` kicker (shared system), full-pill buttons (`border-radius: 999px`), and a hero that states reassurance without the one piece of information that earns trust (why it failed). Feels thinner / less crafted than Register resubmit, which already shows `reg-warn` with reject reason.
+**LLM assessment:** On-brand green/gold shell. Composition is purposeful (hero → warn/info → upload → checklist → CTA). Residual shared grammar: tracked `ABTA` kicker, full-pill buttons — system-level, not unique to `/slip`.
 
-**Deterministic scan:** `detect.mjs --json apps/web/src/pages/SlipResubmitPage.tsx` → `[]` (0). No absolute-ban hits in the TSX surface. CSS living in `register.css` was not separately scored by the detector (markup-oriented). Manual review still flags consistency and a11y gaps the detector will not catch in React source.
+**Deterministic scan:** `detect.mjs --json apps/web/src/pages/SlipResubmitPage.tsx` → `[]` (0). Clean.
 
-**Visual overlays:** Not available — LIFF-gated route; no injection session.
+**Visual overlays:** Skipped — LIFF-gated; no injection session.
 
 ### What's working
-1. Single-purpose layout; no competing CTAs.
-2. Client-side file guards (JPG/PNG, 5 MB) with plain Thai messages.
-3. Lead line reassures membership is still complete — correct emotional instinct, incomplete execution.
+1. `rejectReason` from `fetchSlipDraft` with query/`liff.state` handoff fallback; empty → `reg-info` + status link.
+2. `.reg-upload` matches Renew/Register; preview alt improved; object URLs revoked.
+3. Three-item checklist + `role="alert"` on field/form/draft errors; `aria-busy` on form/button; draft/`slip_not_rejected`-style paths link to status.
 
 ### Priority issues
 
-#### [P1] Rejection reason missing on the fix screen
-- **Why:** Recognition vs recall failure. `/status` shows `เหตุผลที่สลิปไม่ผ่าน` then sends users to `/slip`, which shows nothing. Interrupted mobile users (Casey) re-upload the same slip.
-- **Fix:** On LIFF ready, fetch member/payment reject context (extend slip draft API, or reuse status-by-LINE if available). Render:
-  ```tsx
-  {rejectReason ? (
-    <div className="reg-warn" role="status">
-      เหตุผลที่สลิปไม่ผ่าน: {rejectReason}
-    </div>
-  ) : (
-    <div className="reg-info" role="status">
-      โปรดแนบสลิปที่ชัด อ่านยอดและวันที่ได้ · หากไม่แน่ใจ ให้เปิดหน้าสถานะดูเหตุผลจากเหรัญญิก
-    </div>
-  )}
-  ```
-  Mirror Register resubmit (`reg-warn` + `role="status"`).
-- **Suggested command:** `/impeccable clarify` then `/impeccable harden`
-
-#### [P1] Upload control inconsistent with sibling member flows
-- **Why:** `RenewPage` / `RegisterPage` use `.reg-upload` (large dashed hit target, preview inside, filename). `/slip` uses a naked labeled `<input type="file">` + separate `.reg-slip-preview`. On LIFF this feels unfinished and harder to tap.
-- **Fix:** Copy the Renew upload block; keep preview inside the label; revoke prior object URLs on change/unmount (Register already does).
-- **Suggested command:** `/impeccable layout` (or implement directly against existing CSS — no new styles needed)
-
-#### [P1] No slip-quality scaffolding (error prevention)
-- **Why:** After reject, members need a short “before you send” list: readable amount, date, account name, full slip not cropped. Without it, intrinsic stress + extrinsic ambiguity.
-- **Fix:** 2–3 bullet checklist under the upload field, or one `reg-info` line. Do not add a wall of help.
-- **Suggested command:** `/impeccable clarify`
-
-#### [P1] Error / recovery a11y and exits incomplete (WCAG AA)
-- **Why:** Register uses `role="alert"` on form errors; Slip does not. Screen readers may miss submit failures. LIFF error state has no retry / “open from LINE OA” CTA (Seminar/Renew are stronger). `slip_not_rejected` should deep-link to status when possible.
-- **Fix:**
-  - `role="alert"` on slip + submit errors
-  - `aria-busy={busy}` on form or button
-  - Focus management: move focus to alert on error
-  - LIFF error: primary ghost/primary CTA back to OA instructions
-- **Suggested command:** `/impeccable audit` + `/impeccable harden`
-
-#### [P2] Object URL leak / no clear-file control
-- **Fix:** `revokeObjectURL` on replace + unmount; optional “ลบรูป” secondary control when `slip.kind === "ready"`.
+#### [P2] No explicit clear / re-pick control when slip is ready
+- **Why:** Re-tapping the dropzone works (`e.target.value = ""`) but is undiscoverable on one-thumb LIFF.
+- **Fix:** Secondary control “ลบรูป” / “เลือกใหม่” that revokes URL and resets to empty.
 - **Suggested command:** `/impeccable harden`
 
-#### [P2] Success state under-reassures (peak-end)
-- **Fix:** After “รับสลิปใหม่แล้ว”, add one line: แจ้งผลทาง LINE เมื่อเหรัญญิกตรวจเสร็จ · keep “ดูสถานะ” CTA.
-- **Suggested command:** `/impeccable delight` (light) or `/impeccable clarify`
+#### [P2] Success under-reassures (peak-end) and is silent to AT
+- **Why:** High-stress journey ends on “รอเหรัญญิกตรวจสอบครับ” without LINE expectation; visual-only swap.
+- **Fix:** One line: แจ้งผลทาง LINE เมื่อเหรัญญิกตรวจเสร็จ · wrap success in `aria-live="polite"`.
+- **Suggested command:** `/impeccable clarify` or light `/impeccable delight`
 
-#### [P2] Loading state too thin
-- **Fix:** Keep short copy; add `aria-live="polite"` region; optional skeleton for form card.
-- **Suggested command:** `/impeccable polish`
+#### [P2] No focus move to alert after submit failure
+- **Why:** `role="alert"` helps, but keyboard/SR users often stay on the disabled→enabled button.
+- **Fix:** On `setError`, focus the alert node (`tabIndex={-1}`).
+- **Suggested command:** `/impeccable audit` / `/impeccable harden`
+
+#### [P2] LIFF connect error has no in-UI CTA (shared with Renew)
+- **Why:** Text-only recovery; same pattern on sibling pages — fix once in shared member error shell.
+- **Fix:** Reload / “เปิดจาก LINE OA” instructional CTA button.
+- **Suggested command:** `/impeccable harden` (member shell)
 
 #### [P3] Shared kicker / pill button grammar
-- System-level; don’t special-case this page alone. Track in design-system quieting pass.
-- **Suggested command:** `/impeccable quieter` (member shell scope)
+- Defer to member-shell quieter pass.
 
-#### [P3] Preview `alt="สลิป"` is generic
-- Prefer `alt="ตัวอย่างสลิปที่เลือก"` / empty alt if decorative beside filename.
-- **Suggested command:** `/impeccable audit`
+#### [P3] Loading remains copy-only
+- Acceptable with `aria-live="polite"`; optional skeleton is polish-only.
 
 ### Persona red flags
 
-**Jordan (confused first-timer)**  
-Primary action “ส่งสลิปใหม่” is clear in 5s, but *what to fix* is not. No reject reason, no checklist → literal reading of “แนบไฟล์แล้วส่ง” → repeat failure. Native file input has no “แตะเพื่ออัปโหลด” teaching empty state.
+**Jordan** — Primary action clear; reject reason + checklist remove the “what do I fix?” dead end. Residual: may not discover re-pick without clear control.
 
-**Casey (distracted mobile LIFF)**  
-Primary CTA is full-width near bottom of a short page — good. Interruption risk: returns to `/slip` with empty memory of treasurer’s note. Bare file control is awkward one-thumb. No draft persistence beyond chosen file in memory (refresh loses preview — acceptable if documented, still jarring).
+**Casey** — Large upload zone in thumb-friendly short page. Interruption + return: reason still on page if draft loads. Clear-file gap remains.
 
-**Sam (accessibility)**  
-- Form errors lack `role="alert"` / live region  
-- Busy state only changes button text; no `aria-busy` / `aria-disabled` semantics beyond native `disabled`  
-- Success swap is visual-only; no polite announcement  
-- Focus indicators exist on `.reg-btn:focus-visible` but file input relies on browser default inside a plain field
+**Sam** — Alerts present; success not announced; focus not moved to form error; field title is a `<span>` beside labeled upload (acceptable but not ideal association).
 
 ### Cognitive load (English)
-3 checklist failures (grouping of upload, hierarchy without reject callout, working-memory bridge). Decision points ≤4 — OK. Extraneous load dominates: missing context the system already has elsewhere.
+0 checklist failures. Working-memory bridge closed. Extraneous load from missing reject context is gone.
 
 ### Emotional journey
-- **Valley:** Arrival after rejection — currently under-supported.  
-- **Peak needed:** Seeing the exact reject reason + a large easy upload.  
-- **End:** Success is calm but thin; strengthen LINE follow-up expectation for peak-end.
+- **Valley:** Arrival after reject — now supported by `reg-warn` / fallback.  
+- **Peak:** Seeing reason + easy upload — largely delivered.  
+- **End:** Success still thin; one LINE line would close peak-end.
 
 ### Minor observations
-- `e.target.value = ""` allows re-selecting same file — good; keep when moving to `.reg-upload`.
-- Success shows `memberId` prominently — good consistency with other success screens.
-- `errorCopy` map is solid; extend with status URL when API can return it.
-- No `prefers-reduced-motion` bug on this page specifically — `.reg-wrap` already gated in CSS.
+- Bank empty intentional — do not treat as regression.
+- `errorCopy` map is solid and actionable in Thai.
+- `.reg-upload small` uses `var(--abta-muted)` — confirm token exists in cascade (fallback may wash contrast); prefer `--page-muted` if undefined.
+- Reduced-motion already gated on `.reg-wrap`.
 
 ### Questions to consider
-- Should `/slip` require a draft endpoint (like register) so reject reason + eligibility are known before the form appears?
-- If reject reason is empty in Firestore, what reassuring fallback copy should always show?
-- Is bank account / amount reminder in scope here, or only on renew/register?
+- Should success always promise LINE notification, or only when OA push is guaranteed?
+- Worth a shared `RegLiffError` component so `/slip`, `/renew`, `/seminar` get the same recovery CTA?
 
 ---
 
 ## Concrete fix backlog (for next agent)
 
-Ordered for implementation. Scope: `SlipResubmitPage.tsx` (+ API if needed); reuse existing `register.css` classes — avoid new visual system.
+Ordered. Prefer existing CSS; no new visual system.
 
 ### Must (P1)
-1. **Surface `rejectReason`** above the form (`reg-warn` / fallback `reg-info`). Prefer API draft-by-LINE; otherwise document query/status handoff.
-2. **Replace bare file input** with `.reg-upload` pattern from `RenewPage.tsx` (~lines 215–244).
-3. **Add short slip checklist** (2–3 items) under upload.
-4. **A11y errors:** `role="alert"` on all form errors; `aria-busy` while submitting; LIFF error recovery CTA; improve `slip_not_rejected` copy with status path if available.
-5. **`revokeObjectURL`** on file change + unmount (copy Register/Renew).
+_(none — prior P1s closed)_
 
 ### Should (P2)
-6. Clear / replace slip control when ready.
-7. Enrich success copy (LINE notification expectation).
-8. `aria-live` loading / success announcements.
+1. Clear / replace slip control when ready.
+2. Enrich success copy (LINE) + `aria-live="polite"`.
+3. Focus management to form alert on submit error.
+4. Shared LIFF error CTA (optional co-fix with Renew).
 
 ### Could (P3)
-9. Better preview `alt`.
-10. Defer kicker/pill quieting to shared member-shell pass.
+5. Align `--abta-muted` → `--page-muted` on upload hint if needed.
+6. Defer kicker/pill quieter to member-shell pass.
 
 ### Suggested command sequence
-1. `/impeccable clarify apps/web/src/pages/SlipResubmitPage.tsx` — reject reason + checklist + success/error copy  
-2. `/impeccable harden …` — draft fetch, revoke URLs, alerts, LIFF recovery  
-3. `/impeccable layout …` — swap to `.reg-upload`  
-4. `/impeccable audit …` — WCAG AA pass  
-5. `/impeccable polish …` — final  
+1. `/impeccable harden apps/web/src/pages/SlipResubmitPage.tsx` — clear file, focus on error, optional LIFF CTA  
+2. `/impeccable clarify …` — success LINE line  
+3. `/impeccable polish …` — final  
 
 ### Acceptance checks
-- [ ] Reject reason visible without visiting `/status` again (when data exists)
-- [ ] Upload hit target ≥ ~44px visual zone via `.reg-upload`
-- [ ] Errors announced to AT (`role="alert"`)
-- [ ] No object URL leak on re-pick
-- [ ] Score re-critique target: ≥ 28/40
+- [x] Reject reason visible without revisiting `/status` (when data exists)
+- [x] Upload hit target via `.reg-upload`
+- [x] Errors announced (`role="alert"`)
+- [x] Object URL revoked on re-pick / unmount
+- [x] Score re-critique ≥ 28/40 (**29/40**)
+- [ ] Explicit clear-file control
+- [ ] Success LINE expectation + AT announce
+- [ ] Focus to alert on submit error
 
-### Files to touch
+### Files to touch (remaining)
 - `apps/web/src/pages/SlipResubmitPage.tsx` (primary)
-- Possibly `apps/web/src/lib/api.ts` + `apps/functions/src/members/slip-resubmit.ts` (draft/rejectReason)
-- CSS: prefer existing `.reg-upload`, `.reg-warn`, `.reg-info` — no new sheet unless forced
+- CSS: existing classes only
 
 ---
 
 ## Trend / snapshot
 
-First documented critique for this target in `docs/ui-ux-critique/`.  
+| Run | Score | Notes |
+|-----|------:|-------|
+| 1 (initial) | 19/40 | Missing reject reason, bare file input, no checklist/alerts |
+| 2 (this) | **29/40** | Prior P1s closed; P2 polish remains |
+
 Impeccable storage slug: `apps-web-src-pages-slipresubmitpage-tsx`

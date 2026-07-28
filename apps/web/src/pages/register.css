@@ -183,6 +183,41 @@
   border-color: var(--page-green-primary);
 }
 
+.reg-field input[aria-invalid="true"],
+.reg-phone-digits[aria-invalid="true"] .reg-phone-digit:not(.reg-phone-digit--locked) {
+  border-color: #b42318;
+}
+
+.reg-section__hint {
+  margin: -0.35rem 0 0.85rem;
+  font-size: 0.86rem;
+  color: var(--page-muted, #4a5c52);
+}
+
+.reg-step-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.reg-step-actions .reg-btn--primary {
+  order: -1;
+}
+
+.reg-form .reg-step-actions .reg-btn--ghost-light {
+  margin-top: 0;
+  color: #4a5c52;
+  border-color: #b7c9bf;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.reg-form .reg-step-actions .reg-btn--ghost-light:hover {
+  color: #2f3f36;
+  border-color: #8fa89a;
+  background: #fff;
+}
+
 .reg-fee {
   display: flex;
   align-items: center;

@@ -1,11 +1,27 @@
-const LIFF_URL = import.meta.env.VITE_LIFF_URL ?? "";
+const LIFF_URL = (import.meta.env.VITE_LIFF_URL ?? "").trim();
+const LIFF_ID = (import.meta.env.VITE_LIFF_ID ?? "").trim();
+
+/**
+ * Resolved LIFF entry base: prefer VITE_LIFF_URL; else official
+ * https://liff.line.me/{VITE_LIFF_ID} when ID is set. Never invent OA/QR links.
+ */
+function resolvedLiffBase(): string {
+  if (LIFF_URL) return LIFF_URL.replace(/\/+$/, "");
+  if (LIFF_ID) return `https://liff.line.me/${LIFF_ID}`;
+  return "";
+}
 
 /** Open a LIFF-auth page via liff.line.me (required when Endpoint URL is /register). */
 export function liffPageUrl(path: string): string {
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  if (!LIFF_URL) return normalized;
-  const base = LIFF_URL.replace(/\/+$/, "");
+  const base = resolvedLiffBase();
+  if (!base) return normalized;
   return normalized === "/" ? base : `${base}${normalized}`;
+}
+
+/** True when a real absolute LIFF entry URL is configured (URL or ID). */
+export function hasConfiguredLiffEntry(): boolean {
+  return Boolean(resolvedLiffBase());
 }
 
 /** Same-origin status path for in-LIFF navigation (keeps query params). */

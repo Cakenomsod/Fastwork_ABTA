@@ -8,6 +8,10 @@ import {
 
 /** Safety ceiling: 50 × 500 = 25,000 rows. Beyond this we warn instead of looping forever. */
 const MAX_PAGES = 500;
+/** Soft warn when full roster is in the DOM — nudge staff to filter before print/export. */
+const LARGE_ROSTER_WARN = 400;
+
+type AgmStatusFilter = "" | "active" | "near_expiry" | "temporary";
 
 const ERROR_LABEL: Record<string, string> = {
   load_failed: "โหลดรายงานไม่สำเร็จ",
@@ -96,6 +100,7 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
     pageCount: number;
   } | null>(null);
   const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<AgmStatusFilter>("");
   const [exportFlash, setExportFlash] = useState<string | null>(null);
   const exportFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -159,10 +164,16 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
   }, []);
 
   const filtered = useMemo(() => {
+    let list = items;
+    if (statusFilter) {
+      list = list.filter((m) => m.status === statusFilter);
+    }
     const needle = q.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter((m) => matchesQuery(m, needle));
-  }, [items, q]);
+    if (needle) {
+      list = list.filter((m) => matchesQuery(m, needle));
+    }
+    return list;
+  }, [items, q, statusFilter]);
 
   const statusCounts = useMemo(() => {
     let active = 0;
@@ -177,12 +188,27 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
   }, [items]);
 
   const searchActive = Boolean(q.trim());
+  const statusFilterActive = Boolean(statusFilter);
+  const listFilterActive = searchActive || statusFilterActive;
   const hasRoster = items.length > 0;
   const firstLoad = loading && !hasRoster;
   const refreshing = loading && hasRoster;
   /** Count shown as “complete roster” — never claim matched when truncated. */
   const loadedCount = items.length;
   const totalDisplay = truncated ? loadedCount : matched;
+  const showLargeRosterWarn =
+    !firstLoad &&
+    !listFilterActive &&
+    loadedCount >= LARGE_ROSTER_WARN;
+
+  function toggleStatusFilter(next: Exclude<AgmStatusFilter, "">) {
+    setStatusFilter((cur) => (cur === next ? "" : next));
+  }
+
+  function clearListFilters() {
+    setQ("");
+    setStatusFilter("");
+  }
 
   function onExport() {
     if (truncated || filtered.length === 0) return;
@@ -213,8 +239,8 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
       ]),
     ];
     downloadCsv(`agm-ordinary-active-${yearLabel}.csv`, rows);
-    const msg = searchActive
-      ? `ส่งออก ${filtered.length.toLocaleString("th-TH")} รายแล้ว (ตามการค้นหา)`
+    const msg = listFilterActive
+      ? `ส่งออก ${filtered.length.toLocaleString("th-TH")} รายแล้ว (ตามตัวกรอง)`
       : `ส่งออก ${filtered.length.toLocaleString("th-TH")} รายแล้ว`;
     setExportFlash(msg);
     if (exportFlashTimer.current) clearTimeout(exportFlashTimer.current);
@@ -269,7 +295,11 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
         </ul>
       </div>
 
-      <div className="bo-stats bo-agm-stats bo-agm-no-print">
+      <div
+        className="bo-stats bo-agm-stats bo-agm-no-print"
+        role="group"
+        aria-label="สถิติสถานภาพ — คลิกเพื่อกรองรายชื่อ"
+      >
         <div className="bo-stat bo-stat--accent">
           <div className="num">
             {firstLoad ? "—" : totalDisplay.toLocaleString("th-TH")}
@@ -278,24 +308,45 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
             {truncated ? "โหลดแล้ว (อาจไม่ครบ)" : "มีสิทธิ์ทั้งหมด"}
           </div>
         </div>
-        <div className="bo-stat">
+        <button
+          type="button"
+          className={`bo-stat bo-stat--btn${statusFilter === "active" ? " is-active" : ""}`}
+          aria-pressed={statusFilter === "active"}
+          disabled={firstLoad}
+          onClick={() => toggleStatusFilter("active")}
+        >
           <div className="num">
             {firstLoad ? "—" : statusCounts.active.toLocaleString("th-TH")}
           </div>
           <div className="lbl">สมาชิกสมบูรณ์</div>
-        </div>
-        <div className="bo-stat">
+          <span className="bo-stat-hint">กรองรายชื่อ</span>
+        </button>
+        <button
+          type="button"
+          className={`bo-stat bo-stat--btn${statusFilter === "near_expiry" ? " is-active" : ""}`}
+          aria-pressed={statusFilter === "near_expiry"}
+          disabled={firstLoad}
+          onClick={() => toggleStatusFilter("near_expiry")}
+        >
           <div className="num">
             {firstLoad ? "—" : statusCounts.nearExpiry.toLocaleString("th-TH")}
           </div>
           <div className="lbl">ใกล้หมดอายุ</div>
-        </div>
-        <div className="bo-stat">
+          <span className="bo-stat-hint">กรองรายชื่อ</span>
+        </button>
+        <button
+          type="button"
+          className={`bo-stat bo-stat--btn${statusFilter === "temporary" ? " is-active" : ""}`}
+          aria-pressed={statusFilter === "temporary"}
+          disabled={firstLoad}
+          onClick={() => toggleStatusFilter("temporary")}
+        >
           <div className="num">
             {firstLoad ? "—" : statusCounts.temporary.toLocaleString("th-TH")}
           </div>
           <div className="lbl">สมาชิกชั่วคราว</div>
-        </div>
+          <span className="bo-stat-hint">กรองรายชื่อ</span>
+        </button>
       </div>
 
       <section className="bo-panel" aria-busy={loading || undefined}>
@@ -307,7 +358,7 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
                 ? progressLabel
                 : refreshing
                   ? progressLabel
-                  : searchActive
+                  : listFilterActive
                     ? `แสดง ${filtered.length.toLocaleString("th-TH")} จาก ${loadedCount.toLocaleString("th-TH")} รายที่โหลดแล้ว`
                     : truncated
                       ? `แสดง ${loadedCount.toLocaleString("th-TH")} รายที่โหลดแล้ว · เรียงตามเลขสมาชิก`
@@ -337,7 +388,7 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
               }
             >
               ส่งออก CSV
-              {searchActive && filtered.length > 0 && !truncated
+              {listFilterActive && filtered.length > 0 && !truncated
                 ? ` (${filtered.length.toLocaleString("th-TH")})`
                 : ""}
             </button>
@@ -355,14 +406,14 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
               onChange={(e) => setQ(e.target.value)}
             />
           </label>
-          {searchActive ? (
+          {listFilterActive ? (
             <button
               type="button"
               className="bo-btn bo-btn-ghost bo-btn-sm"
               disabled={loading}
-              onClick={() => setQ("")}
+              onClick={clearListFilters}
             >
-              ล้างค้นหา
+              ล้างตัวกรอง
             </button>
           ) : null}
         </div>
@@ -373,6 +424,13 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
             role="status"
           >
             {exportFlash}
+          </div>
+        ) : null}
+
+        {showLargeRosterWarn ? (
+          <div className="bo-flash-warn bo-agm-flash bo-agm-no-print" role="status">
+            รายชื่อมีจำนวนมาก ({loadedCount.toLocaleString("th-TH")} ราย) —
+            คลิกสถิติสถานภาพหรือใช้ค้นหาเพื่อกรองก่อนพิมพ์/ส่งออก จะช่วยให้เบราว์เซอร์ทำงานลื่นขึ้น
           </div>
         ) : null}
 
@@ -423,8 +481,10 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
           </div>
         ) : filtered.length === 0 ? (
           <div className="bo-empty bo-agm-no-print">
-            <strong>ไม่พบรายชื่อที่ตรงกับการค้นหา</strong>
-            ลองคำอื่น หรือล้างช่องค้นหา
+            <strong>ไม่พบรายชื่อที่ตรงกับเงื่อนไข</strong>
+            {statusFilterActive
+              ? "ลองสถานภาพอื่น หรือล้างตัวกรอง"
+              : "ลองคำอื่น หรือล้างช่องค้นหา"}
           </div>
         ) : (
           <div

@@ -1,11 +1,15 @@
 :root {
-  --abta-ink: #1a1f16;
+  --abta-ink: #12211b;
   --abta-muted: #4a5c52;
   --abta-bg: #eef2ea;
   color: var(--abta-ink);
   background:
-    radial-gradient(ellipse 80% 50% at 20% 0%, #d8e8d0 0%, transparent 55%),
-    radial-gradient(ellipse 70% 45% at 90% 10%, #c5d4e8 0%, transparent 50%),
+    radial-gradient(ellipse 80% 50% at 20% 0%, #d4e8dc 0%, transparent 55%),
+    radial-gradient(
+      ellipse 70% 45% at 90% 10%,
+      rgba(201, 162, 75, 0.2) 0%,
+      transparent 50%
+    ),
     var(--abta-bg);
   font-family: "Sarabun", "Segoe UI", sans-serif;
   line-height: 1.5;

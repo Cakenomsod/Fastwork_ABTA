@@ -1,4 +1,10 @@
-import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ChangeEvent,
+} from "react";
 import {
   bindLegacyMember,
   fetchRegisterDraft,
@@ -9,7 +15,10 @@ import {
 } from "../lib/api";
 import { memberStatusHrefFromUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
-import PhoneDigitInput, { isValidThaiMobile } from "./PhoneDigitInput";
+import PhoneDigitInput, {
+  isValidThaiMobile,
+  type PhoneDigitInputHandle,
+} from "./PhoneDigitInput";
 import {
   hasTransferAccount,
   NO_TRANSFER_ACCOUNT_SUBMIT_HINT,
@@ -23,6 +32,8 @@ const MAX_SLIP_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/jpg", "image/png"]);
 
 type RegMode = "new" | "legacy";
+/** New-member wizard: personal → address/biz → payment */
+type NewStep = 1 | 2 | 3;
 
 type FormState = {
   firstName: string;
@@ -32,6 +43,9 @@ type FormState = {
   email: string;
   buildingName: string;
 };
+
+type FieldKey = "firstName" | "lastName" | "phone" | "slip";
+type FieldErrors = Partial<Record<FieldKey, string>>;
 
 type SlipState =
   | { kind: "empty" }
@@ -212,7 +226,14 @@ export default function RegisterPage() {
   const [slip, setSlip] = useState<SlipState>({ kind: "empty" });
   const [submit, setSubmit] = useState<SubmitState>({ phase: "idle" });
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [newStep, setNewStep] = useState<NewStep>(1);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const canPay = hasTransferAccount();
+
+  const phoneInputRef = useRef<PhoneDigitInputHandle>(null);
+  const firstNameRef = useRef<HTMLInputElement>(null);
+  const lastNameRef = useRef<HTMLInputElement>(null);
+  const slipInputRef = useRef<HTMLInputElement>(null);
 
   const [legacyStep, setLegacyStep] = useState<LegacyStep>(1);
   const [legacySearch, setLegacySearch] = useState<LegacySearchState>({
@@ -282,6 +303,9 @@ export default function RegisterPage() {
 
   function switchRegMode(mode: RegMode) {
     setRegMode(mode);
+    setNewStep(1);
+    setFieldErrors({});
+    setConfirmOpen(false);
     setLegacyStep(1);
     setLegacySearch({ phase: "idle" });
     setLegacyMatches([]);
@@ -291,8 +315,63 @@ export default function RegisterPage() {
   }
 
   function onField(key: keyof FormState) {
-    return (e: ChangeEvent<HTMLInputElement>) =>
+    return (e: ChangeEvent<HTMLInputElement>) => {
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
+      if (key === "firstName" || key === "lastName") {
+        setFieldErrors((prev) => {
+          if (!prev[key]) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
+    };
+  }
+
+  function focusFirstInvalid(errors: FieldErrors) {
+    const order: FieldKey[] = ["firstName", "lastName", "phone", "slip"];
+    for (const key of order) {
+      if (!errors[key]) continue;
+      if (key === "firstName") {
+        firstNameRef.current?.focus();
+        return;
+      }
+      if (key === "lastName") {
+        lastNameRef.current?.focus();
+        return;
+      }
+      if (key === "phone") {
+        phoneInputRef.current?.focus();
+        return;
+      }
+      if (key === "slip") {
+        slipInputRef.current?.focus();
+        return;
+      }
+    }
+  }
+
+  function validatePersonalFields(): FieldErrors {
+    const errors: FieldErrors = {};
+    if (!form.firstName.trim()) {
+      errors.firstName = "กรุณากรอกชื่อ";
+    }
+    if (!form.lastName.trim()) {
+      errors.lastName = "กรุณากรอกนามสกุล";
+    }
+    if (!isValidThaiMobile(form.phone)) {
+      errors.phone = "กรุณากรอกเบอร์โทรศัพท์ 10 หลัก ให้ครบ (ขึ้นต้นด้วย 0)";
+    }
+    return errors;
+  }
+
+  function validatePaymentFields(): FieldErrors {
+    const errors: FieldErrors = {};
+    if (!canPay) return errors;
+    if (slip.kind !== "ready") {
+      errors.slip = "กรุณาแนบสลิปโอนเงิน";
+    }
+    return errors;
   }
 
   function onSlipChange(e: ChangeEvent<HTMLInputElement>) {
@@ -302,38 +381,75 @@ export default function RegisterPage() {
 
     if (!ALLOWED_TYPES.has(file.type)) {
       setSlip({ kind: "error", message: "รองรับเฉพาะ JPG หรือ PNG" });
+      setFieldErrors((prev) => ({ ...prev, slip: "รองรับเฉพาะ JPG หรือ PNG" }));
       return;
     }
     if (file.size > MAX_SLIP_BYTES) {
       setSlip({ kind: "error", message: "ไฟล์ใหญ่เกิน 5 MB" });
+      setFieldErrors((prev) => ({ ...prev, slip: "ไฟล์ใหญ่เกิน 5 MB" }));
       return;
     }
     if (slip.kind === "ready") URL.revokeObjectURL(slip.previewUrl);
     setSlip({ kind: "ready", file, previewUrl: URL.createObjectURL(file) });
+    setFieldErrors((prev) => {
+      if (!prev.slip) return prev;
+      const next = { ...prev };
+      delete next.slip;
+      return next;
+    });
     setConfirmOpen(false);
+  }
+
+  function onNewStepPersonalNext(e: FormEvent) {
+    e.preventDefault();
+    const errors = validatePersonalFields();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setSubmit({ phase: "idle" });
+      focusFirstInvalid(errors);
+      return;
+    }
+    setFieldErrors({});
+    setSubmit({ phase: "idle" });
+    setNewStep(2);
+  }
+
+  function onNewStepAddressNext(e: FormEvent) {
+    e.preventDefault();
+    setFieldErrors({});
+    setSubmit({ phase: "idle" });
+    setNewStep(3);
   }
 
   function onRequestConfirm(e: FormEvent) {
     e.preventDefault();
     if (submit.phase === "submitting") return;
 
-    if (!form.firstName.trim() || !form.lastName.trim()) {
-      setSubmit({ phase: "error", code: "required_fields_missing" });
-      return;
-    }
-    if (!isValidThaiMobile(form.phone)) {
-      setSubmit({ phase: "error", code: "invalid_phone" });
-      return;
-    }
-    if (!canPay) {
-      setSubmit({ phase: "error", code: "no_transfer_account" });
-      return;
-    }
-    if (slip.kind !== "ready") {
-      setSubmit({ phase: "error", code: "slip_required" });
+    const personalErrors = validatePersonalFields();
+    if (Object.keys(personalErrors).length > 0) {
+      setFieldErrors(personalErrors);
+      setSubmit({ phase: "idle" });
+      setNewStep(1);
+      setConfirmOpen(false);
+      window.setTimeout(() => focusFirstInvalid(personalErrors), 0);
       return;
     }
 
+    if (!canPay) {
+      setFieldErrors({});
+      setSubmit({ phase: "error", code: "no_transfer_account" });
+      return;
+    }
+
+    const paymentErrors = validatePaymentFields();
+    if (Object.keys(paymentErrors).length > 0) {
+      setFieldErrors(paymentErrors);
+      setSubmit({ phase: "idle" });
+      focusFirstInvalid(paymentErrors);
+      return;
+    }
+
+    setFieldErrors({});
     setSubmit({ phase: "idle" });
     setConfirmOpen(true);
   }
@@ -374,6 +490,38 @@ export default function RegisterPage() {
       const code = (err as Error & { code?: string }).code ?? "unknown";
       setSubmit({ phase: "error", code });
       setConfirmOpen(false);
+      if (
+        code === "required_fields_missing" ||
+        code === "invalid_phone" ||
+        code === "slip_required"
+      ) {
+        const errors =
+          code === "invalid_phone"
+            ? { phone: errorCopy(code) }
+            : code === "slip_required"
+              ? { slip: errorCopy(code) }
+              : {
+                  ...(!form.firstName.trim()
+                    ? { firstName: "กรุณากรอกชื่อ" }
+                    : {}),
+                  ...(!form.lastName.trim()
+                    ? { lastName: "กรุณากรอกนามสกุล" }
+                    : {}),
+                  ...(!isValidThaiMobile(form.phone)
+                    ? {
+                        phone:
+                          "กรุณากรอกเบอร์โทรศัพท์ 10 หลัก ให้ครบ (ขึ้นต้นด้วย 0)",
+                      }
+                    : {}),
+                };
+        setFieldErrors(errors);
+        if (code === "slip_required") {
+          setNewStep(3);
+        } else {
+          setNewStep(1);
+        }
+        window.setTimeout(() => focusFirstInvalid(errors), 0);
+      }
     }
   }
 
@@ -600,9 +748,13 @@ export default function RegisterPage() {
       <div className="reg-atmosphere" aria-hidden />
       <main className="reg-wrap">
         {!isResubmit && (
-          <nav className="reg-mode-tabs" aria-label="เลือกประเภทการสมัคร">
+          <nav className="reg-mode-tabs" role="tablist" aria-label="เลือกประเภทการสมัคร">
             <button
               type="button"
+              role="tab"
+              id="reg-tab-new"
+              aria-selected={regMode === "new"}
+              aria-controls="reg-panel-new"
               className={`reg-mode-tab${regMode === "new" ? " reg-mode-tab--active" : ""}`}
               onClick={() => switchRegMode("new")}
             >
@@ -610,6 +762,10 @@ export default function RegisterPage() {
             </button>
             <button
               type="button"
+              role="tab"
+              id="reg-tab-legacy"
+              aria-selected={regMode === "legacy"}
+              aria-controls="reg-panel-legacy"
               className={`reg-mode-tab reg-mode-tab--legacy${regMode === "legacy" ? " reg-mode-tab--active" : ""}`}
               onClick={() => switchRegMode("legacy")}
             >
@@ -619,7 +775,11 @@ export default function RegisterPage() {
         )}
 
         {regMode === "legacy" && !isResubmit ? (
-          <>
+          <div
+            id="reg-panel-legacy"
+            role="tabpanel"
+            aria-labelledby="reg-tab-legacy"
+          >
             <header className="reg-hero reg-hero--legacy">
               <p className="reg-kicker reg-kicker--legacy">ยืนยันตัวตน</p>
               <h1>ยืนยันสมาชิกเก่า</h1>
@@ -704,6 +864,7 @@ export default function RegisterPage() {
                       id="legacy-phone"
                       value={form.phone}
                       onChange={(phone) => setForm((prev) => ({ ...prev, phone }))}
+                      aria-labelledby="legacy-phone-label"
                     />
                     <small className="reg-field-hint">ไม่บังคับ · ใช้ช่วยตรวจสอบเท่านั้น</small>
                   </div>
@@ -873,16 +1034,22 @@ export default function RegisterPage() {
                 </div>
               </section>
             )}
-          </>
+          </div>
         ) : (
-          <>
+          <div
+            id="reg-panel-new"
+            role={isResubmit ? undefined : "tabpanel"}
+            aria-labelledby={isResubmit ? undefined : "reg-tab-new"}
+          >
             <header className="reg-hero">
-              <p className="reg-kicker">{isResubmit ? "แก้ไขแล้วส่งใหม่" : "ขั้นตอนเดียว"}</p>
+              <p className="reg-kicker">
+                {isResubmit ? "แก้ไขแล้วส่งใหม่" : "สมัครสมาชิกใหม่"}
+              </p>
               <h1>{isResubmit ? "แก้ไขข้อมูลสมาชิก" : "สมัครสมาชิกใหม่"}</h1>
               <p className="reg-lead">
                 {isResubmit
                   ? "ตรวจทานข้อมูล แนบสลิปใหม่ แล้วส่งกลับให้นายทะเบียนตรวจ"
-                  : "กรอกข้อมูลและแนบสลิปโอนเงินในครั้งเดียว"}
+                  : "กรอกทีละขั้น — ข้อมูลส่วนตัว ข้อมูลเพิ่มเติม แล้วชำระเงิน"}
               </p>
               {displayName && (
                 <p className="reg-user">เข้าสู่ระบบเป็น {displayName}</p>
@@ -904,7 +1071,46 @@ export default function RegisterPage() {
               )
             )}
 
-            <form className="reg-form" onSubmit={onRequestConfirm} noValidate>
+            {!confirmOpen && (
+              <ol className="reg-steps" aria-label="ขั้นตอนสมัคร">
+                <li
+                  className={`reg-step${newStep >= 1 ? " reg-step--active" : ""}${newStep > 1 ? " reg-step--done" : ""}`}
+                >
+                  <span className="reg-step__num">1</span>
+                  <span className="reg-step__label">ข้อมูลส่วนตัว</span>
+                </li>
+                <li
+                  className={`reg-step${newStep >= 2 ? " reg-step--active" : ""}${newStep > 2 ? " reg-step--done" : ""}`}
+                >
+                  <span className="reg-step__num">2</span>
+                  <span className="reg-step__label">ข้อมูลเพิ่มเติม</span>
+                </li>
+                <li className={`reg-step${newStep >= 3 ? " reg-step--active" : ""}`}>
+                  <span className="reg-step__num">3</span>
+                  <span className="reg-step__label">ชำระเงิน</span>
+                </li>
+              </ol>
+            )}
+
+            <form
+              className="reg-form"
+              onSubmit={
+                newStep === 1
+                  ? onNewStepPersonalNext
+                  : newStep === 2
+                    ? onNewStepAddressNext
+                    : onRequestConfirm
+              }
+              noValidate
+              aria-describedby={
+                submit.phase === "error" &&
+                submit.code !== "required_fields_missing" &&
+                submit.code !== "invalid_phone" &&
+                submit.code !== "slip_required"
+                  ? "reg-form-error"
+                  : undefined
+              }
+            >
               {confirmOpen && slip.kind === "ready" ? (
                 <PaymentConfirmPanel
                   title={isResubmit ? "ยืนยันส่งข้อมูลใหม่" : "ยืนยันส่งใบสมัคร"}
@@ -933,149 +1139,261 @@ export default function RegisterPage() {
                 />
               ) : (
                 <>
-              <section className="reg-section">
-                <h2 className="reg-section__title">ข้อมูลส่วนตัว</h2>
-                <div className="reg-row">
-                  <label className="reg-field">
-                    <span>
-                      ชื่อ <em className="req">*</em>
-                    </span>
-                    <input
-                      name="firstName"
-                      autoComplete="given-name"
-                      value={form.firstName}
-                      onChange={onField("firstName")}
-                      required
-                    />
-                  </label>
-                  <label className="reg-field">
-                    <span>
-                      นามสกุล <em className="req">*</em>
-                    </span>
-                    <input
-                      name="lastName"
-                      autoComplete="family-name"
-                      value={form.lastName}
-                      onChange={onField("lastName")}
-                      required
-                    />
-                  </label>
-                </div>
-                <label className="reg-field">
-                  <span>ชื่อนิติบุคคล</span>
-                  <input
-                    name="legalEntityName"
-                    value={form.legalEntityName}
-                    onChange={onField("legalEntityName")}
-                  />
-                </label>
-                <div className="reg-field">
-                  <span id="reg-phone-label">
-                    เบอร์โทรศัพท์ <em className="req">*</em>
-                  </span>
-                  <PhoneDigitInput
-                    id="reg-phone"
-                    value={form.phone}
-                    onChange={(phone) => setForm((prev) => ({ ...prev, phone }))}
-                    aria-invalid={submit.phase === "error" && submit.code === "invalid_phone"}
-                  />
-                </div>
-                <label className="reg-field">
-                  <span>อีเมล</span>
-                  <input
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={form.email}
-                    onChange={onField("email")}
-                  />
-                </label>
-                <label className="reg-field">
-                  <span>ชื่อตึก / หน่วยงาน</span>
-                  <input
-                    name="buildingName"
-                    value={form.buildingName}
-                    onChange={onField("buildingName")}
-                  />
-                </label>
-              </section>
+                  {newStep === 1 && (
+                    <section className="reg-section">
+                      <h2 className="reg-section__title">ข้อมูลส่วนตัว</h2>
+                      <div className="reg-row">
+                        <label className="reg-field">
+                          <span>
+                            ชื่อ <em className="req">*</em>
+                          </span>
+                          <input
+                            ref={firstNameRef}
+                            name="firstName"
+                            autoComplete="given-name"
+                            value={form.firstName}
+                            onChange={onField("firstName")}
+                            required
+                            aria-invalid={Boolean(fieldErrors.firstName)}
+                            aria-describedby={
+                              fieldErrors.firstName
+                                ? "reg-err-firstName"
+                                : undefined
+                            }
+                          />
+                          {fieldErrors.firstName ? (
+                            <p
+                              id="reg-err-firstName"
+                              className="reg-field-error"
+                              role="alert"
+                            >
+                              {fieldErrors.firstName}
+                            </p>
+                          ) : null}
+                        </label>
+                        <label className="reg-field">
+                          <span>
+                            นามสกุล <em className="req">*</em>
+                          </span>
+                          <input
+                            ref={lastNameRef}
+                            name="lastName"
+                            autoComplete="family-name"
+                            value={form.lastName}
+                            onChange={onField("lastName")}
+                            required
+                            aria-invalid={Boolean(fieldErrors.lastName)}
+                            aria-describedby={
+                              fieldErrors.lastName
+                                ? "reg-err-lastName"
+                                : undefined
+                            }
+                          />
+                          {fieldErrors.lastName ? (
+                            <p
+                              id="reg-err-lastName"
+                              className="reg-field-error"
+                              role="alert"
+                            >
+                              {fieldErrors.lastName}
+                            </p>
+                          ) : null}
+                        </label>
+                      </div>
+                      <div className="reg-field">
+                        <span id="reg-phone-label">
+                          เบอร์โทรศัพท์ <em className="req">*</em>
+                        </span>
+                        <PhoneDigitInput
+                          ref={phoneInputRef}
+                          id="reg-phone"
+                          value={form.phone}
+                          onChange={(phone) => {
+                            setForm((prev) => ({ ...prev, phone }));
+                            setFieldErrors((prev) => {
+                              if (!prev.phone) return prev;
+                              const next = { ...prev };
+                              delete next.phone;
+                              return next;
+                            });
+                          }}
+                          aria-labelledby="reg-phone-label"
+                          aria-describedby={
+                            fieldErrors.phone ? "reg-err-phone" : undefined
+                          }
+                          aria-invalid={Boolean(fieldErrors.phone)}
+                        />
+                        {fieldErrors.phone ? (
+                          <p
+                            id="reg-err-phone"
+                            className="reg-field-error"
+                            role="alert"
+                          >
+                            {fieldErrors.phone}
+                          </p>
+                        ) : null}
+                      </div>
+                    </section>
+                  )}
 
-              <section className="reg-section">
-                <h2 className="reg-section__title">หลักฐานการชำระเงิน</h2>
-                <div className="reg-fee">
-                  <span>ค่าธรรมเนียมสมาชิก</span>
-                  <strong>{FEE_THB.toLocaleString("th-TH")} บาท</strong>
-                </div>
-                <TransferBankBlock />
-                {canPay ? (
-                <div className="reg-field">
-                  <span>
-                    แนบสลิปโอนเงิน <em className="req">*</em>
-                  </span>
-                  <label className="reg-upload">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                      onChange={onSlipChange}
-                    />
-                    {slip.kind === "ready" ? (
-                      <>
-                        <img src={slip.previewUrl} alt="ตัวอย่างสลิป" />
-                        <span className="reg-upload__name">{slip.file.name}</span>
-                      </>
-                    ) : (
-                      <>
-                        <strong>
-                          {isResubmit ? "แตะเพื่ออัปโหลดสลิปใหม่" : "แตะเพื่ออัปโหลดสลิป"}
-                        </strong>
-                        <small>รองรับ JPG, PNG · สูงสุด 5 MB</small>
-                      </>
+                  {newStep === 2 && (
+                    <section className="reg-section">
+                      <h2 className="reg-section__title">ข้อมูลเพิ่มเติม</h2>
+                      <p className="reg-section__hint">ไม่บังคับ — กรอกได้ถ้ามี</p>
+                      <label className="reg-field">
+                        <span>ชื่อนิติบุคคล</span>
+                        <input
+                          name="legalEntityName"
+                          value={form.legalEntityName}
+                          onChange={onField("legalEntityName")}
+                        />
+                      </label>
+                      <label className="reg-field">
+                        <span>อีเมล</span>
+                        <input
+                          name="email"
+                          type="email"
+                          autoComplete="email"
+                          value={form.email}
+                          onChange={onField("email")}
+                        />
+                      </label>
+                      <label className="reg-field">
+                        <span>ชื่อตึก / หน่วยงาน</span>
+                        <input
+                          name="buildingName"
+                          value={form.buildingName}
+                          onChange={onField("buildingName")}
+                        />
+                      </label>
+                    </section>
+                  )}
+
+                  {newStep === 3 && (
+                    <>
+                      <section className="reg-section">
+                        <h2 className="reg-section__title">หลักฐานการชำระเงิน</h2>
+                        <div className="reg-fee">
+                          <span>ค่าธรรมเนียมสมาชิก</span>
+                          <strong>{FEE_THB.toLocaleString("th-TH")} บาท</strong>
+                        </div>
+                        <TransferBankBlock />
+                        {canPay ? (
+                          <div className="reg-field">
+                            <span id="reg-slip-label">
+                              แนบสลิปโอนเงิน <em className="req">*</em>
+                            </span>
+                            <label className="reg-upload">
+                              <input
+                                ref={slipInputRef}
+                                id="reg-slip"
+                                type="file"
+                                accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                                onChange={onSlipChange}
+                                aria-labelledby="reg-slip-label"
+                                aria-invalid={Boolean(fieldErrors.slip)}
+                                aria-describedby={
+                                  fieldErrors.slip || slip.kind === "error"
+                                    ? "reg-err-slip"
+                                    : undefined
+                                }
+                              />
+                              {slip.kind === "ready" ? (
+                                <>
+                                  <img src={slip.previewUrl} alt="ตัวอย่างสลิป" />
+                                  <span className="reg-upload__name">
+                                    {slip.file.name}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <strong>
+                                    {isResubmit
+                                      ? "แตะเพื่ออัปโหลดสลิปใหม่"
+                                      : "แตะเพื่ออัปโหลดสลิป"}
+                                  </strong>
+                                  <small>รองรับ JPG, PNG · สูงสุด 5 MB</small>
+                                </>
+                              )}
+                            </label>
+                            {(fieldErrors.slip || slip.kind === "error") && (
+                              <p
+                                id="reg-err-slip"
+                                className="reg-field-error"
+                                role="alert"
+                              >
+                                {fieldErrors.slip ??
+                                  (slip.kind === "error" ? slip.message : null)}
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
+                      </section>
+
+                      <div className="reg-warn">
+                        {isResubmit
+                          ? "หลังส่ง นายทะเบียนจะตรวจข้อมูลใหม่อีกครั้ง · เลขสมาชิกชั่วคราวเดิมยังใช้ได้"
+                          : "หลังส่ง จะได้รับ Member ID ชั่วคราวทันที — ใช้สิทธิ์ครบ · ใบเสร็จชั่วคราวออกหลังนายทะเบียนอนุมัติข้อมูล"}
+                      </div>
+                    </>
+                  )}
+
+                  {submit.phase === "error" &&
+                    submit.code !== "required_fields_missing" &&
+                    submit.code !== "invalid_phone" &&
+                    submit.code !== "slip_required" && (
+                      <p
+                        id="reg-form-error"
+                        className="reg-form-error"
+                        role="alert"
+                      >
+                        {errorCopy(submit.code)}
+                        {submit.code === "already_registered" && (
+                          <> พิมพ์ «เช็คสถานะ» ใน LINE OA</>
+                        )}
+                      </p>
                     )}
-                  </label>
-                  {slip.kind === "error" && (
-                    <p className="reg-field-error">{slip.message}</p>
-                  )}
-                </div>
-                ) : null}
-              </section>
 
-              <div className="reg-warn">
-                {isResubmit
-                  ? "หลังส่ง นายทะเบียนจะตรวจข้อมูลใหม่อีกครั้ง · เลขสมาชิกชั่วคราวเดิมยังใช้ได้"
-                  : "หลังส่ง จะได้รับ Member ID ชั่วคราวทันที — ใช้สิทธิ์ครบ · ใบเสร็จชั่วคราวออกหลังนายทะเบียนอนุมัติข้อมูล"}
-              </div>
-
-              {submit.phase === "error" && (
-                <p className="reg-form-error" role="alert">
-                  {errorCopy(submit.code)}
-                  {submit.code === "already_registered" && (
-                    <> พิมพ์ «เช็คสถานะ» ใน LINE OA</>
-                  )}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="reg-btn reg-btn--primary"
-                disabled={
-                  submit.phase === "submitting" ||
-                  !canPay ||
-                  slip.kind !== "ready"
-                }
-              >
-                {submit.phase === "submitting"
-                  ? "กำลังส่ง…"
-                  : "ตรวจสอบก่อนส่ง"}
-              </button>
-              {!canPay ? (
-                <p className="reg-submit-hint" role="status">
-                  {NO_TRANSFER_ACCOUNT_SUBMIT_HINT}
-                </p>
-              ) : null}
+                  <div className="reg-step-actions">
+                    {newStep > 1 ? (
+                      <button
+                        type="button"
+                        className="reg-btn reg-btn--ghost reg-btn--ghost-light"
+                        onClick={() => {
+                          setConfirmOpen(false);
+                          setNewStep((s) => (s === 3 ? 2 : 1));
+                          setSubmit({ phase: "idle" });
+                        }}
+                      >
+                        ย้อนกลับ
+                      </button>
+                    ) : null}
+                    <button
+                      type="submit"
+                      className="reg-btn reg-btn--primary"
+                      disabled={
+                        newStep === 3 &&
+                        (submit.phase === "submitting" ||
+                          !canPay ||
+                          slip.kind !== "ready")
+                      }
+                    >
+                      {newStep === 3
+                        ? submit.phase === "submitting"
+                          ? "กำลังส่ง…"
+                          : "ตรวจสอบก่อนส่ง"
+                        : "ถัดไป"}
+                    </button>
+                  </div>
+                  {newStep === 3 && !canPay ? (
+                    <p className="reg-submit-hint" role="status">
+                      {NO_TRANSFER_ACCOUNT_SUBMIT_HINT}
+                    </p>
+                  ) : null}
                 </>
               )}
             </form>
-          </>
+          </div>
         )}
       </main>
     </div>
