@@ -399,16 +399,28 @@ export default function SeminarPage() {
 
             {showMine ? (
               <section className="reg-form" aria-busy={minePhase === "loading"}>
-                <button
-                  type="button"
-                  className="reg-btn reg-btn--ghost reg-seminar-back"
-                  onClick={() => {
-                    setShowMine(false);
-                    setError(null);
-                  }}
-                >
-                  ← กลับไปสมัครสัมมนา
-                </button>
+                <div className="reg-mode-tabs" role="tablist" aria-label="โหมดสัมมนา">
+                  <button
+                    type="button"
+                    className="reg-mode-tab"
+                    role="tab"
+                    aria-selected={false}
+                    onClick={() => {
+                      setShowMine(false);
+                      setError(null);
+                    }}
+                  >
+                    สมัครใหม่
+                  </button>
+                  <button
+                    type="button"
+                    className="reg-mode-tab reg-mode-tab--active"
+                    role="tab"
+                    aria-selected
+                  >
+                    ของฉัน
+                  </button>
+                </div>
                 <h2 className="reg-section__title">ใบสมัครของฉัน</h2>
                 {minePhase === "loading" || minePhase === "idle" ? (
                   <p className="reg-lead">กำลังโหลด…</p>
@@ -459,7 +471,7 @@ export default function SeminarPage() {
                 <div className="reg-mode-tabs" role="tablist" aria-label="โหมดสัมมนา">
                   <button
                     type="button"
-                    className="reg-mode-tab is-active"
+                    className="reg-mode-tab reg-mode-tab--active"
                     role="tab"
                     aria-selected
                   >
@@ -469,6 +481,7 @@ export default function SeminarPage() {
                     type="button"
                     className="reg-mode-tab"
                     role="tab"
+                    aria-selected={false}
                     onClick={() => void openMineView()}
                   >
                     ของฉัน

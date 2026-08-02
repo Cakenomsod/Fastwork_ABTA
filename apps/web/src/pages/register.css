@@ -68,8 +68,12 @@
 
 .reg-lead {
   margin: 0.5rem 0 0;
-  color: rgba(238, 243, 239, 0.82);
+  color: rgba(255, 255, 255, 0.92);
   font-size: 0.95rem;
+}
+
+.reg-form .reg-lead {
+  color: var(--page-muted);
 }
 
 .reg-user {
@@ -408,9 +412,15 @@
 }
 
 .reg-btn--ghost {
-  background: transparent;
-  color: var(--page-gold-soft);
-  border: 1px solid rgba(228, 206, 147, 0.45);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(228, 206, 147, 0.7);
+  font-weight: 700;
+}
+
+.reg-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: var(--page-gold-soft);
 }
 
 .reg-btn--ghost:focus-visible {
@@ -545,26 +555,33 @@
 .reg-mode-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 0.4rem;
   margin-bottom: 1.15rem;
-  padding: 0.35rem;
+  padding: 0.3rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .reg-mode-tab {
   appearance: none;
   border: none;
   border-radius: 999px;
-  padding: 0.65rem 0.75rem;
+  padding: 0.72rem 0.85rem;
   font: inherit;
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: rgba(238, 243, 239, 0.75);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #fff;
   background: transparent;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.reg-mode-tab:hover:not(.reg-mode-tab--active) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .reg-mode-tab:focus-visible {
@@ -573,14 +590,26 @@
 }
 
 .reg-mode-tab--active {
-  background: var(--page-form-surface);
+  background: #fff;
   color: var(--page-green-primary);
-  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 6px 16px -8px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .reg-mode-tab--legacy.reg-mode-tab--active {
-  background: linear-gradient(160deg, #7a4e12, var(--page-gold));
+  background: linear-gradient(160deg, #8a5a16, var(--page-gold));
   color: #fff;
+  box-shadow: 0 6px 16px -8px rgba(90, 55, 10, 0.55);
+}
+
+/* Back-compat if any page still uses Bootstrap-like is-active */
+.reg-mode-tab.is-active {
+  background: #fff;
+  color: var(--page-green-primary);
+  box-shadow:
+    0 6px 16px -8px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 /* ── Legacy flow (amber accent) ── */
