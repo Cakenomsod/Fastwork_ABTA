@@ -7,6 +7,14 @@ import {
 import { liffPageUrl, memberStatusHrefFromUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import {
+  formatFeeThb,
+  memberTypeLabel,
+  PAYABLE_MEMBER_TYPE_OPTIONS,
+  parsePayableMemberType,
+  renewMembershipFeeThb,
+  type PayableMemberType,
+} from "../lib/membership-fees";
+import {
   hasTransferAccount,
   NO_TRANSFER_ACCOUNT_SUBMIT_HINT,
   PaymentConfirmPanel,
@@ -26,6 +34,7 @@ export default function RenewPage() {
   const [liff, setLiff] = useState<LiffPhase>({ phase: "loading" });
   const [draft, setDraft] = useState<RenewDraft | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
+  const [memberType, setMemberType] = useState<PayableMemberType>("ordinary");
   const [slip, setSlip] = useState<SlipState>({ kind: "empty" });
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -36,6 +45,7 @@ export default function RenewPage() {
   const [error, setError] = useState<string | null>(null);
 
   const canPay = hasTransferAccount();
+  const feeThb = renewMembershipFeeThb(memberType);
 
   useEffect(() => {
     void initLiff().then(async (phase) => {
@@ -48,7 +58,9 @@ export default function RenewPage() {
           setDraftError("invalid_id_token");
           return;
         }
-        setDraft(await fetchRenewDraft(idToken));
+        const next = await fetchRenewDraft(idToken);
+        setDraft(next);
+        setMemberType(parsePayableMemberType(next.memberType));
       } catch (err) {
         setDraftError((err as Error & { code?: string }).code ?? "error");
       }
@@ -82,6 +94,12 @@ export default function RenewPage() {
     setConfirmOpen(false);
   }
 
+  function clearSlip() {
+    if (slip.kind === "ready") URL.revokeObjectURL(slip.previewUrl);
+    setSlip({ kind: "empty" });
+    setConfirmOpen(false);
+  }
+
   function onRequestConfirm(e: FormEvent) {
     e.preventDefault();
     if (!canPay || slip.kind !== "ready" || !draft) return;
@@ -105,6 +123,7 @@ export default function RenewPage() {
         idToken: idToken ?? "dev",
         slipContentType: slip.file.type,
         slipBase64: base64,
+        memberType,
       });
       setDone({
         statusUrl: result.statusUrl,
@@ -122,6 +141,10 @@ export default function RenewPage() {
     draft != null &&
     !draft.pendingRenewal &&
     draft.receiptStatus === "rejected";
+
+  const currentTypeLabel =
+    draft?.memberTypeLabel?.trim() ||
+    (draft?.memberType ? memberTypeLabel(parsePayableMemberType(draft.memberType)) : "");
 
   return (
     <div className="reg-shell">
@@ -148,7 +171,9 @@ export default function RenewPage() {
               <p className="reg-kicker">ABTA</p>
               <h1>รับคำขอต่ออายุแล้ว</h1>
               <p className="reg-success__id">{done.receiptNumber}</p>
-              <p className="reg-lead">รอเหรัญญิกตรวจสอบสลิปครับ</p>
+              <p className="reg-lead">
+                เจ้าหน้าที่กำลังตรวจสอบสลิป — จะแจ้งผลทาง LINE อีกครั้งครับ
+              </p>
               <a
                 className="reg-btn reg-btn--primary"
                 href={memberStatusHrefFromUrl(done.statusUrl)}
@@ -191,12 +216,25 @@ export default function RenewPage() {
                   {draft.firstName} {draft.lastName}
                   <br />
                   เลขสมาชิก {draft.memberId}
+                  {currentTypeLabel ? ` · ${currentTypeLabel}` : ""}
                   {draft.expiryDate ? ` · หมดอายุ ${draft.expiryDate}` : ""}
                 </p>
               </header>
 
               {draft.pendingRenewal ? (
-                <div className="reg-warn">มีคำขอต่ออายุรอตรวจอยู่แล้ว</div>
+                <div className="reg-form">
+                  <div className="reg-warn" role="status">
+                    มีคำขอต่ออายุรอตรวจอยู่แล้ว — ท่านไม่ต้องส่งซ้ำครับ
+                  </div>
+                  {draft.statusUrl ? (
+                    <a
+                      className="reg-btn reg-btn--primary"
+                      href={memberStatusHrefFromUrl(draft.statusUrl)}
+                    >
+                      ดูสถานะคำขอ
+                    </a>
+                  ) : null}
+                </div>
               ) : slipRejected ? (
                 <div className="reg-form">
                   <div className="reg-warn">
@@ -221,8 +259,12 @@ export default function RenewPage() {
                       },
                       { label: "เลขสมาชิก", value: draft.memberId },
                       {
+                        label: "ประเภทสมาชิก",
+                        value: memberTypeLabel(memberType),
+                      },
+                      {
                         label: "ค่าธรรมเนียม",
-                        value: `${draft.feeThb.toLocaleString("th-TH")} บาท`,
+                        value: formatFeeThb(feeThb),
                       },
                     ]}
                     slipPreviewUrl={slip.previewUrl}
@@ -239,12 +281,41 @@ export default function RenewPage() {
                   onSubmit={onRequestConfirm}
                 >
                   <section className="reg-section">
+                    <h2 className="reg-section__title">ประเภทสมาชิก</h2>
+                    <p className="reg-section__hint">
+                      เลือกประเภทที่ต้องการต่ออายุ หรือเปลี่ยนประเภทสมาชิก
+                    </p>
+                    <label className="reg-field">
+                      <span>
+                        ประเภท <em className="req">*</em>
+                      </span>
+                      <select
+                        name="memberType"
+                        value={memberType}
+                        onChange={(e) => {
+                          setMemberType(
+                            parsePayableMemberType(e.target.value),
+                          );
+                          setConfirmOpen(false);
+                        }}
+                        required
+                      >
+                        {PAYABLE_MEMBER_TYPE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label} —{" "}
+                            {formatFeeThb(renewMembershipFeeThb(opt.value))}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </section>
+                  <section className="reg-section">
                     <h2 className="reg-section__title">หลักฐานการชำระเงิน</h2>
                     <div className="reg-fee">
-                      <span>ค่าธรรมเนียมต่ออายุ</span>
-                      <strong>
-                        {draft.feeThb.toLocaleString("th-TH")} บาท
-                      </strong>
+                      <span>
+                        ค่าธรรมเนียมต่ออายุ ({memberTypeLabel(memberType)})
+                      </span>
+                      <strong>{formatFeeThb(feeThb)}</strong>
                     </div>
                     <TransferBankBlock />
                     {canPay ? (
@@ -275,6 +346,15 @@ export default function RenewPage() {
                             </>
                           )}
                         </label>
+                        {slip.kind === "ready" ? (
+                          <button
+                            type="button"
+                            className="reg-btn reg-btn--ghost reg-upload-clear"
+                            onClick={clearSlip}
+                          >
+                            ลบรูป / เลือกใหม่
+                          </button>
+                        ) : null}
                         {slip.kind === "error" ? (
                           <p className="reg-field-error">{slip.message}</p>
                         ) : null}

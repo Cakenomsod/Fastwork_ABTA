@@ -5,7 +5,7 @@
 
 import { getStorage } from "firebase-admin/storage";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
-import { MEMBERSHIP_FEE_THB, WEB_ORIGIN, getLoginChannelId } from "../config";
+import { WEB_ORIGIN, getLoginChannelId } from "../config";
 import { verifyLineIdToken } from "../line/verify-id-token";
 import { pushMessages } from "../line/client";
 import { registrationConfirmFlex, staffNewRegistrationText } from "../line/messages";
@@ -21,6 +21,11 @@ import {
   MEMBER_TYPE_LABEL,
   membershipExpiryDec31,
 } from "./membership";
+import {
+  newMembershipFeeThb,
+  parsePayableMemberType,
+  type PayableMemberType,
+} from "./fees";
 import { staffLineUserIds } from "./staff-notify";
 import type { MemberDoc, PaymentDoc } from "./types";
 
@@ -35,6 +40,8 @@ export interface RegisterInput {
   email?: string;
   legalEntityName?: string;
   buildingName?: string;
+  /** ordinary | extraordinary | associate — defaults to ordinary */
+  memberType?: string;
   slipContentType: string;
   slipBase64: string;
 }
@@ -162,6 +169,7 @@ async function notifyAfterRegister(opts: {
   lastName: string;
   phone: string;
   statusUrl: string;
+  feeThb: number;
   resubmitted: boolean;
 }): Promise<void> {
   try {
@@ -170,7 +178,7 @@ async function notifyAfterRegister(opts: {
         memberId: opts.memberId,
         fullName: `${opts.firstName} ${opts.lastName}`.trim(),
         statusUrl: opts.statusUrl,
-        feeThb: MEMBERSHIP_FEE_THB,
+        feeThb: opts.feeThb,
       }),
     ]);
   } catch (err) {
@@ -228,6 +236,7 @@ async function resubmitRejectedMember(
     email?: string;
     legalEntityName?: string;
     buildingName?: string;
+    memberType: PayableMemberType;
     contentType: string;
     slipBuf: Buffer;
   },
@@ -238,6 +247,7 @@ async function resubmitRejectedMember(
     existing.memberCardUrl ??
     `${WEB_ORIGIN}/card?m=${encodeURIComponent(memberId)}&t=${token}`;
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(memberId)}&t=${token}`;
+  const feeThb = newMembershipFeeThb(input.memberType);
 
   const uploaded = await uploadSlip(memberId, input.contentType, input.slipBuf);
   if (!uploaded.ok) return uploaded;
@@ -263,6 +273,8 @@ async function resubmitRejectedMember(
       phone: input.phone,
       email,
       status: "temporary" as const,
+      memberType: input.memberType,
+      memberTypeLabel: MEMBER_TYPE_LABEL[input.memberType],
       memberCardUrl,
       publicToken: token,
       dataReviewStatus: "pending" as const,
@@ -278,7 +290,7 @@ async function resubmitRejectedMember(
       db.collection(PAYMENTS_COLLECTION).doc(payment.paymentId),
       omitUndefined({
         slipUrl: uploaded.slipUrl,
-        amount: MEMBERSHIP_FEE_THB,
+        amount: feeThb,
         status: "data_review" as const,
         receiptStatus: "none" as const,
         receiptNumber: FieldValue.delete(),
@@ -294,7 +306,7 @@ async function resubmitRejectedMember(
       memberId,
       receiptStatus: "none",
       slipUrl: uploaded.slipUrl,
-      amount: MEMBERSHIP_FEE_THB,
+      amount: feeThb,
       status: "data_review",
       createdAt: ts,
       updatedAt: ts,
@@ -312,6 +324,7 @@ async function resubmitRejectedMember(
       lastName: input.lastName,
       phone: input.phone,
       statusUrl,
+      feeThb,
       resubmitted: true,
     });
   }
@@ -323,7 +336,7 @@ async function resubmitRejectedMember(
     publicToken: token,
     statusUrl,
     memberCardUrl,
-    feeThb: MEMBERSHIP_FEE_THB,
+    feeThb,
     expiryDate: expiry.toISOString().slice(0, 10),
     resubmitted: true,
   };
@@ -333,6 +346,8 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
   const firstName = input.firstName.trim();
   const lastName = input.lastName.trim();
   const phone = input.phone.trim();
+  const memberType = parsePayableMemberType(input.memberType);
+  const feeThb = newMembershipFeeThb(memberType);
 
   if (!firstName || !lastName || !phone) {
     return { ok: false, error: "required_fields_missing", status: 400 };
@@ -355,6 +370,7 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
         email: input.email,
         legalEntityName: input.legalEntityName,
         buildingName: input.buildingName,
+        memberType,
         contentType: slip.contentType,
         slipBuf: slip.slipBuf,
       });
@@ -394,8 +410,8 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
     lineLinkedAt: ts,
     linkType: "new_registration",
     status: "temporary",
-    memberType: "ordinary",
-    memberTypeLabel: MEMBER_TYPE_LABEL.ordinary,
+    memberType,
+    memberTypeLabel: MEMBER_TYPE_LABEL[memberType],
     memberCardUrl,
     expiryDate: expiryTs,
     dataReviewStatus: "pending",
@@ -410,7 +426,7 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
     memberId,
     receiptStatus: "none",
     slipUrl: uploaded.slipUrl,
-    amount: MEMBERSHIP_FEE_THB,
+    amount: feeThb,
     paymentKind: "registration",
     status: "data_review",
     createdAt: ts,
@@ -436,6 +452,7 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
     lastName,
     phone,
     statusUrl,
+    feeThb,
     resubmitted: false,
   });
 
@@ -445,7 +462,7 @@ export async function registerNewMember(input: RegisterInput): Promise<RegisterR
     publicToken: token,
     statusUrl,
     memberCardUrl,
-    feeThb: MEMBERSHIP_FEE_THB,
+    feeThb,
     expiryDate: expiry.toISOString().slice(0, 10),
   };
 }

@@ -1,6 +1,6 @@
 /**
  * Plain-text + small Flex helpers for non-status replies.
- * Professional Thai copy for a trade association (สมาคมการค้า).
+ * Warm, respectful Thai copy for a trade association (สมาคมการค้า).
  */
 
 import { BRAND, LIFF_URL, WEB_ORIGIN, isConfiguredLiffUrl, liffPageUri } from "../config";
@@ -22,7 +22,7 @@ export function renewInviteText(): LineMessage {
     [
       "ต่ออายุสมาชิก ABTA",
       "",
-      "กดลิงก์ด้านล่างเพื่อแนบสลิปและส่งคำขอต่ออายุครับ",
+      "กรุณากดลิงก์ด้านล่างเพื่อแนบสลิปและส่งคำขอต่ออายุได้เลยครับ",
       liffPageUri("/renew"),
     ].join("\n"),
   );
@@ -33,7 +33,7 @@ export function seminarInviteText(): LineMessage {
     [
       "สมัครสัมมนา ABTA",
       "",
-      "เลือกรายการและกรอกฟอร์มได้ที่",
+      "ท่านสามารถเลือกรายการและกรอกแบบฟอร์มได้ที่ลิงก์ด้านล่างครับ",
       liffPageUri("/seminar"),
     ].join("\n"),
   );
@@ -42,16 +42,17 @@ export function seminarInviteText(): LineMessage {
 export function helpMessage(): LineMessage {
   return textMessage(
     [
-      "สวัสดีครับ 🌿 นี่คือบริการสมาชิก ABTA",
+      `สวัสดีครับ ยินดีต้อนรับสู่บริการสมาชิก ${BRAND.short}`,
       "",
-      "พิมพ์คำสั่งเพื่อใช้งาน:",
+      "พิมพ์คำสั่งด้านล่างเพื่อใช้งานได้เลยครับ:",
       "• เช็คสถานะ — ดูสถานะสมาชิก บัตรสมาชิก และใบเสร็จ",
-      "• สมัครสมาชิก — เปิดฟอร์มสมัคร / ลงทะเบียน",
+      "• สมัครสมาชิก — เปิดแบบฟอร์มสมัคร / ลงทะเบียน",
       "• ต่ออายุ — ต่ออายุสมาชิกพร้อมแนบสลิป",
       "• สัมมนา — สมัครงานสัมมนา",
       "• ช่วยเหลือ — แสดงเมนูคำสั่งนี้",
       "",
-      "หากยังไม่ได้ผูกบัญชี LINE กับสมาชิก พิมพ์ “สมัครสมาชิก” เพื่อเริ่มต้นครับ",
+      "หากยังไม่ได้เชื่อมบัญชี LINE กับข้อมูลสมาชิก",
+      "พิมพ์ “สมัครสมาชิก” เพื่อเริ่มต้นได้ครับ",
     ].join("\n"),
   );
 }
@@ -103,15 +104,15 @@ export function registerInviteFlex(): LineMessage {
           {
             type: "text",
             text: hasLiff
-              ? "กดปุ่มด้านล่างเพื่อเปิดฟอร์มสมัครสมาชิกใหม่ใน LINE ครับ"
-              : "ฟอร์มสมัครยังตั้งค่า LIFF ไม่ครบ — เปิดหน้าเว็บชั่วคราวได้จากปุ่มด้านล่างครับ",
+              ? "กรุณากดปุ่มด้านล่างเพื่อเปิดแบบฟอร์มสมัครสมาชิกใหม่ใน LINE ได้เลยครับ"
+              : "แบบฟอร์มสมัครยังตั้งค่า LIFF ไม่ครบ — ท่านเปิดหน้าเว็บชั่วคราวได้จากปุ่มด้านล่างครับ",
             size: "sm",
             color: BRAND.ink,
             wrap: true,
           },
           {
             type: "text",
-            text: "ถ้าเคยเป็นสมาชิกแล้ว กดปุ่ม «ยืนยันสมาชิกเก่า» เพื่อผูก LINE กับข้อมูลเดิมได้ครับ",
+            text: "หากท่านเคยเป็นสมาชิกแล้ว กรุณากดปุ่ม «ยืนยันสมาชิกเก่า» เพื่อเชื่อม LINE กับข้อมูลเดิมได้ครับ",
             size: "xs",
             color: BRAND.subtle,
             wrap: true,
@@ -132,7 +133,7 @@ export function registerInviteFlex(): LineMessage {
             color: BRAND.green,
             action: {
               type: "uri",
-              label: hasLiff ? "เปิดฟอร์มสมัคร" : "เปิดหน้าสมัคร",
+              label: hasLiff ? "เปิดแบบฟอร์มสมัคร" : "เปิดหน้าสมัคร",
               uri: registerUri(),
             },
           },
@@ -156,7 +157,7 @@ export function greetingMessage(): LineMessage {
   return textMessage(
     [
       `สวัสดีครับ ยินดีต้อนรับสู่ ${BRAND.oaName}`,
-      "พิมพ์ “เช็คสถานะ” เพื่อดูสถานะสมาชิกของคุณ หรือพิมพ์ “ช่วยเหลือ” เพื่อดูคำสั่งทั้งหมดครับ",
+      "พิมพ์ “เช็คสถานะ” เพื่อดูสถานะสมาชิกของท่าน หรือพิมพ์ “ช่วยเหลือ” เพื่อดูคำสั่งทั้งหมดได้ครับ",
     ].join("\n"),
   );
 }
@@ -167,7 +168,7 @@ export function notLinkedFlex(lineUserId?: string): LineMessage {
   const bodyContents: Record<string, unknown>[] = [
     {
       type: "text",
-      text: "บัญชี LINE นี้ยังไม่ได้เชื่อมกับข้อมูลสมาชิกในระบบ ABTA",
+      text: "บัญชี LINE นี้ยังไม่ได้เชื่อมกับข้อมูลสมาชิกในระบบ ABTA ครับ",
       size: "sm",
       color: BRAND.ink,
       wrap: true,
@@ -175,8 +176,8 @@ export function notLinkedFlex(lineUserId?: string): LineMessage {
     {
       type: "text",
       text: hasLiff
-        ? "กดปุ่มด้านล่างเพื่อสมัครสมาชิกใหม่ หรือยืนยันสมาชิกเก่า (ถ้าเคยเป็นสมาชิกแล้ว)"
-        : "ฟอร์มลงทะเบียนกำลังเตรียมเปิดใช้งาน — หากต้องการทดสอบ แจ้งรหัส LINE ด้านล่างให้เจ้าหน้าที่ได้ครับ",
+        ? "กรุณากดปุ่มด้านล่างเพื่อสมัครสมาชิกใหม่ หรือยืนยันสมาชิกเก่าหากท่านเคยเป็นสมาชิกแล้วครับ"
+        : "แบบฟอร์มลงทะเบียนกำลังเตรียมเปิดใช้งาน — หากต้องการทดสอบ กรุณาแจ้งรหัส LINE ด้านล่างให้เจ้าหน้าที่ได้ครับ",
       size: "sm",
       color: BRAND.subtle,
       wrap: true,
@@ -187,7 +188,7 @@ export function notLinkedFlex(lineUserId?: string): LineMessage {
     bodyContents.push(
       {
         type: "text",
-        text: "รหัส LINE ของคุณ",
+        text: "รหัส LINE ของท่าน",
         size: "xs",
         color: BRAND.subtle,
         margin: "lg",
@@ -351,7 +352,7 @@ export function registrationConfirmFlex(opts: {
           },
           {
             type: "text",
-            text: `สถานะ: สมาชิกชั่วคราว · รอตรวจสอบข้อมูล · ค่าธรรมเนียม ${opts.feeThb} บาท`,
+            text: `สถานะ: สมาชิกชั่วคราว · รอตรวจสอบข้อมูล · ค่าธรรมเนียม ${opts.feeThb.toLocaleString("th-TH")} บาท`,
             size: "sm",
             color: BRAND.subtle,
             wrap: true,
@@ -359,7 +360,7 @@ export function registrationConfirmFlex(opts: {
           },
           {
             type: "text",
-            text: "ใช้สิทธิ์สมาชิกได้ทันที · ใบเสร็จชั่วคราวจะออกหลังนายทะเบียนอนุมัติข้อมูล",
+            text: "ท่านใช้สิทธิ์สมาชิกได้ทันทีครับ · ใบเสร็จชั่วคราวจะออกหลังนายทะเบียนอนุมัติข้อมูล",
             size: "sm",
             color: BRAND.ink,
             wrap: true,
@@ -397,7 +398,7 @@ export function staffNewRegistrationText(opts: {
 }): LineMessage {
   return textMessage(
     [
-      "📋 ใบสมัครสมาชิกใหม่",
+      "ใบสมัครสมาชิกใหม่",
       `เลขชั่วคราว: ${opts.memberId}`,
       `ชื่อ: ${opts.fullName}`,
       `โทร: ${opts.phone}`,
@@ -414,7 +415,7 @@ export function dataReviewApprovedText(opts: {
 }): LineMessage {
   return textMessage(
     [
-      "✅ นายทะเบียนอนุมัติข้อมูลแล้ว",
+      "นายทะเบียนอนุมัติข้อมูลของท่านแล้วครับ",
       `คุณ${opts.fullName}`,
       "",
       `เลขสมาชิกถาวร: ${opts.permanentMemberId}`,
@@ -435,13 +436,13 @@ export function dataReviewRejectedText(opts: {
 }): LineMessage {
   return textMessage(
     [
-      "❌ ข้อมูลสมาชิกยังไม่ผ่านการตรวจสอบ",
+      "ข้อมูลสมาชิกยังไม่ผ่านการตรวจสอบครับ",
       `คุณ${opts.fullName}`,
       `เลขสมาชิก: ${opts.memberId}`,
       "",
       `เหตุผล: ${opts.reason}`,
       "",
-      "กรุณาแก้ไขข้อมูลแล้วส่งใหม่",
+      "กรุณาแก้ไขข้อมูลแล้วส่งใหม่อีกครั้งได้เลยครับ",
       `แก้ไขและส่งใหม่: ${opts.editUrl}`,
       `ดูสถานะ: ${opts.statusUrl}`,
     ].join("\n"),
@@ -456,7 +457,7 @@ export function slipReviewApprovedText(opts: {
 }): LineMessage {
   return textMessage(
     [
-      "✅ เหรัญญิกยืนยันการชำระเงินแล้ว",
+      "เหรัญญิกยืนยันการชำระเงินของท่านแล้วครับ",
       `คุณ${opts.fullName}`,
       `เลขสมาชิก: ${opts.memberId}`,
       `ใบเสร็จตัวจริง: ${opts.receiptNumber}`,
@@ -476,7 +477,7 @@ export function slipReviewRejectedText(opts: {
 }): LineMessage {
   return textMessage(
     [
-      "❌ สลิปยังไม่ผ่านการตรวจสอบ",
+      "สลิปยังไม่ผ่านการตรวจสอบครับ",
       `คุณ${opts.fullName}`,
       `เลขสมาชิก: ${opts.memberId} (ยังเป็นสมาชิกสมบูรณ์)`,
       "",
@@ -484,8 +485,8 @@ export function slipReviewRejectedText(opts: {
       `เลขใบเสร็จใหม่ (รอส่งสลิป): ${opts.nextReceiptNumber}`,
       "",
       opts.slipUploadUrl
-        ? `ส่งสลิปใหม่: ${opts.slipUploadUrl}`
-        : "กรุณาส่งสลิปใหม่ผ่าน LINE OA",
+        ? `กรุณาส่งสลิปใหม่ได้ที่: ${opts.slipUploadUrl}`
+        : "กรุณาส่งสลิปใหม่ผ่าน LINE OA ได้เลยครับ",
       `ดูสถานะ: ${opts.statusUrl}`,
     ].join("\n"),
   );
@@ -499,11 +500,11 @@ export function expiryReminderText(opts: {
 }): LineMessage {
   return textMessage(
     [
-      `⏰ แจ้งเตือนต่ออายุสมาชิก (อีก ${opts.daysLeft} วัน)`,
+      `แจ้งเตือนต่ออายุสมาชิก (เหลืออีก ${opts.daysLeft} วัน)`,
       `คุณ${opts.firstName}`,
       `วันหมดอายุ: ${opts.expiryLabel}`,
       "",
-      "กรุณาต่ออายุสมาชิกเพื่อรักษาสิทธิ์ครับ",
+      "กรุณาต่ออายุสมาชิกเพื่อรักษาสิทธิ์ของท่านครับ",
       `ต่ออายุ: ${opts.renewUrl}`,
     ].join("\n"),
   );
@@ -536,7 +537,7 @@ export function legacyBindSuccessText(opts: {
 }): LineMessage {
   return textMessage(
     [
-      "✅ ยืนยันสมาชิกเก่าสำเร็จ",
+      "ยืนยันสมาชิกเก่าสำเร็จแล้วครับ",
       `คุณ${opts.fullName}`,
       `เลขสมาชิกใหม่: ${opts.memberId}`,
       `เลขอ้างอิงเดิม: ${opts.legacyMemberId}`,
@@ -555,7 +556,7 @@ export function memberIdsUpdatedText(opts: {
   receiptUrl?: string;
 }): LineMessage {
   const lines = [
-    "✏️ มีการแก้ไขข้อมูลสมาชิกของคุณ",
+    "มีการแก้ไขข้อมูลสมาชิกของท่านครับ",
     `คุณ${opts.fullName}`,
     "",
   ];
@@ -569,7 +570,7 @@ export function memberIdsUpdatedText(opts: {
       `เลขใบเสร็จ: ${opts.receiptNumberChange.from} → ${opts.receiptNumberChange.to}`,
     );
   }
-  lines.push("", "สามารถเช็คข้อมูลได้ที่:");
+  lines.push("", "ท่านสามารถตรวจสอบข้อมูลได้ที่:");
   lines.push(`ดูสถานะ: ${opts.statusUrl}`);
   if (opts.cardUrl) {
     lines.push(`บัตรสมาชิก: ${opts.cardUrl}`);
@@ -582,6 +583,6 @@ export function memberIdsUpdatedText(opts: {
 
 export function errorMessage(): LineMessage {
   return textMessage(
-    "ขออภัยครับ ระบบเกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่อีกครั้งภายหลัง หากยังพบปัญหาโปรดติดต่อเจ้าหน้าที่สมาคมครับ",
+    "ขออภัยครับ ระบบเกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่อีกครั้งในภายหลัง หากยังพบปัญหาโปรดติดต่อเจ้าหน้าที่สมาคมได้เลยครับ",
   );
 }

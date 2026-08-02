@@ -24,6 +24,7 @@
 | 11 | [10-Open-Items-Registration.md](./10-Open-Items-Registration.md) | รายการค้างก่อน go-live (ธนาคาร, ค่าธรรมเนียม, LIFF, staff IDs) |
 | 12 | [11-Legacy-Member-Import-Plan.md](./11-Legacy-Member-Import-Plan.md) | แผน/อ้างอิงนำเข้าสมาชิกเก่าจาก Excel (implement ครบแล้ว) |
 | 13 | [12-Scope-Update-2026-07-21.md](./12-Scope-Update-2026-07-21.md) | อัปเดตขอบเขตจากแชท 21 ก.ค. (45/15, สามัญ+Active, Broadcast เลื่อนหลัง P1) |
+| 14 | [14-Rich-Menu-Guide.md](./14-Rich-Menu-Guide.md) | แนะนำ Rich Menu 6 ช่องสำหรับ LINE OA |
 
 ---
 

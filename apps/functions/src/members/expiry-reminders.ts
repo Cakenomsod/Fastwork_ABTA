@@ -46,7 +46,9 @@ function shouldRemindMember(m: MemberDoc): boolean {
     return false;
   }
   const t = m.memberType ?? "ordinary";
-  return t === "ordinary" || t === "extraordinary";
+  return (
+    t === "ordinary" || t === "extraordinary" || t === "associate"
+  );
 }
 
 export type ExpiryReminderRunResult = {

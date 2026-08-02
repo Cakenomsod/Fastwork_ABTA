@@ -260,6 +260,30 @@
   color: var(--page-field-muted);
 }
 
+.rcpt-evidence {
+  margin: 0.85rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.rcpt-evidence--ok {
+  background: #e8f5ee;
+  color: #027a48;
+}
+
+.rcpt-evidence--draft {
+  background: #fef6e7;
+  color: #b54708;
+}
+
+.rcpt-evidence--no {
+  background: #fdecea;
+  color: #b42318;
+}
+
 .rcpt-section-title {
   margin: 1.35rem 0 0.55rem;
   font-size: 0.78rem;
@@ -614,5 +638,20 @@
   .rcpt-print-btn,
   .rcpt-toolbar {
     display: none !important;
+  }
+
+  /* Rejected receipts must not print usable content via Ctrl+P */
+  .rcpt-content--rejected .rcpt-sheet {
+    display: none !important;
+  }
+
+  .rcpt-content--rejected::after {
+    content: "ใบเสร็จนี้ไม่ผ่านการตรวจสอบ — ไม่สามารถพิมพ์เป็นหลักฐานได้";
+    display: block;
+    margin: 2rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #b42318;
+    text-align: center;
   }
 }

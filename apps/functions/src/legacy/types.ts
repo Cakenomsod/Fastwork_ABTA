@@ -11,7 +11,12 @@ export type LegacyMemberStatus =
   | "non_active"
   | "pending";
 
-export type LegacyMemberType = "ordinary" | "extraordinary" | "honorary" | "other";
+export type LegacyMemberType =
+  | "ordinary"
+  | "extraordinary"
+  | "associate"
+  | "honorary"
+  | "other";
 
 export type LegacyEntityType = "juristic" | "individual" | "other";
 
@@ -94,6 +99,9 @@ export function mapExcelMemberType(raw: unknown): {
   }
   if (label.includes("วิสามัญ")) {
     return { memberType: "extraordinary", memberTypeLabel: label || "วิสามัญ" };
+  }
+  if (label.includes("สมทบ")) {
+    return { memberType: "associate", memberTypeLabel: label || "สมทบ" };
   }
   if (label.includes("สามัญ")) {
     return { memberType: "ordinary", memberTypeLabel: label || "สามัญ" };

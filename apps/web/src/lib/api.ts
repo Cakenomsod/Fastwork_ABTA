@@ -82,6 +82,7 @@ export interface RegisterPayload {
   email?: string;
   legalEntityName?: string;
   buildingName?: string;
+  memberType?: string;
   slipContentType: string;
   slipBase64: string;
 }
@@ -306,6 +307,9 @@ export type RenewDraft = {
   status: string;
   expiryDate?: string;
   feeThb: number;
+  memberType?: string;
+  memberTypeLabel?: string;
+  statusUrl?: string;
   pendingRenewal: boolean;
   /** Present when draft API exposes slip review state (e.g. rejected → resubmit). */
   receiptStatus?: string;
@@ -330,6 +334,10 @@ export async function fetchRenewDraft(idToken: string): Promise<RenewDraft> {
     status: data.status,
     expiryDate: data.expiryDate,
     feeThb: data.feeThb,
+    memberType: typeof data.memberType === "string" ? data.memberType : undefined,
+    memberTypeLabel:
+      typeof data.memberTypeLabel === "string" ? data.memberTypeLabel : undefined,
+    statusUrl: typeof data.statusUrl === "string" ? data.statusUrl : undefined,
     pendingRenewal: Boolean(data.pendingRenewal),
     receiptStatus:
       typeof data.receiptStatus === "string" ? data.receiptStatus : undefined,
@@ -340,6 +348,7 @@ export async function submitRenewal(input: {
   idToken: string;
   slipContentType: string;
   slipBase64: string;
+  memberType?: string;
 }): Promise<{
   memberId: string;
   statusUrl: string;

@@ -736,6 +736,7 @@ export async function decideSeminarRegistration(input: {
 export type BroadcastMemberType =
   | "ordinary"
   | "extraordinary"
+  | "associate"
   | "honorary"
   | "other";
 
@@ -753,6 +754,7 @@ export const BROADCAST_TYPE_OPTIONS: {
 }[] = [
   { value: "ordinary", label: "สามัญ" },
   { value: "extraordinary", label: "วิสามัญ" },
+  { value: "associate", label: "สมทบ" },
   { value: "honorary", label: "กิตติมาศักดิ์" },
   { value: "other", label: "อื่น ๆ" },
 ];

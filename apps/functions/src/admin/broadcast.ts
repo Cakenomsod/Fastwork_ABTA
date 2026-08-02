@@ -322,6 +322,7 @@ export async function listBroadcastLogs(
 const KNOWN_MEMBER_TYPES = new Set<MemberType>([
   "ordinary",
   "extraordinary",
+  "associate",
   "honorary",
   "other",
 ]);

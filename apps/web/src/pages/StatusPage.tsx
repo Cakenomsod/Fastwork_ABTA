@@ -60,7 +60,11 @@ function errorCta(code: string): ErrorCta {
     case "forbidden":
     case "403":
     case "member_id_required":
-      return null;
+      return {
+        kind: "link",
+        href: liffPageUrl("/register"),
+        label: "เปิดจาก LINE OA อีกครั้ง",
+      };
     default:
       return { kind: "retry", label: "ลองใหม่อีกครั้ง" };
   }
@@ -110,6 +114,10 @@ function receiptHref(memberId: string, receiptUrl?: string): string {
 }
 
 function StatusCard({ data }: { data: PublicStatus }) {
+  const onCardPath =
+    typeof window !== "undefined" &&
+    (window.location.pathname.replace(/\/+$/, "") === "/card" ||
+      window.location.pathname.endsWith("/card"));
   const expiryHint =
     data.expiryDaysLeft === undefined
       ? undefined
@@ -164,7 +172,7 @@ function StatusCard({ data }: { data: PublicStatus }) {
           value={data.receiptLabel}
           sub={data.receiptNumber}
         />
-        <DetailRow label="สถานะสัมมนา" value={data.seminarLabel} />
+        <DetailRow label="การสมัครสัมมนา" value={data.seminarLabel} />
         {data.renewalLabel ? (
           <DetailRow label="การต่ออายุ" value={data.renewalLabel} />
         ) : null}
@@ -206,7 +214,7 @@ function StatusCard({ data }: { data: PublicStatus }) {
               ต่ออายุสมาชิก
             </a>
           )}
-          {data.memberCardUrl && (
+          {data.memberCardUrl && !onCardPath && (
             <a
               className={showRenew ? "btn btn--ghost" : "btn btn--primary"}
               href={data.memberCardUrl}
@@ -214,6 +222,11 @@ function StatusCard({ data }: { data: PublicStatus }) {
               เปิดบัตรสมาชิก
             </a>
           )}
+          {onCardPath ? (
+            <p className="foot-note" style={{ marginTop: 0 }}>
+              บันทึกภาพหน้าจอเพื่อเก็บบัตรสมาชิกได้ครับ
+            </p>
+          ) : null}
           <a className="btn btn--ghost" href={openReceipt}>
             เปิดใบเสร็จ
           </a>

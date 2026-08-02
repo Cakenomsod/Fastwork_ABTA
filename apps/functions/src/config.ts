@@ -15,8 +15,12 @@ export const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "https://abta-member.web.app
 export const LIFF_URL =
   process.env.VITE_LIFF_URL ?? process.env.LIFF_URL ?? "https://liff.line.me";
 
-/** Membership fee (THB) — default from mockup until customer confirms. */
-export const MEMBERSHIP_FEE_THB = Number(process.env.MEMBERSHIP_FEE_THB ?? "500") || 500;
+/**
+ * @deprecated Prefer fees.ts by member type. Kept as fallback for legacy
+ * payments without an amount (ordinary renew = 1,000).
+ */
+export const MEMBERSHIP_FEE_THB =
+  Number(process.env.MEMBERSHIP_FEE_THB ?? "1000") || 1000;
 
 export const BRAND = {
   short: "ABTA",

@@ -1,6 +1,6 @@
 /**
  * Association bank-transfer display for member payment flows.
- * Do not invent bank name / account number / account name — leave blank until product provides real data.
+ * Account details confirmed by association (2026-08-02).
  */
 
 export type TransferAccount = {
@@ -9,8 +9,12 @@ export type TransferAccount = {
   accountNumber?: string;
 };
 
-/** Live transfer details — empty until the association supplies real account data. */
-export const ASSOCIATION_TRANSFER_ACCOUNT: TransferAccount = {};
+/** Live transfer details — Krungthai account from association. */
+export const ASSOCIATION_TRANSFER_ACCOUNT: TransferAccount = {
+  accountName: "สมาคมการค้าผู้ประกอบการห้องเช่า",
+  accountNumber: "766-0-35634-8",
+  bankName: "ธนาคารกรุงไทย สาขาวงศ์สว่าง ทาวน์ เซ็นเตอร์",
+};
 
 export const NO_TRANSFER_ACCOUNT_SUBMIT_HINT =
   "ยังไม่มีบัญชีรับโอน — ติดต่อเจ้าหน้าที่";

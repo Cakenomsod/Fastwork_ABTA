@@ -38,6 +38,9 @@ export default function SeminarPage() {
   const [liff, setLiff] = useState<LiffPhase>({ phase: "loading" });
   const [isMember, setIsMember] = useState(false);
   const [items, setItems] = useState<Seminar[]>([]);
+  const [listPhase, setListPhase] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
   const [selected, setSelected] = useState<Seminar | null>(null);
   const [form, setForm] = useState({
     firstName: "",
@@ -84,9 +87,18 @@ export default function SeminarPage() {
     void fetch(`${apiBase()}/api/seminars`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.ok) setItems(d.items ?? []);
+        if (d.ok) {
+          setItems(d.items ?? []);
+          setListPhase("ready");
+        } else {
+          setListPhase("error");
+          setError("โหลดรายการสัมมนาไม่สำเร็จ");
+        }
       })
-      .catch(() => setError("โหลดรายการสัมมนาไม่สำเร็จ"));
+      .catch(() => {
+        setListPhase("error");
+        setError("โหลดรายการสัมมนาไม่สำเร็จ");
+      });
   }, []);
 
   useEffect(() => {
@@ -136,6 +148,12 @@ export default function SeminarPage() {
       file,
       previewUrl: URL.createObjectURL(file),
     });
+    setConfirmOpen(false);
+  }
+
+  function clearSlip() {
+    if (slip.kind === "ready") URL.revokeObjectURL(slip.previewUrl);
+    setSlip({ kind: "empty" });
     setConfirmOpen(false);
   }
 
@@ -253,9 +271,17 @@ export default function SeminarPage() {
             {error ? <p className="reg-form-error">{error}</p> : null}
 
             {!selected ? (
-              <section className="reg-form">
+              <section className="reg-form" aria-busy={listPhase === "loading"}>
                 <h2 className="reg-section__title">รายการสัมมนา</h2>
-                {items.length === 0 ? (
+                {listPhase === "loading" ? (
+                  <p className="reg-lead" aria-live="polite">
+                    กำลังโหลดรายการสัมมนา…
+                  </p>
+                ) : listPhase === "error" ? (
+                  <div className="reg-legacy-empty" role="alert">
+                    <p>โหลดรายการสัมมนาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</p>
+                  </div>
+                ) : items.length === 0 ? (
                   <div className="reg-legacy-empty">
                     <p>ยังไม่มีงานสัมมนาที่เปิดรับสมัคร</p>
                   </div>
@@ -477,6 +503,15 @@ export default function SeminarPage() {
                                 </>
                               )}
                             </label>
+                            {slip.kind === "ready" ? (
+                              <button
+                                type="button"
+                                className="reg-btn reg-btn--ghost reg-upload-clear"
+                                onClick={clearSlip}
+                              >
+                                ลบรูป / เลือกใหม่
+                              </button>
+                            ) : null}
                             {slip.kind === "error" ? (
                               <p className="reg-field-error">{slip.message}</p>
                             ) : null}

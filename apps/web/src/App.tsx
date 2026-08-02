@@ -51,70 +51,81 @@ function App() {
 function Landing() {
   const canOpenLine = hasConfiguredLiffEntry();
   const registerHref = canOpenLine ? liffPageUrl("/register") : "/register";
+  const legacyHref = canOpenLine
+    ? liffPageUrl("/register?flow=legacy")
+    : "/register?flow=legacy";
 
   return (
-    <main className="page">
-      <h1 className="brand">ABTA สมาชิก</h1>
-      <p className="tagline">ระบบสมาชิก</p>
+    <div className="landing-shell">
+      <div className="landing-atmosphere" aria-hidden />
+      <main className="page">
+        <p className="landing-kicker">สมาคมการค้าผู้ประกอบการธุรกิจห้องเช่า</p>
+        <h1 className="brand">ABTA สมาชิก</h1>
+        <p className="tagline">บริการสมาชิกผ่าน LINE</p>
 
-      {canOpenLine ? (
-        <p className="lead">
-          ใช้งานผ่าน LINE เป็นหลัก — กดปุ่มสมัครด้านล่างเพื่อเปิดใน LINE
-        </p>
-      ) : (
-        <>
+        {canOpenLine ? (
           <p className="lead">
-            ระบบสมาชิกใช้งานผ่าน LINE Official Account ของสมาคมเป็นหลัก
+            ท่านสามารถสมัครสมาชิก ยืนยันสมาชิกเก่า และติดตามสถานะได้ผ่าน LINE
+            Official Account ของสมาคม — กดปุ่มด้านล่างเพื่อเริ่มต้นได้เลยครับ
           </p>
-          <ol className="howto">
-            <li>เปิดแอป LINE แล้วเข้า Official Account ของสมาคม ABTA</li>
-            <li>เลือกเมนูสมาชิกหรือสมัครสมาชิกจากเมนูในแชท</li>
-            <li>
-              หากต้องการดูแบบฟอร์มบนเบราว์เซอร์ก่อน
-              ใช้ปุ่มสมัครด้านล่างได้ (บางขั้นตอนยังต้องเปิดจาก LINE)
-            </li>
-          </ol>
-        </>
-      )}
-
-      <div className="cta-stack">
-        <a className="landing-btn landing-btn--primary" href={registerHref}>
-          {canOpenLine ? "เปิดสมัครใน LINE" : "ไปหน้าสมัครสมาชิก"}
-        </a>
-        {!canOpenLine ? null : (
-          <a className="landing-btn landing-btn--secondary" href="/register">
-            ไปหน้าสมัครบนเบราว์เซอร์
-          </a>
+        ) : (
+          <>
+            <p className="lead">
+              ระบบสมาชิกใช้งานผ่าน LINE Official Account ของสมาคมเป็นหลัก
+            </p>
+            <ol className="howto">
+              <li>เปิดแอป LINE แล้วเข้า Official Account ของสมาคม ABTA</li>
+              <li>เลือกเมนูสมาชิกหรือสมัครสมาชิกจากเมนูในแชท</li>
+              <li>
+                หากต้องการดูแบบฟอร์มบนเบราว์เซอร์ก่อน
+                ใช้ปุ่มสมัครด้านล่างได้ (บางขั้นตอนยังต้องเปิดจาก LINE)
+              </li>
+            </ol>
+          </>
         )}
-      </div>
 
-      {import.meta.env.DEV ? (
-        <dl className="meta">
-          <div>
-            <dt>Firebase</dt>
-            <dd>{firebaseConfig.projectId || "—"}</dd>
-          </div>
-          <div>
-            <dt>LIFF ID</dt>
-            <dd>
-              {(import.meta.env.VITE_LIFF_ID as string | undefined)?.trim() ||
-                "ยังไม่ตั้งค่า VITE_LIFF_ID"}
-            </dd>
-          </div>
-          <div>
-            <dt>LIFF URL</dt>
-            <dd>
-              {(import.meta.env.VITE_LIFF_URL as string | undefined)?.trim() ||
-                "ยังไม่ตั้งค่า VITE_LIFF_URL"}
-            </dd>
-          </div>
-        </dl>
-      ) : null}
+        <div className="cta-stack">
+          <a className="landing-btn landing-btn--primary" href={registerHref}>
+            {canOpenLine ? "สมัครสมาชิกใหม่" : "ไปหน้าสมัครสมาชิก"}
+          </a>
+          <a className="landing-btn landing-btn--secondary" href={legacyHref}>
+            ยืนยันสมาชิกเก่า
+          </a>
+          {canOpenLine ? (
+            <a className="landing-btn landing-btn--ghost" href="/register">
+              เปิดแบบฟอร์มบนเบราว์เซอร์
+            </a>
+          ) : null}
+        </div>
 
-      <p className="staff-link">
-        <a href="/admin">สำหรับเจ้าหน้าที่ — Back Office</a>
-      </p>
-    </main>
+        {import.meta.env.DEV ? (
+          <dl className="meta">
+            <div>
+              <dt>Firebase</dt>
+              <dd>{firebaseConfig.projectId || "—"}</dd>
+            </div>
+            <div>
+              <dt>LIFF ID</dt>
+              <dd>
+                {(import.meta.env.VITE_LIFF_ID as string | undefined)?.trim() ||
+                  "ยังไม่ตั้งค่า VITE_LIFF_ID"}
+              </dd>
+            </div>
+            <div>
+              <dt>LIFF URL</dt>
+              <dd>
+                {(import.meta.env.VITE_LIFF_URL as string | undefined)?.trim() ||
+                  "ยังไม่ตั้งค่า VITE_LIFF_URL"}
+              </dd>
+            </div>
+          </dl>
+        ) : null}
+
+        <p className="staff-link">
+          <a href="/admin">สำหรับเจ้าหน้าที่</a>
+        </p>
+      </main>
+    </div>
   );
 }
 

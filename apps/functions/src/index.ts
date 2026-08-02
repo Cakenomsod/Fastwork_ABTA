@@ -388,6 +388,7 @@ async function handleMemberRegister(req: Request, res: Response): Promise<void> 
       legalEntityName:
         body.legalEntityName != null ? String(body.legalEntityName) : undefined,
       buildingName: body.buildingName != null ? String(body.buildingName) : undefined,
+      memberType: body.memberType != null ? String(body.memberType) : undefined,
       slipContentType: String(body.slipContentType ?? ""),
       slipBase64: String(body.slipBase64 ?? ""),
     });
@@ -574,6 +575,7 @@ async function handleRenew(req: Request, res: Response): Promise<void> {
       idToken: String(body.idToken ?? ""),
       slipContentType: String(body.slipContentType ?? ""),
       slipBase64: String(body.slipBase64 ?? ""),
+      memberType: body.memberType != null ? String(body.memberType) : undefined,
     });
     if (!result.ok) {
       res.status(result.status).json({ ok: false, error: result.error });

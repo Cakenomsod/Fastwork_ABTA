@@ -59,6 +59,7 @@
 | 04 | [04-renew.md](./04-renew.md) | `/renew` | **31** | +8 | 0 | 3 | Pending dead-end · a11y live/focus |
 | 05 | [05-slip-resubmit.md](./05-slip-resubmit.md) | `/slip` | **29** | +10 | 0 | 0 | P2: clear-file · success peak-end |
 | 06 | [06-seminar.md](./06-seminar.md) | `/seminar` | **26** | +4 | 0 | 2 | List empty-flash · success/a11y บาง |
+| 20 | [20-member-audit-2026-08-02.md](./20-member-audit-2026-08-02.md) | Member surfaces | — | 2026-08-02 | 0 | — | Bank+fees+สมทบ+Landing/Renew polish |
 
 ### Back Office
 

@@ -135,8 +135,17 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
     data.paymentDateLabel ?? data.updatedAtLabel ?? "—";
   const showWatermark = !official;
 
+  useEffect(() => {
+    if (!rejected) return;
+    const blockPrint = (e: Event) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeprint", blockPrint);
+    return () => window.removeEventListener("beforeprint", blockPrint);
+  }, [rejected]);
+
   return (
-    <div className="rcpt-content">
+    <div className={`rcpt-content${rejected ? " rcpt-content--rejected" : ""}`}>
       <div className="rcpt-toolbar no-print">
         <a className="rcpt-toolbar__link" href={statusLink(data.memberId)}>
           ← กลับไปสถานะสมาชิก
@@ -210,11 +219,28 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
           </div>
         </header>
 
+        <p
+          className={`rcpt-evidence${
+            official
+              ? " rcpt-evidence--ok"
+              : rejected
+                ? " rcpt-evidence--no"
+                : " rcpt-evidence--draft"
+          }`}
+          role="status"
+        >
+          {official
+            ? "ใช้เป็นหลักฐานการชำระเงินได้ — ใบเสร็จตัวจริง"
+            : rejected
+              ? "ใช้เป็นหลักฐานไม่ได้ — การชำระเงินไม่ผ่านการตรวจสอบ"
+              : "ยังใช้เป็นหลักฐานไม่ได้ — เอกสารแบบร่าง / รอตรวจสอบ"}
+        </p>
+
         <p className="rcpt-intro">
           {official
             ? "ได้รับเงินจากสมาชิกดังรายการด้านล่างนี้แล้ว"
             : rejected
-              ? "เอกสารนี้ไม่ใช่ใบเสร็จรับเงิน — การชำระเงินไม่ผ่านการตรวจสอบ"
+              ? "เอกสารนี้ไม่ใช่ใบเสร็จรับเงิน — กรุณาส่งสลิปใหม่ตามที่เจ้าหน้าที่แจ้ง"
               : "เอกสารนี้ยังไม่ใช่ใบเสร็จตัวจริง — แสดงรายการตามที่ระบบบันทึกไว้เท่านั้น"}
         </p>
 

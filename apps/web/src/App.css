@@ -1,9 +1,45 @@
 @import "./pages/shared.css";
 
+.landing-shell {
+  position: relative;
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+.landing-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      ellipse 90% 55% at 50% -10%,
+      var(--page-green-highlight) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 70% 45% at 100% 100%,
+      rgba(201, 162, 75, 0.12) 0%,
+      transparent 50%
+    ),
+    linear-gradient(
+      180deg,
+      var(--page-bg) 0%,
+      #e8efe9 100%
+    );
+}
+
+.landing-kicker {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--page-muted);
+  letter-spacing: 0.01em;
+}
+
 .page {
   max-width: 28rem;
   margin: 0 auto;
-  padding: clamp(4rem, 18vh, 8rem) 1.5rem 3rem;
+  padding: clamp(3.5rem, 14vh, 7rem) 1.5rem 3rem;
   color: var(--page-ink);
 }
 
@@ -105,6 +141,21 @@
   background: rgba(15, 76, 54, 0.04);
 }
 
+.page .landing-btn--ghost {
+  background: transparent;
+  color: var(--page-muted);
+  border: none;
+  min-height: 2.25rem;
+  font-weight: 500;
+  font-size: 0.92rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.page .landing-btn--ghost:hover {
+  color: var(--page-green-primary);
+}
+
 .page .meta {
   margin: 2rem 0 0;
   display: grid;
@@ -131,8 +182,9 @@
 }
 
 .page .staff-link {
-  margin: 2rem 0 0;
-  font-size: 0.85rem;
+  margin: 3rem 0 0;
+  font-size: 0.78rem;
+  opacity: 0.72;
 }
 
 .page .staff-link a {

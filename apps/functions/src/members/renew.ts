@@ -4,15 +4,21 @@
 
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { MEMBERSHIP_FEE_THB, WEB_ORIGIN, getLoginChannelId } from "../config";
+import { WEB_ORIGIN, getLoginChannelId } from "../config";
 import { verifyLineIdToken } from "../line/verify-id-token";
 import { pushMessages } from "../line/client";
 import { textMessage } from "../line/messages";
 import { allocateTempReceiptNumber } from "../admin/receipts";
 import {
   applyExpiryToMemberStatus,
+  MEMBER_TYPE_LABEL,
   nextMembershipExpiryDec31,
 } from "./membership";
+import {
+  parsePayableMemberType,
+  payableTypeFromMemberType,
+  renewMembershipFeeThb,
+} from "./fees";
 import { resolvePublicToken } from "./public-token";
 import {
   MEMBERS_COLLECTION,
@@ -35,6 +41,9 @@ export type RenewDraftResult =
       status: string;
       expiryDate?: string;
       feeThb: number;
+      memberType: string;
+      memberTypeLabel: string;
+      statusUrl: string;
       pendingRenewal: boolean;
       receiptStatus: string;
     }
@@ -119,6 +128,9 @@ export async function getRenewDraft(idToken: string): Promise<RenewDraftResult> 
   }
 
   const payment = await findLatestPayment(member.memberId);
+  const payableType = payableTypeFromMemberType(member.memberType);
+  const token = resolvePublicToken(member.publicToken);
+  const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
   return {
     ok: true,
     memberId: member.memberId,
@@ -126,7 +138,11 @@ export async function getRenewDraft(idToken: string): Promise<RenewDraftResult> 
     lastName: member.lastName,
     status: member.status,
     expiryDate: member.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
-    feeThb: MEMBERSHIP_FEE_THB,
+    feeThb: renewMembershipFeeThb(payableType),
+    memberType: payableType,
+    memberTypeLabel:
+      member.memberTypeLabel?.trim() || MEMBER_TYPE_LABEL[payableType],
+    statusUrl,
     pendingRenewal: hasPendingRenewal(payment),
     receiptStatus: payment?.receiptStatus ?? "none",
   };
@@ -136,6 +152,8 @@ export async function renewMembership(input: {
   idToken: string;
   slipContentType: string;
   slipBase64: string;
+  /** Target type for renew / type change — defaults to current member type. */
+  memberType?: string;
 }): Promise<RenewResult> {
   const verified = await verifyLineUser(input.idToken);
   if (!verified.ok) return verified;
@@ -150,6 +168,12 @@ export async function renewMembership(input: {
   if (hasPendingRenewal(latest) && latest?.receiptStatus !== "rejected") {
     return { ok: false, error: "renewal_pending", status: 409 };
   }
+
+  const targetType = parsePayableMemberType(
+    input.memberType,
+    payableTypeFromMemberType(member.memberType),
+  );
+  const feeThb = renewMembershipFeeThb(targetType);
 
   const contentType = (input.slipContentType || "").toLowerCase();
   if (!ALLOWED_SLIP_TYPES.has(contentType)) {
@@ -183,7 +207,7 @@ export async function renewMembership(input: {
     receiptStatus: "temp",
     receiptUrl,
     slipUrl: uploaded.slipUrl,
-    amount: MEMBERSHIP_FEE_THB,
+    amount: feeThb,
     paymentKind: "renewal",
     status: "slip_review",
     createdAt: now,
@@ -198,6 +222,8 @@ export async function renewMembership(input: {
     {
       publicToken: token,
       linkType: "renewal",
+      memberType: targetType,
+      memberTypeLabel: MEMBER_TYPE_LABEL[targetType],
       updatedAt: now,
     },
     { merge: true },
@@ -208,12 +234,13 @@ export async function renewMembership(input: {
     await pushMessages(verified.lineUserId, [
       textMessage(
         [
-          "✅ รับคำขอต่ออายุแล้ว",
+          "รับคำขอต่ออายุสมาชิกแล้วครับ",
           `เลขสมาชิก: ${member.memberId}`,
+          `ประเภท: ${MEMBER_TYPE_LABEL[targetType]}`,
           `เลขใบเสร็จชั่วคราว: ${receiptNumber}`,
-          `ค่าธรรมเนียม: ${MEMBERSHIP_FEE_THB} บาท`,
+          `ค่าธรรมเนียม: ${feeThb.toLocaleString("th-TH")} บาท`,
           "",
-          "รอเหรัญญิกตรวจสอบสลิปครับ",
+          "เจ้าหน้าที่กำลังตรวจสอบสลิป — จะแจ้งผลทาง LINE อีกครั้งครับ",
           `ดูสถานะ: ${statusUrl}`,
         ].join("\n"),
       ),
@@ -223,9 +250,11 @@ export async function renewMembership(input: {
   }
 
   void notifyStaff([
-    "🔄 คำขอต่ออายุสมาชิก",
+    "คำขอต่ออายุสมาชิก",
     `เลขสมาชิก: ${member.memberId}`,
     `ชื่อ: ${member.firstName} ${member.lastName}`,
+    `ประเภท: ${MEMBER_TYPE_LABEL[targetType]}`,
+    `ค่าธรรมเนียม: ${feeThb} บาท`,
     `เลขใบเสร็จชั่วคราว: ${receiptNumber}`,
     "รอคิวเหรัญญิกตรวจสลิป",
   ]);
@@ -235,7 +264,7 @@ export async function renewMembership(input: {
     memberId: member.memberId,
     statusUrl,
     receiptNumber,
-    feeThb: MEMBERSHIP_FEE_THB,
+    feeThb,
     expiryDate: member.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
   };
 }

@@ -94,6 +94,11 @@ export default function SlipResubmitPage() {
     });
   }
 
+  function clearSlip() {
+    if (slip.kind === "ready") URL.revokeObjectURL(slip.previewUrl);
+    setSlip({ kind: "empty" });
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (slip.kind !== "ready") return;
@@ -263,6 +268,15 @@ export default function SlipResubmitPage() {
                       </>
                     )}
                   </label>
+                  {slip.kind === "ready" ? (
+                    <button
+                      type="button"
+                      className="reg-btn reg-btn--ghost reg-upload-clear"
+                      onClick={clearSlip}
+                    >
+                      ลบรูป / เลือกใหม่
+                    </button>
+                  ) : null}
                   {slip.kind === "error" ? (
                     <p className="reg-field-error" role="alert">
                       {slip.message}

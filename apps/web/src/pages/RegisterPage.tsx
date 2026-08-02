@@ -25,9 +25,15 @@ import {
   PaymentConfirmPanel,
   TransferBankBlock,
 } from "./TransferBank";
+import {
+  formatFeeThb,
+  memberTypeLabel,
+  newMembershipFeeThb,
+  PAYABLE_MEMBER_TYPE_OPTIONS,
+  type PayableMemberType,
+} from "../lib/membership-fees";
 import "./register.css";
 
-const FEE_THB = 500;
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/jpg", "image/png"]);
 
@@ -42,6 +48,7 @@ type FormState = {
   phone: string;
   email: string;
   buildingName: string;
+  memberType: PayableMemberType;
 };
 
 type FieldKey = "firstName" | "lastName" | "phone" | "slip";
@@ -84,6 +91,7 @@ const emptyForm: FormState = {
   phone: "0",
   email: "",
   buildingName: "",
+  memberType: "ordinary",
 };
 
 function initialRegMode(): RegMode {
@@ -275,6 +283,7 @@ export default function RegisterPage() {
             phone: phoneDigits || "0",
             email: draft.email ?? "",
             buildingName: draft.buildingName ?? "",
+            memberType: "ordinary",
           });
         }
         setDraftState({ phase: "ready", draft });
@@ -400,6 +409,13 @@ export default function RegisterPage() {
     setConfirmOpen(false);
   }
 
+  function clearSlip() {
+    if (slip.kind === "ready") URL.revokeObjectURL(slip.previewUrl);
+    setSlip({ kind: "empty" });
+    setConfirmOpen(false);
+    if (slipInputRef.current) slipInputRef.current.value = "";
+  }
+
   function onNewStepPersonalNext(e: FormEvent) {
     e.preventDefault();
     const errors = validatePersonalFields();
@@ -476,6 +492,7 @@ export default function RegisterPage() {
         email: form.email || undefined,
         legalEntityName: form.legalEntityName || undefined,
         buildingName: form.buildingName || undefined,
+        memberType: form.memberType,
         slipContentType: slip.file.type,
         slipBase64,
       });
@@ -1001,7 +1018,7 @@ export default function RegisterPage() {
                   </p>
                   <LegacyMatchCard match={selectedMatch} selected />
                   <p className="reg-confirm__warn">
-                    หลังยืนยัน จะได้รับ Member ID ใหม่และใช้สิทธิ์สมาชิกตามสถานะเดิมทันที
+                    หลังยืนยัน จะได้รับเลขสมาชิกใหม่และใช้สิทธิ์สมาชิกตามสถานะเดิมทันที
                   </p>
 
                   {legacyBind.phase === "error" && (
@@ -1122,8 +1139,12 @@ export default function RegisterPage() {
                     },
                     { label: "เบอร์โทร", value: form.phone },
                     {
+                      label: "ประเภทสมาชิก",
+                      value: memberTypeLabel(form.memberType),
+                    },
+                    {
                       label: "ค่าธรรมเนียม",
-                      value: `${FEE_THB.toLocaleString("th-TH")} บาท`,
+                      value: formatFeeThb(newMembershipFeeThb(form.memberType)),
                     },
                   ]}
                   slipPreviewUrl={slip.previewUrl}
@@ -1142,6 +1163,33 @@ export default function RegisterPage() {
                   {newStep === 1 && (
                     <section className="reg-section">
                       <h2 className="reg-section__title">ข้อมูลส่วนตัว</h2>
+                      <label className="reg-field">
+                        <span>
+                          ประเภทสมาชิก <em className="req">*</em>
+                        </span>
+                        <select
+                          name="memberType"
+                          value={form.memberType}
+                          onChange={(e) => {
+                            const value = e.target.value as PayableMemberType;
+                            setForm((prev) => ({
+                              ...prev,
+                              memberType: value,
+                            }));
+                          }}
+                          required
+                        >
+                          {PAYABLE_MEMBER_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label} —{" "}
+                              {formatFeeThb(newMembershipFeeThb(opt.value))}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="reg-field-hint">
+                          ค่าสมัครใหม่รวมค่าแรกเข้า 500 บาทแล้ว
+                        </p>
+                      </label>
                       <div className="reg-row">
                         <label className="reg-field">
                           <span>
@@ -1274,8 +1322,12 @@ export default function RegisterPage() {
                       <section className="reg-section">
                         <h2 className="reg-section__title">หลักฐานการชำระเงิน</h2>
                         <div className="reg-fee">
-                          <span>ค่าธรรมเนียมสมาชิก</span>
-                          <strong>{FEE_THB.toLocaleString("th-TH")} บาท</strong>
+                          <span>
+                            ค่าธรรมเนียมสมาชิก ({memberTypeLabel(form.memberType)})
+                          </span>
+                          <strong>
+                            {formatFeeThb(newMembershipFeeThb(form.memberType))}
+                          </strong>
                         </div>
                         <TransferBankBlock />
                         {canPay ? (
@@ -1316,6 +1368,15 @@ export default function RegisterPage() {
                                 </>
                               )}
                             </label>
+                            {slip.kind === "ready" ? (
+                              <button
+                                type="button"
+                                className="reg-btn reg-btn--ghost reg-upload-clear"
+                                onClick={clearSlip}
+                              >
+                                ลบรูป / เลือกใหม่
+                              </button>
+                            ) : null}
                             {(fieldErrors.slip || slip.kind === "error") && (
                               <p
                                 id="reg-err-slip"
@@ -1333,7 +1394,7 @@ export default function RegisterPage() {
                       <div className="reg-warn">
                         {isResubmit
                           ? "หลังส่ง นายทะเบียนจะตรวจข้อมูลใหม่อีกครั้ง · เลขสมาชิกชั่วคราวเดิมยังใช้ได้"
-                          : "หลังส่ง จะได้รับ Member ID ชั่วคราวทันที — ใช้สิทธิ์ครบ · ใบเสร็จชั่วคราวออกหลังนายทะเบียนอนุมัติข้อมูล"}
+                          : "หลังส่ง จะได้รับเลขสมาชิกชั่วคราวทันที — ใช้สิทธิ์ครบ · ใบเสร็จชั่วคราวออกหลังนายทะเบียนอนุมัติข้อมูล"}
                       </div>
                     </>
                   )}

@@ -297,6 +297,12 @@
   color: var(--page-field-muted);
 }
 
+.reg-upload:focus-within {
+  border-color: var(--page-green-primary);
+  outline: 2px solid var(--page-green-primary);
+  outline-offset: 2px;
+}
+
 .reg-upload input {
   position: absolute;
   inset: 0;
@@ -320,6 +326,13 @@
 .reg-upload small {
   font-size: 0.78rem;
   color: var(--abta-muted);
+}
+
+.reg-upload-clear {
+  margin-top: 0.55rem;
+  width: 100%;
+  min-height: 2.5rem;
+  font-size: 0.9rem;
 }
 
 .reg-field-error,

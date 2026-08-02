@@ -8,11 +8,17 @@
 import { Timestamp } from "firebase-admin/firestore";
 import type { MemberStatus } from "./types";
 
-export type MemberType = "ordinary" | "extraordinary" | "honorary" | "other";
+export type MemberType =
+  | "ordinary"
+  | "extraordinary"
+  | "associate"
+  | "honorary"
+  | "other";
 
 export const MEMBER_TYPE_LABEL: Record<MemberType, string> = {
   ordinary: "สามัญ",
   extraordinary: "วิสามัญ",
+  associate: "สมทบ",
   honorary: "กิตติมาศักดิ์",
   other: "อื่น ๆ",
 };
@@ -129,6 +135,7 @@ export function normalizeMemberType(
     return "ordinary";
   }
   if (s === "extraordinary" || s.includes("วิสามัญ")) return "extraordinary";
+  if (s === "associate" || s.includes("สมทบ")) return "associate";
   if (s === "honorary" || s.includes("กิตติม")) return "honorary";
   if (s === "other") return "other";
   if (s.includes("สามัญ")) return "ordinary";
