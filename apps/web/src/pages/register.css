@@ -339,6 +339,25 @@
   font-size: 0.9rem;
 }
 
+/* Ghost + warn tokens target the dark page bg; inside the light form card use readable ink */
+.reg-form .reg-btn--ghost.reg-upload-clear {
+  color: #4a5c52;
+  border-color: #b7c9bf;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.reg-form .reg-btn--ghost.reg-upload-clear:hover {
+  color: #2f3f36;
+  border-color: #8fa89a;
+  background: #fff;
+}
+
+.reg-form .reg-warn {
+  color: var(--page-ink);
+  background: rgba(201, 162, 75, 0.22);
+  border-color: rgba(181, 71, 8, 0.32);
+}
+
 .reg-field-error,
 .reg-form-error {
   margin: 0.35rem 0 0;
