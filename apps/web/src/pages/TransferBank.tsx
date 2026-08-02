@@ -73,6 +73,8 @@ type PaymentConfirmPanelProps = {
   rows: PaymentConfirmRow[];
   slipPreviewUrl?: string;
   confirmLabel: string;
+  /** Override default payment/slip warning copy (e.g. free seminar). */
+  warnText?: string;
   busy?: boolean;
   error?: string | null;
   onConfirm: () => void;
@@ -86,6 +88,7 @@ export function PaymentConfirmPanel({
   rows,
   slipPreviewUrl,
   confirmLabel,
+  warnText,
   busy = false,
   error,
   onConfirm,
@@ -111,7 +114,8 @@ export function PaymentConfirmPanel({
         />
       ) : null}
       <p className="reg-confirm__warn">
-        ตรวจสอบยอดและสลิปให้ถูกต้องก่อนยืนยัน — หลังส่งแล้วรอเจ้าหน้าที่ตรวจ
+        {warnText ??
+          "ตรวจสอบยอดและสลิปให้ถูกต้องก่อนยืนยัน — หลังส่งแล้วรอเจ้าหน้าที่ตรวจ"}
       </p>
       {error ? (
         <p className="reg-form-error" role="alert">

@@ -81,7 +81,7 @@ export default function SeminarPage() {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
-    phone: "",
+    phone: "0",
     email: "",
     shirtSize: "",
     foodType: "",
@@ -140,11 +140,12 @@ export default function SeminarPage() {
         const memberForPricing = draft.status !== "expired";
         setIsMember(memberForPricing);
         if (memberForPricing) {
+          const phoneDigits = (draft.phone || "").replace(/\D/g, "").slice(0, 10);
           setForm((f) => ({
             ...f,
             firstName: draft.firstName || f.firstName,
             lastName: draft.lastName || f.lastName,
-            phone: draft.phone || f.phone,
+            phone: phoneDigits || f.phone,
             applicantType: "member_free",
           }));
         }
@@ -261,8 +262,12 @@ export default function SeminarPage() {
       setError("กรุณาเปิดจาก LINE OA");
       return;
     }
+    const phoneDigits = form.phone.replace(/\D/g, "").slice(0, 10);
+    if (phoneDigits !== form.phone) {
+      setForm((f) => ({ ...f, phone: phoneDigits }));
+    }
     setPhoneTouched(true);
-    if (!isValidThaiMobile(form.phone)) {
+    if (!isValidThaiMobile(phoneDigits)) {
       setError("กรุณากรอกเบอร์โทรให้ครบ 10 หลัก เช่น 080-802-6677");
       return;
     }
@@ -277,6 +282,7 @@ export default function SeminarPage() {
       }
     }
     setError(null);
+    // Always review before submit — free member and paid public alike.
     setConfirmOpen(true);
   }
 
@@ -537,8 +543,12 @@ export default function SeminarPage() {
                   </div>
                 ) : confirmOpen ? (
                   <PaymentConfirmPanel
-                    title="ยืนยันสมัครสัมมนา"
-                    lead="ตรวจสอบข้อมูลก่อนส่งคำขอ"
+                    title="ยืนยันข้อมูลก่อนสมัคร"
+                    lead={
+                      fee > 0
+                        ? "ตรวจสอบยอด สลิป และข้อมูลผู้สมัครก่อนส่งคำขอ"
+                        : "ตรวจสอบข้อมูลผู้สมัครก่อนยืนยันสมัครสัมมนา (ไม่เสียค่าสมัคร)"
+                    }
                     rows={[
                       { label: "งาน", value: selected.title },
                       {
@@ -576,6 +586,11 @@ export default function SeminarPage() {
                         : undefined
                     }
                     confirmLabel="ยืนยันสมัครสัมมนา"
+                    warnText={
+                      fee > 0
+                        ? "ตรวจสอบยอดและสลิปให้ถูกต้องก่อนยืนยัน — หลังส่งแล้วรอเจ้าหน้าที่ตรวจ"
+                        : "ตรวจสอบชื่อ เบอร์โทร และประเภทผู้สมัครให้ถูกต้องก่อนยืนยัน — หลังส่งแล้วรอเจ้าหน้าที่ยืนยันสิทธิ์"
+                    }
                     busy={busy}
                     error={error}
                     onConfirm={() => void doSubmit()}

@@ -5,6 +5,7 @@ import {
   type ClipboardEvent,
   type KeyboardEvent,
   type ChangeEvent,
+  type ReactNode,
 } from "react";
 
 const PHONE_LEN = 10;
@@ -140,6 +141,52 @@ const PhoneDigitInput = forwardRef<PhoneDigitInputHandle, Props>(
       focusAt(firstEmpty === -1 ? PHONE_LEN - 1 : firstEmpty);
     }
 
+    const boxes: ReactNode[] = [];
+    for (let index = 0; index < PHONE_LEN; index++) {
+      if (index === 3 || index === 6) {
+        boxes.push(
+          <span key={`dash-${index}`} className="reg-phone-dash" aria-hidden>
+            -
+          </span>,
+        );
+      }
+      const digit = digits[index] ?? "";
+      const locked = index === 0;
+      boxes.push(
+        <input
+          key={`d-${index}`}
+          ref={(el) => {
+            refs.current[index] = el;
+          }}
+          id={index === 1 ? id : undefined}
+          className={`reg-phone-digit${locked ? " reg-phone-digit--locked" : ""}`}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete={index === 1 ? "tel-national" : "off"}
+          maxLength={1}
+          value={digit}
+          readOnly={locked}
+          tabIndex={locked ? -1 : 0}
+          disabled={disabled}
+          aria-label={
+            locked ? "หลักที่ 1 คงที่เป็น 0" : `หลักที่ ${index + 1}`
+          }
+          aria-invalid={ariaInvalid}
+          onChange={(e) => onInputChange(index, e)}
+          onKeyDown={(e) => onKeyDown(index, e)}
+          onPaste={onPaste}
+          onFocus={(e) => {
+            if (locked) {
+              focusAt(1);
+              return;
+            }
+            e.target.select();
+          }}
+        />,
+      );
+    }
+
     return (
       <div
         className="reg-phone-digits"
@@ -148,53 +195,14 @@ const PhoneDigitInput = forwardRef<PhoneDigitInputHandle, Props>(
         aria-describedby={ariaDescribedBy}
         aria-invalid={ariaInvalid}
       >
-        {digits.map((digit, index) => {
-          const locked = index === 0;
-          const showDash = index === 3 || index === 6;
-          return (
-            <span key={index} className="reg-phone-digit-wrap">
-              {showDash ? (
-                <span className="reg-phone-dash" aria-hidden>
-                  -
-                </span>
-              ) : null}
-              <input
-                ref={(el) => {
-                  refs.current[index] = el;
-                }}
-                id={index === 1 ? id : undefined}
-                className={`reg-phone-digit${locked ? " reg-phone-digit--locked" : ""}`}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete={index === 1 ? "tel-national" : "off"}
-                maxLength={1}
-                value={digit}
-                readOnly={locked}
-                tabIndex={locked ? -1 : 0}
-                disabled={disabled}
-                aria-label={
-                  locked
-                    ? "หลักที่ 1 คงที่เป็น 0"
-                    : `หลักที่ ${index + 1}`
-                }
-                aria-invalid={ariaInvalid}
-                onChange={(e) => onInputChange(index, e)}
-                onKeyDown={(e) => onKeyDown(index, e)}
-                onPaste={onPaste}
-                onFocus={(e) => {
-                  if (locked) {
-                    focusAt(1);
-                    return;
-                  }
-                  e.target.select();
-                }}
-              />
-            </span>
-          );
-        })}
+        {boxes}
         {/* Hidden field for native form / autofill association */}
-        <input type="hidden" name="phone" value={joinDigits(digits)} autoComplete="tel-national" />
+        <input
+          type="hidden"
+          name="phone"
+          value={joinDigits(digits)}
+          autoComplete="tel-national"
+        />
       </div>
     );
   },

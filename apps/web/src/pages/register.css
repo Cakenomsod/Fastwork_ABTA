@@ -486,38 +486,38 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 0.28rem;
+  justify-content: space-between;
+  gap: 0.22rem;
   width: 100%;
   min-width: 0;
 }
 
-.reg-phone-digit-wrap {
-  display: contents;
-}
-
 .reg-phone-dash {
   flex: 0 0 auto;
+  width: 0.55rem;
+  text-align: center;
   color: var(--page-muted, rgba(255, 255, 255, 0.55));
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: 800;
+  font-size: 1.05rem;
   line-height: 1;
   user-select: none;
-  padding: 0 0.05rem;
 }
 
 .reg-field .reg-phone-digit {
   flex: 1 1 0;
   width: 0;
-  min-width: 0;
-  max-width: 2.4rem;
-  aspect-ratio: 1 / 1.15;
+  min-width: 1.55rem;
+  max-width: 2.55rem;
+  height: 2.55rem;
+  aspect-ratio: auto;
   padding: 0;
   text-align: center;
-  font-size: clamp(0.85rem, 3.6vw, 1.05rem);
+  font-size: clamp(0.9rem, 3.8vw, 1.1rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   border-radius: 10px;
   caret-color: var(--page-green-primary);
+  box-sizing: border-box;
 }
 
 .reg-field .reg-phone-digit--locked {
