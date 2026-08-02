@@ -8,6 +8,7 @@ import {
   updateAdminSeminar,
 } from "../../lib/admin-api";
 import { ConfirmDialog } from "../ConfirmDialog";
+import SlipImage from "../SlipImage";
 
 type Seminar = {
   seminarId: string;
@@ -25,9 +26,17 @@ type Registration = {
   seminarTitle?: string;
   firstName: string;
   lastName: string;
+  phone?: string;
+  email?: string;
   applicantType: string;
   feeThb: number;
   status: string;
+  shirtSize?: string;
+  foodType?: string;
+  notes?: string;
+  slipUrl?: string;
+  slipViewUrl?: string;
+  memberId?: string;
 };
 
 /** Actionable queue: awaiting staff decide (รอพิจารณา + ชำระแล้ว). */
@@ -199,6 +208,7 @@ export default function SeminarsPage() {
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [closing, setClosing] = useState<Seminar | null>(null);
   const [rejecting, setRejecting] = useState<Registration | null>(null);
+  const [detail, setDetail] = useState<Registration | null>(null);
 
   const isEditing = editingId != null;
   const audienceOk = form.allowPublic || form.allowMember;
@@ -334,6 +344,9 @@ export default function SeminarsPage() {
         registrationId,
         approve: true,
       });
+      setDetail((d) =>
+        d?.registrationId === registrationId ? null : d,
+      );
       await reload();
     } catch (err) {
       setError(errorMessage(err, "decide_failed"));
@@ -354,6 +367,9 @@ export default function SeminarsPage() {
         reason: reason.trim(),
       });
       setRejecting(null);
+      setDetail((d) =>
+        d?.registrationId === registrationId ? null : d,
+      );
       await reload();
     } catch (err) {
       setError(errorMessage(err, "decide_failed"));
@@ -765,29 +781,38 @@ export default function SeminarsPage() {
                       </td>
                       <td>{regStatusBadge(r.status)}</td>
                       <td>
-                        {r.status !== "confirmed" &&
-                        r.status !== "rejected" ? (
-                          <div className="bo-seminar-reg-actions">
-                            <button
-                              type="button"
-                              className="bo-btn bo-btn-primary bo-btn-sm"
-                              disabled={rowBusy}
-                              onClick={() =>
-                                void approveRegistration(r.registrationId)
-                              }
-                            >
-                              {rowBusy ? "กำลังบันทึก…" : "อนุมัติ"}
-                            </button>
-                            <button
-                              type="button"
-                              className="bo-btn bo-btn-ghost bo-btn-sm"
-                              disabled={rowBusy}
-                              onClick={() => setRejecting(r)}
-                            >
-                              ปฏิเสธ
-                            </button>
-                          </div>
-                        ) : null}
+                        <div className="bo-seminar-reg-actions">
+                          <button
+                            type="button"
+                            className="bo-btn bo-btn-ghost bo-btn-sm"
+                            onClick={() => setDetail(r)}
+                          >
+                            ดูรายละเอียด
+                          </button>
+                          {r.status !== "confirmed" &&
+                          r.status !== "rejected" ? (
+                            <>
+                              <button
+                                type="button"
+                                className="bo-btn bo-btn-primary bo-btn-sm"
+                                disabled={rowBusy}
+                                onClick={() =>
+                                  void approveRegistration(r.registrationId)
+                                }
+                              >
+                                {rowBusy ? "กำลังบันทึก…" : "อนุมัติ"}
+                              </button>
+                              <button
+                                type="button"
+                                className="bo-btn bo-btn-ghost bo-btn-sm"
+                                disabled={rowBusy}
+                                onClick={() => setRejecting(r)}
+                              >
+                                ปฏิเสธ
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -797,6 +822,137 @@ export default function SeminarsPage() {
           </table>
         </div>
       </section>
+
+      {detail ? (
+        <div
+          className="bo-detail-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDetail(null);
+          }}
+        >
+          <div
+            className="bo-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sem-reg-detail-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="bo-detail-modal-head">
+              <div className="bo-detail-modal-head-text">
+                <p className="bo-detail-modal-eyebrow">ใบสมัครสัมมนา</p>
+                <h2 id="sem-reg-detail-title" className="bo-detail-modal-title">
+                  {detail.firstName} {detail.lastName}
+                </h2>
+                <p className="bo-detail-modal-sub">
+                  <code>{detail.registrationId}</code>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="bo-detail-modal-close"
+                aria-label="ปิด"
+                onClick={() => setDetail(null)}
+              >
+                ×
+              </button>
+            </header>
+            <div className="bo-detail-modal-body">
+              <section className="bo-detail-modal-summary">
+                <div className="bo-detail-row">
+                  <span>งาน</span>
+                  <strong>
+                    {resolveSeminarTitle(
+                      detail.seminarId,
+                      detail.seminarTitle,
+                      titleById,
+                    ) || "—"}
+                  </strong>
+                </div>
+                <div className="bo-detail-row">
+                  <span>ประเภท</span>
+                  <strong>
+                    {pricingLabel(detail.applicantType)} (
+                    {formatFee(detail.feeThb)})
+                  </strong>
+                </div>
+                <div className="bo-detail-row">
+                  <span>สถานะ</span>
+                  <strong>{statusLabel(detail.status)}</strong>
+                </div>
+                <div className="bo-detail-row">
+                  <span>เบอร์โทร</span>
+                  <strong>{detail.phone || "—"}</strong>
+                </div>
+                <div className="bo-detail-row">
+                  <span>อีเมล</span>
+                  <strong>{detail.email || "—"}</strong>
+                </div>
+                <div className="bo-detail-row">
+                  <span>ไซส์เสื้อ</span>
+                  <strong>{detail.shirtSize || "—"}</strong>
+                </div>
+                <div className="bo-detail-row">
+                  <span>ประเภทอาหาร</span>
+                  <strong>{detail.foodType || "—"}</strong>
+                </div>
+                <div className="bo-detail-row">
+                  <span>หมายเหตุ</span>
+                  <strong>{detail.notes || "—"}</strong>
+                </div>
+                {detail.memberId ? (
+                  <div className="bo-detail-row">
+                    <span>เลขสมาชิก</span>
+                    <strong>
+                      <code>{detail.memberId}</code>
+                    </strong>
+                  </div>
+                ) : null}
+              </section>
+              <section style={{ marginTop: "1rem" }}>
+                <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.95rem" }}>
+                  สลิปโอนเงิน
+                </h3>
+                <SlipImage
+                  slipViewUrl={detail.slipViewUrl}
+                  emptyHint={
+                    detail.feeThb > 0
+                      ? "ไม่พบสลิปแนบ"
+                      : "สมัครฟรี — ไม่มีสลิป"
+                  }
+                />
+              </section>
+              {detail.status !== "confirmed" &&
+              detail.status !== "rejected" ? (
+                <div
+                  className="bo-seminar-reg-actions"
+                  style={{ marginTop: "1.25rem" }}
+                >
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-primary"
+                    disabled={decidingId === detail.registrationId}
+                    onClick={() =>
+                      void approveRegistration(detail.registrationId)
+                    }
+                  >
+                    {decidingId === detail.registrationId
+                      ? "กำลังบันทึก…"
+                      : "อนุมัติ"}
+                  </button>
+                  <button
+                    type="button"
+                    className="bo-btn bo-btn-ghost"
+                    disabled={decidingId === detail.registrationId}
+                    onClick={() => setRejecting(detail)}
+                  >
+                    ปฏิเสธ
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ConfirmDialog
         open={closing != null}

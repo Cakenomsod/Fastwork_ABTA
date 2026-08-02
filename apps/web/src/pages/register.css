@@ -485,9 +485,24 @@
 .reg-phone-digits {
   display: flex;
   flex-wrap: nowrap;
+  align-items: center;
   gap: 0.28rem;
   width: 100%;
   min-width: 0;
+}
+
+.reg-phone-digit-wrap {
+  display: contents;
+}
+
+.reg-phone-dash {
+  flex: 0 0 auto;
+  color: var(--page-muted, rgba(255, 255, 255, 0.55));
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  user-select: none;
+  padding: 0 0.05rem;
 }
 
 .reg-field .reg-phone-digit {

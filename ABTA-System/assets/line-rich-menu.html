@@ -7,28 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Sarabun:wght@500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Sarabun:wght@500;600;700;800&display=swap"
     rel="stylesheet"
   />
   <style>
-    :root {
-      --green-deep: #0b3a29;
-      --green-mid: #14503a;
-      --green-light: #1c6f4c;
-      --green-highlight: #12513a;
-      --green-darker: #082a1e;
-      --gold: #c9a24b;
-      --gold-soft: #e4ce93;
-      --ink: #f7faf7;
-      --muted: #bcd8c9;
-      --line: rgba(201, 162, 75, 0.28);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: Sarabun, "Segoe UI", sans-serif;
@@ -38,14 +21,7 @@
       padding: 28px 20px 64px;
     }
 
-    .wrap {
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    header {
-      margin-bottom: 20px;
-    }
+    .wrap { max-width: 1080px; margin: 0 auto; }
 
     header h1 {
       font-size: 1.35rem;
@@ -64,7 +40,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin: 18px 0 22px;
+      margin: 18px 0 12px;
     }
 
     button {
@@ -84,24 +60,21 @@
       border: 1px solid #d5e0d9;
     }
 
-    button:disabled {
-      opacity: 0.55;
-      cursor: wait;
-    }
+    button:disabled { opacity: 0.55; cursor: wait; }
 
     .hint {
       font-size: 0.88rem;
       color: #4a5c52;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
       line-height: 1.5;
     }
 
     .stage {
-      overflow: auto;
       border-radius: 16px;
       border: 1px solid #d5e0d9;
-      background: #12211b;
+      background: #0a2e22;
       padding: 16px;
+      overflow: auto;
     }
 
     .scale-note {
@@ -110,145 +83,21 @@
       margin-bottom: 10px;
     }
 
-    /* Exact LINE Large Rich Menu size */
-    #board {
-      width: 2500px;
-      height: 1686px;
-      transform-origin: top left;
+    .preview-shell {
+      width: 100%;
+      max-width: 1000px;
+      aspect-ratio: 2500 / 1686;
       position: relative;
       overflow: hidden;
-      background:
-        radial-gradient(ellipse 90% 70% at 20% 0%, #12513a 0%, transparent 55%),
-        radial-gradient(ellipse 70% 60% at 90% 100%, rgba(201, 162, 75, 0.12) 0%, transparent 50%),
-        linear-gradient(160deg, #0b3a29 0%, #14503a 48%, #1c6f4c 100%);
-      color: var(--ink);
-      user-select: none;
+      border-radius: 8px;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(2, 1fr);
+    #preview {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
-    }
-
-    .cell {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 28px;
-      padding: 48px 36px;
-      text-align: center;
-      position: relative;
-    }
-
-    .cell:not(:nth-child(3n))::after {
-      content: "";
-      position: absolute;
-      top: 12%;
-      bottom: 12%;
-      right: 0;
-      width: 2px;
-      background: linear-gradient(
-        to bottom,
-        transparent,
-        var(--line) 15%,
-        var(--line) 85%,
-        transparent
-      );
-    }
-
-    .cell:nth-child(-n + 3)::before {
-      content: "";
-      position: absolute;
-      left: 10%;
-      right: 10%;
-      bottom: 0;
-      height: 2px;
-      background: linear-gradient(
-        to right,
-        transparent,
-        var(--line) 12%,
-        var(--line) 88%,
-        transparent
-      );
-    }
-
-    .icon {
-      width: 140px;
-      height: 140px;
-      border-radius: 36px;
-      display: grid;
-      place-items: center;
-      background: rgba(8, 42, 30, 0.35);
-      border: 2px solid rgba(201, 162, 75, 0.4);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    }
-
-    .icon svg {
-      width: 72px;
-      height: 72px;
-      stroke: var(--gold-soft);
-      fill: none;
-      stroke-width: 2.2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .label {
-      font-size: 72px;
-      font-weight: 700;
-      line-height: 1.2;
-      letter-spacing: -0.01em;
-      color: #fff;
-      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-      max-width: 11ch;
-    }
-
-    .label small {
       display: block;
-      margin-top: 8px;
-      font-size: 42px;
-      font-weight: 500;
-      color: var(--gold-soft);
-      letter-spacing: 0;
-    }
-
-    .brand {
-      position: absolute;
-      top: 28px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 28px;
-      font-weight: 600;
-      color: rgba(228, 206, 147, 0.55);
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    @media (max-width: 1200px) {
-      #board {
-        transform: scale(0.38);
-        margin-bottom: calc(1686px * -0.62);
-      }
-    }
-
-    @media (min-width: 1201px) and (max-width: 1600px) {
-      #board {
-        transform: scale(0.42);
-        margin-bottom: calc(1686px * -0.58);
-      }
-    }
-
-    @media (min-width: 1601px) {
-      #board {
-        transform: scale(0.42);
-        margin-bottom: calc(1686px * -0.58);
-      }
     }
   </style>
 </head>
@@ -257,146 +106,435 @@
     <header>
       <h1>ABTA LINE Rich Menu (Large 6 ช่อง)</h1>
       <p>
-        ขนาดจริง <strong>2500 × 1686 px</strong> · เปิดไฟล์นี้ใน Chrome แล้วกด
-        “ดาวน์โหลด PNG” เพื่ออัปโหลดใน LINE Official Account Manager
+        ขนาดจริง <strong>2500 × 1686 px</strong> · สไตล์ตกแต่งแนว Rich Menu ยอดนิยม
+        (พื้นนุ่ม · เส้นคั่นคลื่น · ไอคอนมีมิติ) · แบรนด์เขียว+ทองสมาคม
       </p>
     </header>
 
     <div class="actions">
       <button type="button" id="downloadBtn">ดาวน์โหลด PNG</button>
-      <button type="button" class="secondary" id="copyHintBtn">
-        คัดลอกขนาดภาพ
-      </button>
+      <button type="button" class="secondary" id="redrawBtn">วาดใหม่</button>
     </div>
     <p class="hint" id="status">
-      ถ้าปุ่มดาวน์โหลดใช้ไม่ได้: คลิกขวาที่กรอบเมนูด้านล่าง → Inspect องค์ประกอบ
-      <code>#board</code> แล้วใช้ส่วนขยายแคป หรือซูมหน้าจอให้เห็นครบแล้วแคป
+      ลำดับช่อง: 1 สมัครสมาชิก · 2 ยืนยันสมาชิกเก่า · 3 ต่ออายุ · 4 สัมมนา · 5 เช็คสถานะ · 6 ช่วยเหลือ
     </p>
 
     <div class="stage">
-      <div class="scale-note">พรีวิวย่อ · ไฟล์ที่ดาวน์โหลดจะเป็นขนาดเต็ม 2500×1686</div>
-      <div id="board" aria-label="LINE Rich Menu artboard">
-        <div class="brand">ABTA Member</div>
-        <div class="grid">
-          <div class="cell">
-            <div class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M19 8v6M22 11h-6" />
-              </svg>
-            </div>
-            <div class="label">สมัครสมาชิก</div>
-          </div>
-
-          <div class="cell">
-            <div class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-                <path d="m16 11 2 2 4-4" />
-              </svg>
-            </div>
-            <div class="label">ยืนยันสมาชิกเก่า</div>
-          </div>
-
-          <div class="cell">
-            <div class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M21 12a9 9 0 1 1-3-6.7" />
-                <path d="M21 3v6h-6" />
-              </svg>
-            </div>
-            <div class="label">ต่ออายุ</div>
-          </div>
-
-          <div class="cell">
-            <div class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                <path d="M8 7h8M8 11h6" />
-              </svg>
-            </div>
-            <div class="label">สัมมนา</div>
-          </div>
-
-          <div class="cell">
-            <div class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 8v4l3 2" />
-              </svg>
-            </div>
-            <div class="label">เช็คสถานะ</div>
-          </div>
-
-          <div class="cell">
-            <div class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4" />
-                <path d="M12 17h.01" />
-              </svg>
-            </div>
-            <div class="label">ช่วยเหลือ</div>
-          </div>
-        </div>
+      <div class="scale-note">พรีวิวสเกลตามหน้าจอ · ดาวน์โหลดได้ขนาดเต็ม 2500×1686 · ถ้าไฟล์เกิน 1MB ให้ Save เป็น JPG คุณภาพสูง</div>
+      <div class="preview-shell">
+        <canvas id="preview" width="2500" height="1686" aria-label="LINE Rich Menu"></canvas>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/modern-screenshot@4.6.0/dist/index.js"></script>
   <script>
-    const board = document.getElementById("board");
-    const btn = document.getElementById("downloadBtn");
-    const status = document.getElementById("status");
-    const copyHintBtn = document.getElementById("copyHintBtn");
+    const W = 2500;
+    const H = 1686;
 
-    copyHintBtn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText("2500 × 1686");
-        status.textContent = "คัดลอกขนาดภาพแล้ว: 2500 × 1686";
-      } catch {
-        status.textContent = "ขนาดภาพ: 2500 × 1686 (คัดลอกเองได้)";
+    /**
+     * Soft retail-menu layout (wavy dividers + large icons) adapted to ABTA brand.
+     * All short labels stay on ONE line; long legacy label may use slightly smaller type.
+     */
+    const CELLS = [
+      { label: "สมัครสมาชิก", icon: "register", size: "md" },
+      { label: "ยืนยันสมาชิกเก่า", icon: "legacy", size: "sm" },
+      { label: "ต่ออายุ", icon: "renew", size: "lg" },
+      { label: "สัมมนา", icon: "seminar", size: "lg" },
+      { label: "เช็คสถานะ", icon: "status", size: "md" },
+      { label: "ช่วยเหลือ", icon: "help", size: "lg" },
+    ];
+
+    const preview = document.getElementById("preview");
+    const statusEl = document.getElementById("status");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const redrawBtn = document.getElementById("redrawBtn");
+
+    function roundRect(ctx, x, y, w, h, r) {
+      const rr = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+    }
+
+    function waveY(baseY, x, amp, freq, phase) {
+      return baseY + Math.sin(x * freq + phase) * amp + Math.sin(x * freq * 2.1 + phase * 1.3) * (amp * 0.35);
+    }
+
+    function drawWavyLineH(ctx, x0, x1, baseY, amp, color) {
+      ctx.beginPath();
+      ctx.moveTo(x0, waveY(baseY, x0, amp, 0.012, 0.4));
+      for (let x = x0; x <= x1; x += 4) {
+        ctx.lineTo(x, waveY(baseY, x, amp, 0.012, 0.4));
       }
-    });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      ctx.stroke();
 
-    btn.addEventListener("click", async () => {
-      if (!window.modernScreenshot?.domToPng) {
-        status.textContent =
-          "โหลดไลบรารีแคปไม่สำเร็จ — เปิดผ่าน http หรือแคป #board เอง";
-        return;
+      // soft twin stroke for softness
+      ctx.beginPath();
+      ctx.moveTo(x0, waveY(baseY, x0, amp, 0.012, 0.4) + 6);
+      for (let x = x0; x <= x1; x += 4) {
+        ctx.lineTo(x, waveY(baseY, x, amp, 0.012, 0.4) + 6);
+      }
+      ctx.strokeStyle = "rgba(244, 233, 204, 0.22)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    function drawWavyLineV(ctx, y0, y1, baseX, amp, color) {
+      ctx.beginPath();
+      ctx.moveTo(waveY(baseX, y0, amp, 0.014, 1.1), y0);
+      for (let y = y0; y <= y1; y += 4) {
+        ctx.lineTo(waveY(baseX, y, amp, 0.014, 1.1), y);
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+
+    function drawDecorDots(ctx) {
+      const dots = [
+        [120, 210, 10], [2380, 230, 8], [180, 1550, 9],
+        [2320, 1520, 11], [1250, 200, 7], [900, 1600, 8],
+        [1600, 1580, 6], [400, 900, 5], [2100, 920, 5],
+      ];
+      for (const [x, y, r] of dots) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(201, 162, 75, 0.28)";
+        ctx.fill();
+      }
+    }
+
+    function drawSoftOrb(ctx, x, y, r, color) {
+      const g = ctx.createRadialGradient(x - r * 0.25, y - r * 0.3, r * 0.1, x, y, r);
+      g.addColorStop(0, color);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawHeader(ctx, headerH) {
+      // Soft banner ribbon
+      const ribbon = ctx.createLinearGradient(0, 0, 0, headerH);
+      ribbon.addColorStop(0, "rgba(28, 111, 76, 0.55)");
+      ribbon.addColorStop(0.7, "rgba(11, 58, 41, 0.25)");
+      ribbon.addColorStop(1, "rgba(11, 58, 41, 0)");
+      ctx.fillStyle = ribbon;
+      ctx.fillRect(0, 0, W, headerH);
+
+      // Decorative side flourishes
+      ctx.strokeStyle = "rgba(228, 206, 147, 0.55)";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(160, 58);
+      ctx.quadraticCurveTo(260, 28, 360, 54);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(160, 58, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "#e4ce93";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(W - 160, 58);
+      ctx.quadraticCurveTo(W - 260, 28, W - 360, 54);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(W - 160, 58, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      const cx = W / 2;
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "#e4ce93";
+      ctx.font = "800 66px Sarabun, sans-serif";
+      ctx.shadowColor = "rgba(0,0,0,0.35)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 3;
+      ctx.fillText("ABTA MEMBER", cx, 52);
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "#d4e8dc";
+      ctx.font = "600 26px Sarabun, sans-serif";
+      ctx.fillText("สมาคมการค้าผู้ประกอบการห้องเช่า", cx, 88);
+
+      drawWavyLineH(ctx, cx - 360, cx + 360, headerH - 10, 5, "rgba(201, 162, 75, 0.65)");
+    }
+
+    function drawIconBubble(ctx, cx, cy, size) {
+      const r = size / 2;
+
+      // Drop shadow
+      ctx.beginPath();
+      ctx.arc(cx + 6, cy + 14, r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+      ctx.fill();
+
+      // Soft 3D bubble face
+      const face = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.15, cx, cy, r);
+      face.addColorStop(0, "#2a8a5f");
+      face.addColorStop(0.45, "#186b4a");
+      face.addColorStop(1, "#0b3a29");
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = face;
+      ctx.fill();
+
+      // Gold rim
+      ctx.beginPath();
+      ctx.arc(cx, cy, r - 2, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(228, 206, 147, 0.7)";
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      // Specular highlight
+      ctx.beginPath();
+      ctx.ellipse(cx - r * 0.28, cy - r * 0.32, r * 0.28, r * 0.16, -0.5, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+      ctx.fill();
+    }
+
+    function drawIcon(ctx, cx, cy, type, scale = 1) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+      ctx.strokeStyle = "#f4e9cc";
+      ctx.fillStyle = "#f4e9cc";
+      ctx.lineWidth = 7;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      if (type === "register") {
+        ctx.beginPath();
+        ctx.arc(-8, -18, 16, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-34, 32);
+        ctx.quadraticCurveTo(-34, 2, -8, 2);
+        ctx.quadraticCurveTo(18, 2, 18, 32);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(28, -14);
+        ctx.lineTo(28, 14);
+        ctx.moveTo(14, 0);
+        ctx.lineTo(42, 0);
+        ctx.stroke();
+      } else if (type === "legacy") {
+        ctx.beginPath();
+        ctx.arc(0, -18, 16, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-26, 32);
+        ctx.quadraticCurveTo(-26, 2, 0, 2);
+        ctx.quadraticCurveTo(26, 2, 26, 32);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(18, -2);
+        ctx.lineTo(28, 8);
+        ctx.lineTo(46, -10);
+        ctx.stroke();
+      } else if (type === "renew") {
+        ctx.beginPath();
+        ctx.arc(0, 2, 30, -0.25 * Math.PI, 1.4 * Math.PI);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(18, -30);
+        ctx.lineTo(18, -4);
+        ctx.lineTo(-6, -4);
+        ctx.stroke();
+      } else if (type === "seminar") {
+        roundRect(ctx, -24, -32, 48, 64, 9);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-12, -12);
+        ctx.lineTo(14, -12);
+        ctx.moveTo(-12, 4);
+        ctx.lineTo(8, 4);
+        ctx.stroke();
+      } else if (type === "status") {
+        ctx.beginPath();
+        ctx.arc(0, 0, 30, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, -14);
+        ctx.lineTo(0, 6);
+        ctx.lineTo(14, 14);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, 30, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, -10, 10, Math.PI * 1.15, Math.PI * 2.15);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, 10);
+        ctx.lineTo(0, 18);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 28, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function fontFor(size) {
+      if (size === "sm") return { px: 58, weight: 700 };
+      if (size === "lg") return { px: 78, weight: 800 };
+      return { px: 70, weight: 800 };
+    }
+
+    /** Keep every label on a single line inside the cell. */
+    function fitSingleLine(ctx, label, maxWidth, preferredPx, weight) {
+      let px = preferredPx;
+      ctx.font = `${weight} ${px}px Sarabun, sans-serif`;
+      while (px > 42 && ctx.measureText(label).width > maxWidth) {
+        px -= 2;
+        ctx.font = `${weight} ${px}px Sarabun, sans-serif`;
+      }
+      return px;
+    }
+
+    function drawLabel(ctx, cx, y, label, sizeKey, maxWidth) {
+      const { px: preferred, weight } = fontFor(sizeKey);
+      const px = fitSingleLine(ctx, label, maxWidth, preferred, weight);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `${weight} ${px}px Sarabun, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 3;
+      ctx.fillText(label, cx, y);
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      return px;
+    }
+
+    function paint(canvas) {
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, W, H);
+
+      // Soft continuous field (like popular LINE menus — one surface, not hard tiles)
+      const board = ctx.createLinearGradient(0, 0, W * 0.15, H);
+      board.addColorStop(0, "#12513a");
+      board.addColorStop(0.45, "#0f4c36");
+      board.addColorStop(1, "#0b3a29");
+      ctx.fillStyle = board;
+      ctx.fillRect(0, 0, W, H);
+
+      drawSoftOrb(ctx, 200, 180, 340, "rgba(201, 162, 75, 0.16)");
+      drawSoftOrb(ctx, 2300, 1500, 380, "rgba(28, 111, 76, 0.45)");
+      drawSoftOrb(ctx, 1250, 900, 500, "rgba(228, 206, 147, 0.08)");
+      drawDecorDots(ctx);
+
+      // Larger button zones: shrink header band a bit so the 6 cells grow
+      const headerH = 112;
+      const cols = 3;
+      const rows = 2;
+      const gridTop = headerH;
+      const gridH = H - headerH;
+      const cellW = W / cols;
+      const cellH = gridH / rows;
+
+      drawHeader(ctx, headerH);
+
+      // Wavy dividers (inspired by popular Thai OA menus)
+      const waveColor = "rgba(244, 233, 204, 0.78)";
+      drawWavyLineV(ctx, gridTop + 28, H - 28, cellW, 10, waveColor);
+      drawWavyLineV(ctx, gridTop + 28, H - 28, cellW * 2, 10, waveColor);
+      drawWavyLineH(ctx, 36, W - 36, gridTop + cellH, 12, waveColor);
+
+      for (let i = 0; i < CELLS.length; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = col * cellW;
+        const y = gridTop + row * cellH;
+        const cx = x + cellW / 2;
+
+        const bubble = 268;
+        const gap = 18;
+        const { px } = fontFor(CELLS[i].size);
+        const stackH = bubble + gap + px;
+        const stackTop = y + (cellH - stackH) / 2 - 4;
+        const iconCy = stackTop + bubble / 2;
+        const labelTop = stackTop + bubble + gap;
+        const labelMax = cellW - 48;
+
+        // Bigger soft pad — fills most of the cell
+        roundRect(ctx, x + 16, y + 14, cellW - 32, cellH - 28, 36);
+        ctx.fillStyle = "rgba(8, 42, 30, 0.16)";
+        ctx.fill();
+
+        drawIconBubble(ctx, cx, iconCy, bubble);
+        drawIcon(ctx, cx, iconCy, CELLS[i].icon, 1.72);
+        drawLabel(ctx, cx, labelTop, CELLS[i].label, CELLS[i].size, labelMax);
       }
 
-      btn.disabled = true;
-      status.textContent = "กำลังสร้าง PNG ขนาดเต็ม…";
+      return canvas;
+    }
 
+    async function readyFonts() {
+      if (document.fonts?.load) {
+        await Promise.all([
+          document.fonts.load("800 78px Sarabun"),
+          document.fonts.load("800 70px Sarabun"),
+          document.fonts.load("700 58px Sarabun"),
+          document.fonts.load("800 66px Sarabun"),
+          document.fonts.load("600 26px Sarabun"),
+        ]);
+      }
+      if (document.fonts?.ready) await document.fonts.ready;
+    }
+
+    async function render() {
+      statusEl.textContent = "กำลังวาดเมนู…";
+      await readyFonts();
+      paint(preview);
+      statusEl.textContent =
+        "พร้อมแล้ว — ปุ่มใหญ่ขึ้น · ข้อความทุกช่องยังอยู่บรรทัดเดียว · ลากพื้นที่แตะเฉพาะ 6 ช่องใต้หัวข้อ";
+    }
+
+    downloadBtn.addEventListener("click", async () => {
+      downloadBtn.disabled = true;
+      statusEl.textContent = "กำลังสร้าง PNG ขนาดเต็ม…";
       try {
-        const dataUrl = await modernScreenshot.domToPng(board, {
-          width: 2500,
-          height: 1686,
-          scale: 1,
-          style: {
-            transform: "none",
-            margin: "0",
-          },
-        });
-
+        await readyFonts();
+        const out = document.createElement("canvas");
+        out.width = W;
+        out.height = H;
+        paint(out);
+        const blob = await new Promise((resolve) => out.toBlob(resolve, "image/png"));
+        if (!blob) throw new Error("toBlob failed");
+        const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = dataUrl;
+        a.href = url;
         a.download = "abta-line-rich-menu-2500x1686.png";
         a.click();
-        status.textContent =
-          "ดาวน์โหลดแล้ว — อัปโหลดไฟล์นี้ใน LINE (Apply a pre-made image)";
+        URL.revokeObjectURL(url);
+        const mb = (blob.size / (1024 * 1024)).toFixed(2);
+        statusEl.textContent = `ดาวน์โหลดแล้ว (${mb} MB) — LINE รับได้สูงสุด ~1MB ถ้าเกินให้แปลงเป็น JPG`;
       } catch (err) {
         console.error(err);
-        status.textContent =
-          "สร้าง PNG ไม่สำเร็จ — ลองเปิดไฟล์ผ่าน Live Server / http แทน file://";
+        statusEl.textContent = "สร้าง PNG ไม่สำเร็จ — กดวาดใหม่แล้วลองอีกครั้ง";
       } finally {
-        btn.disabled = false;
+        downloadBtn.disabled = false;
       }
     });
+
+    redrawBtn.addEventListener("click", () => render());
+    render();
   </script>
 </body>
 </html>

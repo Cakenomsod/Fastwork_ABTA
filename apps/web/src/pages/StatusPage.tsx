@@ -173,6 +173,19 @@ function StatusCard({ data }: { data: PublicStatus }) {
           sub={data.receiptNumber}
         />
         <DetailRow label="การสมัครสัมมนา" value={data.seminarLabel} />
+        {data.seminarTitle ? (
+          <DetailRow label="งานสัมมนา" value={data.seminarTitle} />
+        ) : null}
+        {data.seminarTitle && data.seminarLabel !== "ยังไม่ได้ลงทะเบียน" ? (
+          <div
+            className="actions"
+            style={{ marginTop: 0, marginBottom: "0.75rem" }}
+          >
+            <a className="btn btn--ghost" href={liffPageUrl("/seminar?mine=1")}>
+              ดูรายละเอียดสัมมนา
+            </a>
+          </div>
+        ) : null}
         {data.renewalLabel ? (
           <DetailRow label="การต่ออายุ" value={data.renewalLabel} />
         ) : null}

@@ -4,7 +4,59 @@ import {
   SEMINAR_REGISTRATIONS_COLLECTION,
   type SeminarDoc,
   type SeminarRegistrationDoc,
+  type SeminarRegistrationStatus,
 } from "./types";
+
+const ACTIVE_REG_STATUSES: SeminarRegistrationStatus[] = [
+  "registered",
+  "paid",
+  "confirmed",
+];
+
+/**
+ * Find a non-rejected registration for the same seminar + identity.
+ * Prefer lineUserId, then memberId, then phone.
+ * Filters in memory to avoid requiring new composite indexes.
+ */
+export async function findActiveRegistration(input: {
+  seminarId: string;
+  lineUserId?: string;
+  memberId?: string;
+  phone?: string;
+}): Promise<SeminarRegistrationDoc | undefined> {
+  const seminarId = input.seminarId.trim();
+  if (!seminarId) return undefined;
+
+  const snap = await getFirestore()
+    .collection(SEMINAR_REGISTRATIONS_COLLECTION)
+    .where("seminarId", "==", seminarId)
+    .limit(200)
+    .get();
+
+  const rows = snap.docs
+    .map((d) => d.data() as SeminarRegistrationDoc)
+    .filter((r) => ACTIVE_REG_STATUSES.includes(r.status));
+
+  const lineUserId = input.lineUserId?.trim();
+  if (lineUserId) {
+    const hit = rows.find((r) => r.lineUserId === lineUserId);
+    if (hit) return hit;
+  }
+  const memberId = input.memberId?.trim();
+  if (memberId) {
+    const hit = rows.find((r) => r.memberId === memberId);
+    if (hit) return hit;
+  }
+  const phone = input.phone?.trim();
+  if (phone) {
+    const phoneDigits = phone.replace(/\D/g, "");
+    const hit = rows.find(
+      (r) => (r.phone ?? "").replace(/\D/g, "") === phoneDigits,
+    );
+    if (hit) return hit;
+  }
+  return undefined;
+}
 
 export async function listActiveSeminars(): Promise<SeminarDoc[]> {
   const snap = await getFirestore()

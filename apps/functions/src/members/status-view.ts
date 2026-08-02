@@ -34,6 +34,8 @@ export interface StatusView {
   receiptLabel: string;
   receiptNumber?: string;
   seminarLabel: string;
+  /** Latest seminar title when member has an active seminar registration. */
+  seminarTitle?: string;
   renewalLabel: string;
   memberCardUrl?: string;
   receiptUrl?: string;
@@ -166,6 +168,7 @@ export function buildStatusView(member: MemberDoc, payment?: PaymentDoc): Status
         : RECEIPT_STATUS_LABEL[payment?.receiptStatus ?? "none"],
     receiptNumber: payment?.receiptNumber,
     seminarLabel: SEMINAR_STATUS_LABEL[member.seminarStatus ?? "none"],
+    seminarTitle: member.seminarTitle,
     renewalLabel: renewalLabelFor(member, payment),
     memberCardUrl: member.memberCardUrl,
     receiptUrl: payment?.receiptUrl,
@@ -196,6 +199,7 @@ export function toPublicStatus(view: StatusView) {
     receiptLabel: view.receiptLabel,
     receiptNumber: view.receiptNumber,
     seminarLabel: view.seminarLabel,
+    seminarTitle: view.seminarTitle,
     renewalLabel: view.renewalLabel,
     memberCardUrl: view.memberCardUrl,
     receiptUrl: view.receiptUrl,

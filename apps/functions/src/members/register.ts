@@ -345,13 +345,17 @@ async function resubmitRejectedMember(
 export async function registerNewMember(input: RegisterInput): Promise<RegisterResult> {
   const firstName = input.firstName.trim();
   const lastName = input.lastName.trim();
-  const phone = input.phone.trim();
+  const phoneDigits = input.phone.replace(/\D/g, "");
   const memberType = parsePayableMemberType(input.memberType);
   const feeThb = newMembershipFeeThb(memberType);
 
-  if (!firstName || !lastName || !phone) {
+  if (!firstName || !lastName || !phoneDigits) {
     return { ok: false, error: "required_fields_missing", status: 400 };
   }
+  if (!/^0\d{9}$/.test(phoneDigits)) {
+    return { ok: false, error: "invalid_phone", status: 400 };
+  }
+  const phone = phoneDigits;
 
   const slip = validateSlip(input.slipContentType, input.slipBase64);
   if (!slip.ok) return slip;

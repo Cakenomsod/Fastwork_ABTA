@@ -47,6 +47,7 @@ export interface PublicStatus {
   receiptLabel: string;
   receiptNumber?: string;
   seminarLabel: string;
+  seminarTitle?: string;
   renewalLabel?: string;
   memberCardUrl?: string;
   receiptUrl?: string;
@@ -304,6 +305,7 @@ export type RenewDraft = {
   memberId: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   status: string;
   expiryDate?: string;
   feeThb: number;
@@ -331,6 +333,7 @@ export async function fetchRenewDraft(idToken: string): Promise<RenewDraft> {
     memberId: data.memberId,
     firstName: data.firstName,
     lastName: data.lastName,
+    phone: typeof data.phone === "string" ? data.phone : undefined,
     status: data.status,
     expiryDate: data.expiryDate,
     feeThb: data.feeThb,

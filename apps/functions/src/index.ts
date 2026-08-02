@@ -51,9 +51,11 @@ import {
   adminCreateSeminar,
   adminDeactivateSeminar,
   adminDecideRegistration,
+  adminGetRegistrationSlip,
   adminListRegistrations,
   adminListSeminars,
   adminUpdateSeminar,
+  listMySeminarRegistrations,
   publicListSeminars,
   registerForSeminar,
 } from "./seminars/register";
@@ -136,6 +138,10 @@ export const api = onRequest(
 
     if (path === "/seminars" && req.method === "GET") {
       await handlePublicSeminars(req, res);
+      return;
+    }
+    if (path === "/seminars/mine" && req.method === "POST") {
+      await handleMySeminars(req, res);
       return;
     }
     if (path === "/seminars/register" && req.method === "POST") {
@@ -256,6 +262,10 @@ export const api = onRequest(
     }
     if (path === "/admin/seminars/registrations" && req.method === "GET") {
       await handleAdminSeminarRegistrations(req, res);
+      return;
+    }
+    if (path === "/admin/seminars/registrations/slip" && req.method === "GET") {
+      await handleAdminSeminarRegistrationSlip(req, res);
       return;
     }
     if (path === "/admin/seminars/registrations/decide" && req.method === "POST") {
@@ -598,6 +608,23 @@ async function handlePublicSeminars(_req: Request, res: Response): Promise<void>
   }
 }
 
+async function handleMySeminars(req: Request, res: Response): Promise<void> {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const result = await listMySeminarRegistrations(
+      body.idToken != null ? String(body.idToken) : undefined,
+    );
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+    res.status(200).json(result);
+  } catch (err) {
+    console.error("my seminars error", err);
+    res.status(500).json({ ok: false, error: "server_error" });
+  }
+}
+
 async function handleSeminarRegister(req: Request, res: Response): Promise<void> {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -762,6 +789,69 @@ async function handleAdminSeminarRegistrations(
   } catch (err) {
     console.error("admin seminar registrations error", err);
     res.status(500).json({ ok: false, error: "server_error" });
+  }
+}
+
+async function handleAdminSeminarRegistrationSlip(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { authenticateAdmin, requireRoles } = await import("./admin/auth");
+  const { getStorage } = await import("firebase-admin/storage");
+  const { slipObjectRef } = await import("./admin/reviews");
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar", "treasurer"]);
+  if (!gate.ok) {
+    res.status(gate.status).json({ ok: false, error: gate.error });
+    return;
+  }
+
+  const registrationId = String(req.query.registrationId ?? "").trim();
+  const result = await adminGetRegistrationSlip(registrationId);
+  if (!result.ok) {
+    res.status(result.status).json({ ok: false, error: result.error });
+    return;
+  }
+
+  const slipUrl = result.slipUrl;
+  if (slipUrl.startsWith("http://") || slipUrl.startsWith("https://")) {
+    res.redirect(slipUrl);
+    return;
+  }
+
+  const ref = slipObjectRef(slipUrl);
+  if (!ref) {
+    res.status(404).json({ ok: false, error: "slip_not_found" });
+    return;
+  }
+
+  try {
+    const bucket = ref.bucketName
+      ? getStorage().bucket(ref.bucketName)
+      : getStorage().bucket();
+    const file = bucket.file(ref.objectPath);
+    const [meta] = await file.getMetadata();
+    const contentType = (meta.contentType as string) || "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    file
+      .createReadStream()
+      .on("error", (err) => {
+        console.error("seminar slip stream error", err);
+        if (!res.headersSent) {
+          res.status(500).json({ ok: false, error: "slip_read_failed" });
+        } else {
+          res.end();
+        }
+      })
+      .pipe(res);
+  } catch (err) {
+    console.error("seminar slip proxy error", err);
+    res.status(500).json({ ok: false, error: "slip_read_failed" });
   }
 }
 

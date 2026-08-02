@@ -150,40 +150,47 @@ const PhoneDigitInput = forwardRef<PhoneDigitInputHandle, Props>(
       >
         {digits.map((digit, index) => {
           const locked = index === 0;
+          const showDash = index === 3 || index === 6;
           return (
-            <input
-              key={index}
-              ref={(el) => {
-                refs.current[index] = el;
-              }}
-              id={index === 1 ? id : undefined}
-              className={`reg-phone-digit${locked ? " reg-phone-digit--locked" : ""}`}
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete={index === 1 ? "tel-national" : "off"}
-              maxLength={1}
-              value={digit}
-              readOnly={locked}
-              tabIndex={locked ? -1 : 0}
-              disabled={disabled}
-              aria-label={
-                locked
-                  ? "หลักที่ 1 คงที่เป็น 0"
-                  : `หลักที่ ${index + 1}`
-              }
-              aria-invalid={ariaInvalid}
-              onChange={(e) => onInputChange(index, e)}
-              onKeyDown={(e) => onKeyDown(index, e)}
-              onPaste={onPaste}
-              onFocus={(e) => {
-                if (locked) {
-                  focusAt(1);
-                  return;
+            <span key={index} className="reg-phone-digit-wrap">
+              {showDash ? (
+                <span className="reg-phone-dash" aria-hidden>
+                  -
+                </span>
+              ) : null}
+              <input
+                ref={(el) => {
+                  refs.current[index] = el;
+                }}
+                id={index === 1 ? id : undefined}
+                className={`reg-phone-digit${locked ? " reg-phone-digit--locked" : ""}`}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete={index === 1 ? "tel-national" : "off"}
+                maxLength={1}
+                value={digit}
+                readOnly={locked}
+                tabIndex={locked ? -1 : 0}
+                disabled={disabled}
+                aria-label={
+                  locked
+                    ? "หลักที่ 1 คงที่เป็น 0"
+                    : `หลักที่ ${index + 1}`
                 }
-                e.target.select();
-              }}
-            />
+                aria-invalid={ariaInvalid}
+                onChange={(e) => onInputChange(index, e)}
+                onKeyDown={(e) => onKeyDown(index, e)}
+                onPaste={onPaste}
+                onFocus={(e) => {
+                  if (locked) {
+                    focusAt(1);
+                    return;
+                  }
+                  e.target.select();
+                }}
+              />
+            </span>
           );
         })}
         {/* Hidden field for native form / autofill association */}
@@ -198,4 +205,11 @@ export default PhoneDigitInput;
 /** True when phone is exactly 10 digits starting with 0. */
 export function isValidThaiMobile(phone: string): boolean {
   return /^0\d{9}$/.test(phone.trim());
+}
+
+/** Display as 080-802-6677 when complete. */
+export function formatThaiMobileDisplay(phone: string): string {
+  const d = phone.replace(/\D/g, "").slice(0, 10);
+  if (d.length !== 10) return phone;
+  return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
 }

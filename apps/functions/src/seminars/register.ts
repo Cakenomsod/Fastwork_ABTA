@@ -5,7 +5,7 @@
 import { randomBytes } from "node:crypto";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { WEB_ORIGIN, getLoginChannelId } from "../config";
+import { getLoginChannelId, liffPageUri } from "../config";
 import { verifyLineIdToken } from "../line/verify-id-token";
 import { pushMessages } from "../line/client";
 import { textMessage } from "../line/messages";
@@ -16,6 +16,7 @@ import {
 import { notifyStaff } from "../members/staff-notify";
 import type { SeminarStatus } from "../members/types";
 import {
+  findActiveRegistration,
   getRegistration,
   getSeminar,
   listActiveSeminars,
@@ -27,6 +28,7 @@ import {
 import {
   SEMINARS_COLLECTION,
   SEMINAR_PRICING_LABEL,
+  SEMINAR_REGISTRATIONS_COLLECTION,
   type SeminarDoc,
   type SeminarPricingType,
   type SeminarRegistrationDoc,
@@ -34,6 +36,17 @@ import {
 
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png"]);
+
+const REG_STATUS_LABEL: Record<string, string> = {
+  registered: "รอพิจารณา",
+  paid: "ชำระแล้ว รอพิจารณา",
+  confirmed: "ยืนยันสิทธิ์แล้ว",
+  rejected: "ไม่ผ่าน",
+};
+
+function normalizePhone(raw?: string): string {
+  return (raw ?? "").replace(/\D/g, "");
+}
 
 async function optionalLineUser(
   idToken?: string,
@@ -109,6 +122,71 @@ function publicSeminar(s: SeminarDoc) {
   };
 }
 
+/** Registrations for the current LINE user (status page / mine view). */
+export async function listMySeminarRegistrations(idToken?: string): Promise<
+  | {
+      ok: true;
+      items: Array<{
+        registrationId: string;
+        seminarId: string;
+        title: string;
+        eventDate?: string;
+        location?: string;
+        status: string;
+        statusLabel: string;
+        applicantType: string;
+        applicantTypeLabel: string;
+        feeThb: number;
+        shirtSize?: string;
+        foodType?: string;
+        notes?: string;
+      }>;
+    }
+  | { ok: false; error: string; status: number }
+> {
+  const lineUserId = await optionalLineUser(idToken);
+  if (!lineUserId) {
+    return { ok: false, error: "invalid_id_token", status: 401 };
+  }
+
+  const snap = await getFirestore()
+    .collection(SEMINAR_REGISTRATIONS_COLLECTION)
+    .where("lineUserId", "==", lineUserId)
+    .limit(50)
+    .get();
+
+  const regs = snap.docs
+    .map((d) => d.data() as SeminarRegistrationDoc)
+    .sort(
+      (a, b) =>
+        (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0),
+    );
+
+  const items = await Promise.all(
+    regs.map(async (r) => {
+      const seminar = await getSeminar(r.seminarId);
+      return {
+        registrationId: r.registrationId,
+        seminarId: r.seminarId,
+        title: seminar?.title ?? r.seminarId,
+        eventDate: seminar?.eventDate,
+        location: seminar?.location,
+        status: r.status,
+        statusLabel: REG_STATUS_LABEL[r.status] ?? r.status,
+        applicantType: r.applicantType,
+        applicantTypeLabel:
+          SEMINAR_PRICING_LABEL[r.applicantType] ?? r.applicantType,
+        feeThb: r.feeThb,
+        shirtSize: r.shirtSize,
+        foodType: r.foodType,
+        notes: r.notes,
+      };
+    }),
+  );
+
+  return { ok: true, items };
+}
+
 export async function registerForSeminar(input: {
   idToken?: string;
   seminarId: string;
@@ -134,10 +212,14 @@ export async function registerForSeminar(input: {
 
   const firstName = input.firstName.trim();
   const lastName = input.lastName.trim();
-  const phone = input.phone.trim();
-  if (!firstName || !lastName || !phone) {
+  const phoneDigits = input.phone.replace(/\D/g, "");
+  if (!firstName || !lastName || !phoneDigits) {
     return { ok: false, error: "required_fields_missing", status: 400 };
   }
+  if (!/^0\d{9}$/.test(phoneDigits)) {
+    return { ok: false, error: "invalid_phone", status: 400 };
+  }
+  const phone = phoneDigits;
 
   const lineUserId = await optionalLineUser(input.idToken);
   const member = lineUserId
@@ -156,6 +238,16 @@ export async function registerForSeminar(input: {
   );
   if (!isMember && applicantType !== "public_paid") {
     return { ok: false, error: "member_required", status: 403 };
+  }
+
+  const existing = await findActiveRegistration({
+    seminarId,
+    lineUserId,
+    memberId: member?.memberId,
+    phone: normalizePhone(member?.phone) || phone,
+  });
+  if (existing) {
+    return { ok: false, error: "already_registered", status: 409 };
   }
 
   const feeThb = Number(seminar.pricing[applicantType] ?? 0) || 0;
@@ -187,6 +279,7 @@ export async function registerForSeminar(input: {
   }
 
   const now = Timestamp.now();
+  const storedPhone = normalizePhone(member?.phone) || phone;
   const reg: SeminarRegistrationDoc = {
     registrationId,
     seminarId,
@@ -194,7 +287,7 @@ export async function registerForSeminar(input: {
     lineUserId,
     firstName: member?.firstName ?? firstName,
     lastName: member?.lastName ?? lastName,
-    phone: member?.phone ?? phone,
+    phone: storedPhone,
     email: input.email?.trim() || member?.email,
     applicantType,
     feeThb,
@@ -387,6 +480,17 @@ export async function adminDeactivateSeminar(
   return doc;
 }
 
+function seminarSlipViewUrl(reg: SeminarRegistrationDoc): string | undefined {
+  if (!reg.slipUrl) return undefined;
+  if (
+    reg.slipUrl.startsWith("http://") ||
+    reg.slipUrl.startsWith("https://")
+  ) {
+    return reg.slipUrl;
+  }
+  return `/admin/seminars/registrations/slip?registrationId=${encodeURIComponent(reg.registrationId)}`;
+}
+
 export async function adminListRegistrations(seminarId?: string) {
   const regs = await listRegistrations(seminarId);
   const ids = [...new Set(regs.map((r) => r.seminarId).filter(Boolean))];
@@ -401,7 +505,22 @@ export async function adminListRegistrations(seminarId?: string) {
   return regs.map((r) => ({
     ...r,
     seminarTitle: titles.get(r.seminarId),
+    slipViewUrl: seminarSlipViewUrl(r),
   }));
+}
+
+/** Stream seminar registration slip for admin UI (auth checked by caller). */
+export async function adminGetRegistrationSlip(
+  registrationId: string,
+): Promise<
+  | { ok: true; slipUrl: string }
+  | { ok: false; error: string; status: number }
+> {
+  const id = registrationId.trim();
+  if (!id) return { ok: false, error: "registration_id_required", status: 400 };
+  const reg = await getRegistration(id);
+  if (!reg?.slipUrl) return { ok: false, error: "slip_not_found", status: 404 };
+  return { ok: true, slipUrl: reg.slipUrl };
 }
 
 export async function adminDecideRegistration(input: {
@@ -439,12 +558,19 @@ export async function adminDecideRegistration(input: {
 
     if (reg.lineUserId) {
       try {
+        const detailLines = [
+          seminar?.eventDate ? `วัน: ${seminar.eventDate}` : null,
+          seminar?.location ? `สถานที่: ${seminar.location}` : null,
+        ].filter(Boolean);
         await pushMessages(reg.lineUserId, [
           textMessage(
             [
               "✅ ยืนยันสิทธิ์สัมมนาแล้ว",
               seminar?.title ?? reg.seminarId,
-              `ดูสถานะสมาชิก: ${WEB_ORIGIN}/status`,
+              ...detailLines,
+              "",
+              `ดูรายละเอียดสัมมนา: ${liffPageUri("/seminar?mine=1")}`,
+              `ดูสถานะสมาชิก: พิมพ์ “เช็คสถานะ” ใน LINE OA`,
             ].join("\n"),
           ),
         ]);

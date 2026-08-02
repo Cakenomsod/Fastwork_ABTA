@@ -1,7 +1,10 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { apiBase, fetchRenewDraft } from "../lib/api";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
-import { isValidThaiMobile } from "./PhoneDigitInput";
+import PhoneDigitInput, {
+  formatThaiMobileDisplay,
+  isValidThaiMobile,
+} from "./PhoneDigitInput";
 import {
   hasTransferAccount,
   NO_TRANSFER_ACCOUNT_SUBMIT_HINT,
@@ -20,6 +23,22 @@ type Seminar = {
   pricingLabels?: Record<string, string>;
 };
 
+type MyRegistration = {
+  registrationId: string;
+  seminarId: string;
+  title: string;
+  eventDate?: string;
+  location?: string;
+  status: string;
+  statusLabel: string;
+  applicantType: string;
+  applicantTypeLabel: string;
+  feeThb: number;
+  shirtSize?: string;
+  foodType?: string;
+  notes?: string;
+};
+
 type SlipState =
   | { kind: "empty" }
   | { kind: "ready"; file: File; previewUrl: string }
@@ -29,17 +48,34 @@ const MAX_SLIP_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png"]);
 
 const PRICING_FALLBACK: Record<string, string> = {
-  public_paid: "บุคคลทั่วไป (เสียเงิน)",
-  member_free: "สมาชิก (ฟรี)",
-  member_paid: "สมาชิก (เสียเงิน)",
+  public_paid: "บุคคลทั่วไป",
+  member_free: "สมาชิก ABTA",
+  member_paid: "สมาชิก ABTA",
 };
+
+function wantsMineView(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("mine") === "1" || params.get("view") === "1") return true;
+  const liffState = params.get("liff.state");
+  if (!liffState) return false;
+  const decoded = decodeURIComponent(liffState);
+  const q = decoded.indexOf("?");
+  if (q < 0) return false;
+  const nested = new URLSearchParams(decoded.slice(q + 1));
+  return nested.get("mine") === "1" || nested.get("view") === "1";
+}
 
 export default function SeminarPage() {
   const [liff, setLiff] = useState<LiffPhase>({ phase: "loading" });
   const [isMember, setIsMember] = useState(false);
   const [items, setItems] = useState<Seminar[]>([]);
+  const [myRegs, setMyRegs] = useState<MyRegistration[]>([]);
+  const [showMine, setShowMine] = useState(wantsMineView);
   const [listPhase, setListPhase] = useState<"loading" | "ready" | "error">(
     "loading",
+  );
+  const [minePhase, setMinePhase] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle",
   );
   const [selected, setSelected] = useState<Seminar | null>(null);
   const [form, setForm] = useState({
@@ -52,24 +88,55 @@ export default function SeminarPage() {
     notes: "",
     applicantType: "public_paid",
   });
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [slip, setSlip] = useState<SlipState>({ kind: "empty" });
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [typeWarning, setTypeWarning] = useState<string | null>(null);
 
   const canPay = hasTransferAccount();
+
+  async function loadMyRegistrations(idToken: string) {
+    setMinePhase("loading");
+    try {
+      const res = await fetch(`${apiBase()}/api/seminars/mine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error ?? "error");
+      setMyRegs(data.items ?? []);
+      setMinePhase("ready");
+    } catch {
+      setMinePhase("error");
+    }
+  }
 
   useEffect(() => {
     void initLiff().then(async (phase) => {
       setLiff(phase);
       if (phase.phase !== "ready" && phase.phase !== "dev") return;
+
+      const idToken =
+        (await getIdToken()) ?? (phase.phase === "dev" ? "dev" : "");
+      const openMine = wantsMineView();
+
+      if (openMine) {
+        setShowMine(true);
+        if (!idToken) {
+          setMinePhase("error");
+        } else {
+          await loadMyRegistrations(idToken);
+        }
+      }
+
+      if (!idToken) return;
+
       try {
-        const idToken =
-          (await getIdToken()) ?? (phase.phase === "dev" ? "dev" : "");
-        if (!idToken) return;
         const draft = await fetchRenewDraft(idToken);
-        // Match backend: expired members are not treated as members for pricing.
         const memberForPricing = draft.status !== "expired";
         setIsMember(memberForPricing);
         if (memberForPricing) {
@@ -77,6 +144,7 @@ export default function SeminarPage() {
             ...f,
             firstName: draft.firstName || f.firstName,
             lastName: draft.lastName || f.lastName,
+            phone: draft.phone || f.phone,
             applicantType: "member_free",
           }));
         }
@@ -122,12 +190,41 @@ export default function SeminarPage() {
     ? Number(selected.pricing[form.applicantType] ?? 0) || 0
     : 0;
 
+  const phoneInvalid =
+    phoneTouched && form.phone.length > 0 && !isValidThaiMobile(form.phone);
+  const phoneIncomplete =
+    phoneTouched && (!form.phone || !isValidThaiMobile(form.phone));
+
   function pricingLabel(key: string): string {
-    return (
-      selected?.pricingLabels?.[key] ??
-      PRICING_FALLBACK[key] ??
-      key
-    );
+    const base =
+      selected?.pricingLabels?.[key] ?? PRICING_FALLBACK[key] ?? key;
+    const amount = selected ? Number(selected.pricing[key] ?? 0) || 0 : 0;
+    if (amount <= 0) return `${base} · ไม่เสียค่าสมัคร`;
+    return `${base} · ${amount.toLocaleString("th-TH")} บาท`;
+  }
+
+  function applyPreferredType(s: Seminar) {
+    const keys = Object.keys(s.pricing);
+    const preferred = isMember
+      ? keys.find((k) => k.startsWith("member")) ?? keys[0]
+      : keys.find((k) => k === "public_paid") ?? keys[0];
+    if (preferred) {
+      setForm((f) => ({ ...f, applicantType: preferred }));
+    }
+    setTypeWarning(null);
+  }
+
+  function onApplicantTypeChange(next: string) {
+    setForm((f) => ({ ...f, applicantType: next }));
+    setConfirmOpen(false);
+    setError(null);
+    if (isMember && next === "public_paid") {
+      setTypeWarning(
+        "คุณเป็นสมาชิก ABTA อยู่แล้ว — การสมัครแบบบุคคลทั่วไปจะเสียค่าสมัครตามเรททั่วไป และไม่ใช้สิทธิสมาชิก ต้องการดำเนินการต่อหรือไม่?",
+      );
+    } else {
+      setTypeWarning(null);
+    }
   }
 
   function onSlipChange(e: ChangeEvent<HTMLInputElement>) {
@@ -164,8 +261,9 @@ export default function SeminarPage() {
       setError("กรุณาเปิดจาก LINE OA");
       return;
     }
+    setPhoneTouched(true);
     if (!isValidThaiMobile(form.phone)) {
-      setError("กรุณากรอกเบอร์โทร 10 หลักให้ครบ");
+      setError("กรุณากรอกเบอร์โทรให้ครบ 10 หลัก เช่น 080-802-6677");
       return;
     }
     if (fee > 0) {
@@ -177,11 +275,9 @@ export default function SeminarPage() {
         setError(seminarErrorCopy("slip_required"));
         return;
       }
-      setError(null);
-      setConfirmOpen(true);
-      return;
     }
-    void doSubmit();
+    setError(null);
+    setConfirmOpen(true);
   }
 
   async function doSubmit() {
@@ -208,6 +304,7 @@ export default function SeminarPage() {
           idToken: idToken ?? (liff.phase === "dev" ? "dev" : undefined),
           seminarId: selected.seminarId,
           ...form,
+          phone: form.phone.replace(/\D/g, ""),
           slipContentType,
           slipBase64,
         }),
@@ -215,6 +312,7 @@ export default function SeminarPage() {
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error ?? "error");
       setDone(data.registrationId);
+      setConfirmOpen(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "error";
       setError(seminarErrorCopy(msg));
@@ -222,6 +320,20 @@ export default function SeminarPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function openMineView() {
+    setDone(null);
+    setShowMine(true);
+    setSelected(null);
+    setError(null);
+    const idToken =
+      (await getIdToken()) ?? (liff.phase === "dev" ? "dev" : "");
+    if (!idToken) {
+      setMinePhase("error");
+      return;
+    }
+    await loadMyRegistrations(idToken);
   }
 
   if (liff.phase === "error") {
@@ -252,26 +364,110 @@ export default function SeminarPage() {
             <h1>รับสมัครสัมมนาแล้ว</h1>
             <p className="reg-success__id">{done}</p>
             <p className="reg-lead">รอเจ้าหน้าที่ยืนยันสิทธิ์ครับ</p>
+            <button
+              type="button"
+              className="reg-btn reg-btn--ghost"
+              onClick={() => void openMineView()}
+            >
+              ดูใบสมัครของฉัน
+            </button>
           </section>
         ) : (
           <>
             <header className="reg-hero">
               <p className="reg-kicker">ABTA</p>
-              <h1>สมัครสัมมนา</h1>
+              <h1>{showMine ? "สัมมนาของฉัน" : "สมัครสัมมนา"}</h1>
               <p className="reg-lead">
-                {isMember
-                  ? "ดึงข้อมูลสมาชิกจากบัญชี LINE แล้ว"
-                  : "เลือกงานแล้วกรอกข้อมูลผู้สมัคร"}
+                {showMine
+                  ? "รายการที่สมัครไว้และสถานะการยืนยันสิทธิ์"
+                  : isMember
+                    ? "ดึงข้อมูลสมาชิกจากบัญชี LINE แล้ว"
+                    : "เลือกงานแล้วกรอกข้อมูลผู้สมัคร"}
               </p>
-              {isMember ? (
+              {isMember && !showMine ? (
                 <p className="reg-user">สมาชิก ABTA</p>
               ) : null}
             </header>
 
             {error ? <p className="reg-form-error">{error}</p> : null}
 
-            {!selected ? (
+            {showMine ? (
+              <section className="reg-form" aria-busy={minePhase === "loading"}>
+                <button
+                  type="button"
+                  className="reg-btn reg-btn--ghost reg-seminar-back"
+                  onClick={() => {
+                    setShowMine(false);
+                    setError(null);
+                  }}
+                >
+                  ← กลับไปสมัครสัมมนา
+                </button>
+                <h2 className="reg-section__title">ใบสมัครของฉัน</h2>
+                {minePhase === "loading" || minePhase === "idle" ? (
+                  <p className="reg-lead">กำลังโหลด…</p>
+                ) : minePhase === "error" ? (
+                  <div className="reg-legacy-empty" role="alert">
+                    <p>โหลดใบสมัครไม่สำเร็จ กรุณาเปิดจาก LINE OA อีกครั้ง</p>
+                  </div>
+                ) : myRegs.length === 0 ? (
+                  <div className="reg-legacy-empty">
+                    <p>ยังไม่มีใบสมัครสัมมนา</p>
+                  </div>
+                ) : (
+                  <ul className="reg-seminar-list">
+                    {myRegs.map((r) => (
+                      <li key={r.registrationId} className="reg-seminar-item">
+                        <div className="reg-seminar-item__btn" style={{ cursor: "default" }}>
+                          <strong>{r.title}</strong>
+                          <span className="reg-seminar-item__meta">
+                            {[r.eventDate, r.location, r.statusLabel]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                          <span className="reg-seminar-item__meta">
+                            {r.applicantTypeLabel}
+                            {r.feeThb > 0
+                              ? ` · ${r.feeThb.toLocaleString("th-TH")} บาท`
+                              : " · ไม่เสียค่าสมัคร"}
+                          </span>
+                          {(r.shirtSize || r.foodType || r.notes) && (
+                            <span className="reg-seminar-item__meta">
+                              {[
+                                r.shirtSize ? `เสื้อ ${r.shirtSize}` : null,
+                                r.foodType ? `อาหาร ${r.foodType}` : null,
+                                r.notes ? `หมายเหตุ ${r.notes}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : !selected ? (
               <section className="reg-form" aria-busy={listPhase === "loading"}>
+                <div className="reg-mode-tabs" role="tablist" aria-label="โหมดสัมมนา">
+                  <button
+                    type="button"
+                    className="reg-mode-tab is-active"
+                    role="tab"
+                    aria-selected
+                  >
+                    สมัครใหม่
+                  </button>
+                  <button
+                    type="button"
+                    className="reg-mode-tab"
+                    role="tab"
+                    onClick={() => void openMineView()}
+                  >
+                    ของฉัน
+                  </button>
+                </div>
                 <h2 className="reg-section__title">รายการสัมมนา</h2>
                 {listPhase === "loading" ? (
                   <p className="reg-lead" aria-live="polite">
@@ -297,18 +493,8 @@ export default function SeminarPage() {
                             setSlip({ kind: "empty" });
                             setConfirmOpen(false);
                             setError(null);
-                            const keys = Object.keys(s.pricing);
-                            const preferred = isMember
-                              ? keys.find((k) => k.startsWith("member")) ??
-                                keys[0]
-                              : keys.find((k) => k === "public_paid") ??
-                                keys[0];
-                            if (preferred) {
-                              setForm((f) => ({
-                                ...f,
-                                applicantType: preferred,
-                              }));
-                            }
+                            setPhoneTouched(false);
+                            applyPreferredType(s);
                           }}
                         >
                           <strong>{s.title}</strong>
@@ -335,6 +521,7 @@ export default function SeminarPage() {
                     setSlip({ kind: "empty" });
                     setConfirmOpen(false);
                     setError(null);
+                    setTypeWarning(null);
                   }}
                 >
                   ← กลับเลือกรายการ
@@ -348,10 +535,10 @@ export default function SeminarPage() {
                   <div className="reg-legacy-empty">
                     <p>สัมมานี้สำหรับสมาชิกเท่านั้น</p>
                   </div>
-                ) : confirmOpen && fee > 0 && slip.kind === "ready" ? (
+                ) : confirmOpen ? (
                   <PaymentConfirmPanel
                     title="ยืนยันสมัครสัมมนา"
-                    lead="ตรวจสอบยอดและสลิปก่อนส่งคำขอ"
+                    lead="ตรวจสอบข้อมูลก่อนส่งคำขอ"
                     rows={[
                       { label: "งาน", value: selected.title },
                       {
@@ -359,15 +546,35 @@ export default function SeminarPage() {
                         value: `${form.firstName} ${form.lastName}`,
                       },
                       {
+                        label: "เบอร์โทร",
+                        value: formatThaiMobileDisplay(form.phone),
+                      },
+                      {
                         label: "ประเภท",
                         value: pricingLabel(form.applicantType),
                       },
                       {
                         label: "ค่าสมัคร",
-                        value: `${fee.toLocaleString("th-TH")} บาท`,
+                        value:
+                          fee > 0
+                            ? `${fee.toLocaleString("th-TH")} บาท`
+                            : "ไม่เสียค่าสมัคร",
                       },
+                      ...(form.shirtSize
+                        ? [{ label: "ไซส์เสื้อ", value: form.shirtSize }]
+                        : []),
+                      ...(form.foodType
+                        ? [{ label: "อาหาร", value: form.foodType }]
+                        : []),
+                      ...(form.notes
+                        ? [{ label: "หมายเหตุ", value: form.notes }]
+                        : []),
                     ]}
-                    slipPreviewUrl={slip.previewUrl}
+                    slipPreviewUrl={
+                      fee > 0 && slip.kind === "ready"
+                        ? slip.previewUrl
+                        : undefined
+                    }
                     confirmLabel="ยืนยันสมัครสัมมนา"
                     busy={busy}
                     error={error}
@@ -408,24 +615,31 @@ export default function SeminarPage() {
                           required
                         />
                       </label>
-                      <label className="reg-field">
-                        <span>
+                      <div className="reg-field">
+                        <span id="sem-phone-label">
                           เบอร์โทร <em className="req">*</em>
                         </span>
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          autoComplete="tel"
+                        <PhoneDigitInput
+                          id="sem-phone"
                           value={form.phone}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              phone: e.target.value,
-                            }))
-                          }
-                          required
+                          aria-labelledby="sem-phone-label"
+                          aria-invalid={phoneInvalid || undefined}
+                          aria-describedby="sem-phone-hint"
+                          onChange={(phone) => {
+                            setForm((f) => ({ ...f, phone }));
+                            setPhoneTouched(true);
+                            if (error?.includes("เบอร์โทร")) setError(null);
+                          }}
                         />
-                      </label>
+                        <small id="sem-phone-hint" className="reg-field-hint">
+                          กรอก 10 หลัก เช่น 080-802-6677
+                        </small>
+                        {phoneIncomplete ? (
+                          <p className="reg-field-error" role="alert">
+                            กรุณากรอกเบอร์โทรให้ครบ 10 หลัก
+                          </p>
+                        ) : null}
+                      </div>
                       <label className="reg-field">
                         <span>อีเมล</span>
                         <input
@@ -439,27 +653,43 @@ export default function SeminarPage() {
                           }
                         />
                       </label>
-                      {pricingOptions.length > 0 ? (
+                      {pricingOptions.length > 1 ? (
                         <label className="reg-field">
                           <span>ประเภทผู้สมัคร</span>
                           <select
                             value={form.applicantType}
-                            onChange={(e) => {
-                              setForm((f) => ({
-                                ...f,
-                                applicantType: e.target.value,
-                              }));
-                              setConfirmOpen(false);
-                              setError(null);
-                            }}
+                            onChange={(e) =>
+                              onApplicantTypeChange(e.target.value)
+                            }
                           >
                             {pricingOptions.map((k) => (
                               <option key={k} value={k}>
-                                {pricingLabel(k)} ({selected.pricing[k]} บาท)
+                                {pricingLabel(k)}
                               </option>
                             ))}
                           </select>
                         </label>
+                      ) : pricingOptions.length === 1 ? (
+                        <p className="reg-lead">
+                          ประเภท: {pricingLabel(pricingOptions[0]!)}
+                        </p>
+                      ) : null}
+                      {typeWarning ? (
+                        <div className="reg-legacy-empty" role="alert">
+                          <p>{typeWarning}</p>
+                          <button
+                            type="button"
+                            className="reg-btn reg-btn--ghost"
+                            onClick={() => {
+                              const memberKey = pricingOptions.find((k) =>
+                                k.startsWith("member"),
+                              );
+                              if (memberKey) onApplicantTypeChange(memberKey);
+                            }}
+                          >
+                            กลับไปใช้สิทธิสมาชิก
+                          </button>
+                        </div>
                       ) : null}
                     </section>
 
@@ -573,11 +803,7 @@ export default function SeminarPage() {
                         (fee > 0 && (!canPay || slip.kind !== "ready"))
                       }
                     >
-                      {busy
-                        ? "กำลังส่ง…"
-                        : fee > 0
-                          ? "ตรวจสอบก่อนส่ง"
-                          : "สมัครสัมมนา"}
+                      {busy ? "กำลังส่ง…" : "ตรวจสอบก่อนส่ง"}
                     </button>
                     {fee > 0 && !canPay ? (
                       <p className="reg-submit-hint" role="status">
@@ -614,6 +840,10 @@ function seminarErrorCopy(code: string): string {
       return "กรุณาแนบสลิป";
     case "member_required":
       return "ประเภทนี้สำหรับสมาชิกเท่านั้น";
+    case "already_registered":
+      return "คุณสมัครสัมมนานี้ไว้แล้ว — ดูได้ที่แท็บ «ของฉัน»";
+    case "invalid_phone":
+      return "กรุณากรอกเบอร์โทรให้ครบ 10 หลัก เช่น 080-802-6677";
     case "slip_too_large":
       return "ไฟล์สลิปใหญ่เกิน 5 MB";
     case "invalid_slip_data":

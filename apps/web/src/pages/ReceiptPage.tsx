@@ -10,6 +10,70 @@ type LoadState =
 const ASSOC_NAME = "สมาคมการค้าผู้ประกอบการธุรกิจห้องเช่า";
 const ASSOC_SHORT = "ABTA";
 
+/** LINE in-app browser / WebView — window.print() usually does nothing. */
+function isLineInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Line\//i.test(navigator.userAgent);
+}
+
+function receiptAbsoluteUrl(opts?: { print?: boolean }): string {
+  const url = new URL(window.location.href);
+  if (opts?.print) {
+    url.searchParams.set("print", "1");
+  } else {
+    url.searchParams.delete("print");
+  }
+  return url.toString();
+}
+
+function consumePrintQuery(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("print") !== "1") return false;
+  params.delete("print");
+  const next = `${window.location.pathname}?${params.toString()}`.replace(
+    /\?$/,
+    "",
+  );
+  window.history.replaceState({}, "", next);
+  return true;
+}
+
+/**
+ * LINE WebView cannot show a print/Save-as-PDF dialog.
+ * Prefer LIFF openWindow(external), then window.open.
+ */
+async function openExternalForPrint(): Promise<"opened" | "copied" | "failed"> {
+  const target = receiptAbsoluteUrl({ print: true });
+
+  const liffId = import.meta.env.VITE_LIFF_ID ?? "";
+  if (liffId) {
+    try {
+      const liff = (await import("@line/liff")).default;
+      await liff.init({ liffId });
+      if (liff.isInClient()) {
+        liff.openWindow({ url: target, external: true });
+        return "opened";
+      }
+    } catch {
+      /* fall through — page may not be a LIFF context */
+    }
+  }
+
+  try {
+    const opened = window.open(target, "_blank", "noopener,noreferrer");
+    if (opened) return "opened";
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    await navigator.clipboard.writeText(target);
+    return "copied";
+  } catch {
+    return "failed";
+  }
+}
+
 function errorCopy(code: string): { title: string; detail: string } {
   switch (code) {
     case "not_found":
@@ -134,6 +198,8 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
   const issuedLabel =
     data.paymentDateLabel ?? data.updatedAtLabel ?? "—";
   const showWatermark = !official;
+  const inLine = isLineInAppBrowser();
+  const [printHint, setPrintHint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!rejected) return;
@@ -143,6 +209,45 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
     window.addEventListener("beforeprint", blockPrint);
     return () => window.removeEventListener("beforeprint", blockPrint);
   }, [rejected]);
+
+  useEffect(() => {
+    if (rejected) return;
+    if (!consumePrintQuery()) return;
+    if (isLineInAppBrowser()) {
+      setPrintHint(
+        "แอป LINE พิมพ์/บันทึก PDF ไม่ได้ — กดปุ่มด้านล่างเพื่อเปิด Safari หรือ Chrome แล้วเลือก «บันทึกเป็น PDF»",
+      );
+      return;
+    }
+    const t = window.setTimeout(() => window.print(), 350);
+    return () => window.clearTimeout(t);
+  }, [rejected]);
+
+  async function onPrintClick() {
+    setPrintHint(null);
+    if (rejected) return;
+
+    if (inLine) {
+      setPrintHint("กำลังเปิดเบราว์เซอร์ภายนอก…");
+      const result = await openExternalForPrint();
+      if (result === "opened") {
+        setPrintHint(
+          "หากเบราว์เซอร์ไม่เปิด ให้กด ⋯ มุมขวาบน → «เปิดในเบราว์เซอร์» แล้วกดพิมพ์อีกครั้งเพื่อบันทึก PDF",
+        );
+      } else if (result === "copied") {
+        setPrintHint(
+          "คัดลอกลิงก์ใบเสร็จแล้ว — วางใน Safari/Chrome แล้วเปิด จากนั้นกด «พิมพ์ / บันทึก PDF»",
+        );
+      } else {
+        setPrintHint(
+          "แอป LINE พิมพ์ PDF ไม่ได้โดยตรง — กด ⋯ มุมขวาบน → «เปิดในเบราว์เซอร์» แล้วกดปุ่มพิมพ์อีกครั้ง",
+        );
+      }
+      return;
+    }
+
+    window.print();
+  }
 
   return (
     <div className={`rcpt-content${rejected ? " rcpt-content--rejected" : ""}`}>
@@ -165,14 +270,24 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
                 ? "rcpt-print-btn"
                 : "rcpt-print-btn rcpt-print-btn--draft"
             }
-            onClick={() => window.print()}
+            onClick={onPrintClick}
           >
-            {official
-              ? "พิมพ์ / บันทึก PDF"
-              : "พิมพ์แบบร่าง (มีลายน้ำ)"}
+            {inLine
+              ? official
+                ? "เปิดเบราว์เซอร์เพื่อพิมพ์ / PDF"
+                : "เปิดเบราว์เซอร์เพื่อพิมพ์แบบร่าง"
+              : official
+                ? "พิมพ์ / บันทึก PDF"
+                : "พิมพ์แบบร่าง (มีลายน้ำ)"}
           </button>
         )}
       </div>
+      {!rejected && (inLine || printHint) ? (
+        <p className="rcpt-print-hint no-print" role="status">
+          {printHint ??
+            "ในแอป LINE กดปุ่มด้านบนเพื่อเปิด Safari/Chrome — แล้วเลือกพิมพ์หรือ «บันทึกเป็น PDF»"}
+        </p>
+      ) : null}
 
       <article
         className={`rcpt-sheet${showWatermark ? " rcpt-sheet--draft" : ""}`}

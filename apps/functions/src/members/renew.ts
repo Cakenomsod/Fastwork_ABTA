@@ -38,6 +38,7 @@ export type RenewDraftResult =
       memberId: string;
       firstName: string;
       lastName: string;
+      phone?: string;
       status: string;
       expiryDate?: string;
       feeThb: number;
@@ -136,6 +137,7 @@ export async function getRenewDraft(idToken: string): Promise<RenewDraftResult> 
     memberId: member.memberId,
     firstName: member.firstName,
     lastName: member.lastName,
+    phone: member.phone,
     status: member.status,
     expiryDate: member.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
     feeThb: renewMembershipFeeThb(payableType),

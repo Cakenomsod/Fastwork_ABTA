@@ -16,6 +16,7 @@ import {
 import { memberStatusHrefFromUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import PhoneDigitInput, {
+  formatThaiMobileDisplay,
   isValidThaiMobile,
   type PhoneDigitInputHandle,
 } from "./PhoneDigitInput";
@@ -113,7 +114,7 @@ function errorCopy(code: string): string {
     case "required_fields_missing":
       return "กรุณากรอกชื่อ นามสกุล และเบอร์โทรศัพท์";
     case "invalid_phone":
-      return "กรุณากรอกเบอร์โทรศัพท์ 10 หลัก ให้ครบ (ขึ้นต้นด้วย 0)";
+      return "กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก เช่น 080-802-6677";
     case "slip_required":
       return "กรุณาแนบสลิปโอนเงิน";
     case "no_transfer_account":
@@ -369,7 +370,7 @@ export default function RegisterPage() {
       errors.lastName = "กรุณากรอกนามสกุล";
     }
     if (!isValidThaiMobile(form.phone)) {
-      errors.phone = "กรุณากรอกเบอร์โทรศัพท์ 10 หลัก ให้ครบ (ขึ้นต้นด้วย 0)";
+      errors.phone = "กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก เช่น 080-802-6677";
     }
     return errors;
   }
@@ -527,7 +528,7 @@ export default function RegisterPage() {
                   ...(!isValidThaiMobile(form.phone)
                     ? {
                         phone:
-                          "กรุณากรอกเบอร์โทรศัพท์ 10 หลัก ให้ครบ (ขึ้นต้นด้วย 0)",
+                          "กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก เช่น 080-802-6677",
                       }
                     : {}),
                 };
@@ -883,7 +884,9 @@ export default function RegisterPage() {
                       onChange={(phone) => setForm((prev) => ({ ...prev, phone }))}
                       aria-labelledby="legacy-phone-label"
                     />
-                    <small className="reg-field-hint">ไม่บังคับ · ใช้ช่วยตรวจสอบเท่านั้น</small>
+                    <small className="reg-field-hint">
+                      ไม่บังคับ · เช่น 080-802-6677 · ใช้ช่วยตรวจสอบเท่านั้น
+                    </small>
                   </div>
                 </section>
 
@@ -1137,7 +1140,7 @@ export default function RegisterPage() {
                       label: "ชื่อ–นามสกุล",
                       value: `${form.firstName} ${form.lastName}`,
                     },
-                    { label: "เบอร์โทร", value: form.phone },
+                    { label: "เบอร์โทร", value: formatThaiMobileDisplay(form.phone) },
                     {
                       label: "ประเภทสมาชิก",
                       value: memberTypeLabel(form.memberType),
@@ -1267,10 +1270,15 @@ export default function RegisterPage() {
                           }}
                           aria-labelledby="reg-phone-label"
                           aria-describedby={
-                            fieldErrors.phone ? "reg-err-phone" : undefined
+                            fieldErrors.phone
+                              ? "reg-err-phone"
+                              : "reg-phone-hint"
                           }
                           aria-invalid={Boolean(fieldErrors.phone)}
                         />
+                        <small id="reg-phone-hint" className="reg-field-hint">
+                          กรอก 10 หลัก เช่น 080-802-6677
+                        </small>
                         {fieldErrors.phone ? (
                           <p
                             id="reg-err-phone"
