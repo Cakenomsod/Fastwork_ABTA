@@ -6,7 +6,9 @@ import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firesto
 import {
   ALL_STAFF_ROLES,
   SUPER_ADMIN_EMAIL,
+  SUPER_ADMIN_EMAILS,
   SUPER_ADMIN_UID,
+  isSuperAdminEmail,
   normalizeEmail,
   superAdminStaffDoc,
   type StaffRole,
@@ -23,35 +25,36 @@ function staffRef(email: string) {
   return db().collection(STAFF_COLLECTION).doc(normalizeEmail(email));
 }
 
-/**
- * Ensure bootstrap super-admin exists with all roles.
- * Safe to call on every admin session (not only when collection is empty).
- */
-export async function ensureSuperAdminBootstrap(opts?: {
-  uid?: string;
-  displayName?: string;
-}): Promise<StaffUserDoc> {
-  const email = SUPER_ADMIN_EMAIL;
-  const uid = opts?.uid || SUPER_ADMIN_UID;
-  const ref = staffRef(email);
+async function ensureOneSuperAdmin(
+  email: string,
+  opts?: {
+    uid?: string;
+    displayName?: string;
+  },
+): Promise<StaffUserDoc> {
+  const normalized = normalizeEmail(email);
+  const ref = staffRef(normalized);
   const snap = await ref.get();
+  const defaultUid =
+    normalized === SUPER_ADMIN_EMAIL ? SUPER_ADMIN_UID : undefined;
+  const uid = opts?.uid || defaultUid;
 
   if (!snap.exists) {
     const doc: Omit<StaffUserDoc, "createdAt" | "updatedAt"> & {
       createdAt: FieldValue;
       updatedAt: FieldValue;
     } = {
-      email,
-      uid,
+      email: normalized,
       roles: [...ALL_STAFF_ROLES],
       isSuperAdmin: true,
       displayName: opts?.displayName?.trim() || "Super Admin",
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       createdBy: "system",
+      ...(uid ? { uid } : {}),
     };
     await ref.set(doc);
-    return superAdminStaffDoc({
+    return superAdminStaffDoc(normalized, {
       uid,
       displayName: opts?.displayName?.trim() || "Super Admin",
     });
@@ -63,30 +66,32 @@ export async function ensureSuperAdminBootstrap(opts?: {
 
   const displayName =
     opts?.displayName?.trim() || existing.displayName || "Super Admin";
+  const nextUid = opts?.uid || existing.uid || defaultUid;
 
   const needsPatch =
     !existing.isSuperAdmin ||
     roles.size !== (existing.roles?.length ?? 0) ||
-    normalizeEmail(existing.email) !== email ||
-    existing.uid !== uid;
+    normalizeEmail(existing.email) !== normalized ||
+    (nextUid && existing.uid !== nextUid) ||
+    (opts?.displayName?.trim() && existing.displayName !== displayName);
 
   if (needsPatch) {
     await ref.set(
       {
-        email,
-        uid,
+        email: normalized,
         roles: [...roles],
         isSuperAdmin: true,
         displayName,
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: "system",
+        ...(nextUid ? { uid: nextUid } : {}),
       },
       { merge: true },
     );
     return {
       ...existing,
-      email,
-      uid,
+      email: normalized,
+      uid: nextUid,
       roles: [...roles] as StaffRole[],
       isSuperAdmin: true,
       displayName,
@@ -94,6 +99,32 @@ export async function ensureSuperAdminBootstrap(opts?: {
   }
 
   return existing;
+}
+
+/**
+ * Ensure all bootstrap super-admins exist with all roles.
+ * Safe to call on every admin session.
+ * When `opts.email` is a super-admin, updates that account's uid/displayName
+ * and returns that doc; otherwise returns undefined.
+ */
+export async function ensureSuperAdminBootstrap(opts?: {
+  email?: string;
+  uid?: string;
+  displayName?: string;
+}): Promise<StaffUserDoc | undefined> {
+  const loginEmail = opts?.email ? normalizeEmail(opts.email) : "";
+  let matched: StaffUserDoc | undefined;
+
+  for (const email of SUPER_ADMIN_EMAILS) {
+    const isLogin = loginEmail === email;
+    const doc = await ensureOneSuperAdmin(email, {
+      uid: isLogin ? opts?.uid : undefined,
+      displayName: isLogin ? opts?.displayName : undefined,
+    });
+    if (isLogin) matched = doc;
+  }
+
+  return matched;
 }
 
 export async function findStaffByEmail(
@@ -124,7 +155,7 @@ export async function upsertStaffUser(input: {
     throw new Error("roles_required");
   }
 
-  const isSuper = email === SUPER_ADMIN_EMAIL;
+  const isSuper = isSuperAdminEmail(email);
   const roles = isSuper
     ? [...ALL_STAFF_ROLES]
     : ([...new Set(input.roles)] as StaffRole[]);
@@ -136,7 +167,9 @@ export async function upsertStaffUser(input: {
     email,
     roles,
     isSuperAdmin: isSuper || undefined,
-    ...(isSuper ? { uid: existing?.uid || SUPER_ADMIN_UID } : {}),
+    ...(isSuper && email === SUPER_ADMIN_EMAIL
+      ? { uid: existing?.uid || SUPER_ADMIN_UID }
+      : {}),
     displayName: input.displayName?.trim() || undefined,
     updatedAt: FieldValue.serverTimestamp(),
     updatedBy: input.actorEmail,
@@ -158,7 +191,7 @@ export async function deleteStaffUser(
   actorEmail: string,
 ): Promise<void> {
   const normalized = normalizeEmail(email);
-  if (normalized === SUPER_ADMIN_EMAIL) {
+  if (isSuperAdminEmail(normalized)) {
     throw new Error("cannot_delete_super_admin");
   }
   if (normalized === normalizeEmail(actorEmail)) {

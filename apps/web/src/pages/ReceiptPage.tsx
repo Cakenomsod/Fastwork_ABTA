@@ -189,7 +189,15 @@ export default function ReceiptPage() {
   );
 }
 
-function ReceiptDocument({ data }: { data: PublicStatus }) {
+export function ReceiptDocument({
+  data,
+  backHref,
+  autoPrint,
+}: {
+  data: PublicStatus;
+  backHref?: string;
+  autoPrint?: boolean;
+}) {
   const badge = receiptBadge(data.receiptStatusKey);
   const official = isOfficialReceipt(data.receiptStatusKey);
   const rejected = isRejectedReceipt(data.receiptStatusKey);
@@ -212,7 +220,7 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
 
   useEffect(() => {
     if (rejected) return;
-    if (!consumePrintQuery()) return;
+    if (!autoPrint && !consumePrintQuery()) return;
     if (isLineInAppBrowser()) {
       setPrintHint(
         "แอป LINE พิมพ์/บันทึก PDF ไม่ได้ — กดปุ่มด้านล่างเพื่อเปิด Safari หรือ Chrome แล้วเลือก «บันทึกเป็น PDF»",
@@ -221,7 +229,7 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
     }
     const t = window.setTimeout(() => window.print(), 350);
     return () => window.clearTimeout(t);
-  }, [rejected]);
+  }, [rejected, autoPrint]);
 
   async function onPrintClick() {
     setPrintHint(null);
@@ -252,8 +260,8 @@ function ReceiptDocument({ data }: { data: PublicStatus }) {
   return (
     <div className={`rcpt-content${rejected ? " rcpt-content--rejected" : ""}`}>
       <div className="rcpt-toolbar no-print">
-        <a className="rcpt-toolbar__link" href={statusLink(data.memberId)}>
-          ← กลับไปสถานะสมาชิก
+        <a className="rcpt-toolbar__link" href={backHref ?? statusLink(data.memberId)}>
+          ← กลับ
         </a>
         {rejected ? (
           <span

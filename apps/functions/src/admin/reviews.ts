@@ -490,6 +490,7 @@ export async function listMembers(
 
   for (const doc of snap.docs) {
     const m = doc.data() as MemberDoc;
+    const payment = await findLatestPayment(m.memberId);
     if (q) {
       const hay = [
         m.memberId,
@@ -501,6 +502,9 @@ export async function listMembers(
         m.phone,
         m.legalEntityName,
         m.buildingName,
+        payment?.receiptNumber,
+        payment?.pendingReceiptNumber,
+        payment?.amount != null ? String(payment.amount) : undefined,
       ]
         .filter(Boolean)
         .join(" ")
@@ -508,7 +512,6 @@ export async function listMembers(
       if (!hay.includes(q)) continue;
     }
 
-    const payment = await findLatestPayment(m.memberId);
     const item = toQueueItem(m, payment);
     if (receiptIdT === "with_t" && !receiptIdHasT(item.receiptNumber)) continue;
     if (receiptIdT === "without_t" && receiptIdHasT(item.receiptNumber)) continue;

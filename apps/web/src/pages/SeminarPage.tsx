@@ -34,15 +34,22 @@ type MyRegistration = {
   applicantType: string;
   applicantTypeLabel: string;
   feeThb: number;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
   shirtSize?: string;
   foodType?: string;
   notes?: string;
+  rejectReason?: string;
 };
 
 type SlipState =
   | { kind: "empty" }
   | { kind: "ready"; file: File; previewUrl: string }
   | { kind: "error"; message: string };
+
+type StatusTone = "pending" | "paid" | "confirmed" | "rejected" | "neutral";
 
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png"]);
@@ -52,6 +59,8 @@ const PRICING_FALLBACK: Record<string, string> = {
   member_free: "สมาชิก ABTA",
   member_paid: "สมาชิก ABTA",
 };
+
+const BLOCKING_STATUSES = new Set(["registered", "paid", "confirmed"]);
 
 function wantsMineView(): boolean {
   const params = new URLSearchParams(window.location.search);
@@ -65,12 +74,52 @@ function wantsMineView(): boolean {
   return nested.get("mine") === "1" || nested.get("view") === "1";
 }
 
+function statusTone(status: string): StatusTone {
+  switch (status) {
+    case "confirmed":
+      return "confirmed";
+    case "rejected":
+      return "rejected";
+    case "paid":
+      return "paid";
+    case "registered":
+      return "pending";
+    default:
+      return "neutral";
+  }
+}
+
+function regForSeminar(
+  regs: MyRegistration[],
+  seminarId: string,
+): MyRegistration | undefined {
+  return regs.find((r) => r.seminarId === seminarId);
+}
+
+function isBlockingReg(r: MyRegistration): boolean {
+  return BLOCKING_STATUSES.has(r.status);
+}
+
+function applicantFullName(r: MyRegistration): string | null {
+  const name = [r.firstName, r.lastName].filter(Boolean).join(" ").trim();
+  return name || null;
+}
+
+function StatusBadge({ status, label }: { status: string; label: string }) {
+  return (
+    <span className={`sem-status sem-status--${statusTone(status)}`}>
+      {label}
+    </span>
+  );
+}
+
 export default function SeminarPage() {
   const [liff, setLiff] = useState<LiffPhase>({ phase: "loading" });
   const [isMember, setIsMember] = useState(false);
   const [items, setItems] = useState<Seminar[]>([]);
   const [myRegs, setMyRegs] = useState<MyRegistration[]>([]);
   const [showMine, setShowMine] = useState(wantsMineView);
+  const [mineDetail, setMineDetail] = useState<MyRegistration | null>(null);
   const [listPhase, setListPhase] = useState<"loading" | "ready" | "error">(
     "loading",
   );
@@ -126,14 +175,14 @@ export default function SeminarPage() {
 
       if (openMine) {
         setShowMine(true);
-        if (!idToken) {
-          setMinePhase("error");
-        } else {
-          await loadMyRegistrations(idToken);
-        }
       }
 
-      if (!idToken) return;
+      if (!idToken) {
+        if (openMine) setMinePhase("error");
+        return;
+      }
+
+      await loadMyRegistrations(idToken);
 
       try {
         const draft = await fetchRenewDraft(idToken);
@@ -282,7 +331,6 @@ export default function SeminarPage() {
       }
     }
     setError(null);
-    // Always review before submit — free member and paid public alike.
     setConfirmOpen(true);
   }
 
@@ -319,6 +367,8 @@ export default function SeminarPage() {
       if (!res.ok || !data.ok) throw new Error(data.error ?? "error");
       setDone(data.registrationId);
       setConfirmOpen(false);
+      const token = idToken ?? (liff.phase === "dev" ? "dev" : "");
+      if (token) void loadMyRegistrations(token);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "error";
       setError(seminarErrorCopy(msg));
@@ -332,6 +382,7 @@ export default function SeminarPage() {
     setDone(null);
     setShowMine(true);
     setSelected(null);
+    setMineDetail(null);
     setError(null);
     const idToken =
       (await getIdToken()) ?? (liff.phase === "dev" ? "dev" : "");
@@ -340,6 +391,39 @@ export default function SeminarPage() {
       return;
     }
     await loadMyRegistrations(idToken);
+  }
+
+  function openBrowseView() {
+    setShowMine(false);
+    setMineDetail(null);
+    setSelected(null);
+    setError(null);
+    setConfirmOpen(false);
+    setTypeWarning(null);
+  }
+
+  function openRegistrationDetail(r: MyRegistration) {
+    setMineDetail(r);
+    setShowMine(true);
+    setSelected(null);
+    setDone(null);
+    setError(null);
+  }
+
+  function startRegister(s: Seminar) {
+    const existing = regForSeminar(myRegs, s.seminarId);
+    if (existing && isBlockingReg(existing)) {
+      openRegistrationDetail(existing);
+      return;
+    }
+    setSelected(s);
+    setMineDetail(null);
+    setShowMine(false);
+    setSlip({ kind: "empty" });
+    setConfirmOpen(false);
+    setError(null);
+    setPhoneTouched(false);
+    applyPreferredType(s);
   }
 
   if (liff.phase === "error") {
@@ -366,13 +450,14 @@ export default function SeminarPage() {
       <main className="reg-wrap">
         {done ? (
           <section className="reg-success">
-            <p className="reg-kicker">ABTA</p>
-            <h1>รับสมัครสัมมนาแล้ว</h1>
+            <h1>ส่งใบสมัครแล้ว</h1>
             <p className="reg-success__id">{done}</p>
-            <p className="reg-lead">รอเจ้าหน้าที่ยืนยันสิทธิ์ครับ</p>
+            <p className="reg-lead">
+              เจ้าหน้าที่จะตรวจสอบสิทธิ์ แล้วแจ้งผลทาง LINE ของท่าน
+            </p>
             <button
               type="button"
-              className="reg-btn reg-btn--ghost"
+              className="reg-btn reg-btn--ghost-light"
               onClick={() => void openMineView()}
             >
               ดูใบสมัครของฉัน
@@ -380,87 +465,234 @@ export default function SeminarPage() {
           </section>
         ) : (
           <>
+            {!selected && !mineDetail ? (
+              <nav
+                className="reg-mode-tabs"
+                role="tablist"
+                aria-label="โหมดสัมมนา"
+              >
+                <button
+                  type="button"
+                  className={`reg-mode-tab${!showMine ? " reg-mode-tab--active" : ""}`}
+                  role="tab"
+                  aria-selected={!showMine}
+                  onClick={() => openBrowseView()}
+                >
+                  สมัครใหม่
+                </button>
+                <button
+                  type="button"
+                  className={`reg-mode-tab${showMine ? " reg-mode-tab--active" : ""}`}
+                  role="tab"
+                  aria-selected={showMine}
+                  onClick={() => void openMineView()}
+                >
+                  ของฉัน
+                </button>
+              </nav>
+            ) : null}
+
             <header className="reg-hero">
-              <p className="reg-kicker">ABTA</p>
-              <h1>{showMine ? "สัมมนาของฉัน" : "สมัครสัมมนา"}</h1>
+              <h1>
+                {mineDetail
+                  ? "รายละเอียดใบสมัคร"
+                  : selected
+                    ? "กรอกใบสมัคร"
+                    : showMine
+                      ? "ใบสมัครสัมมนา"
+                      : "สัมมนาสมาคม"}
+              </h1>
               <p className="reg-lead">
-                {showMine
-                  ? "รายการที่สมัครไว้และสถานะการยืนยันสิทธิ์"
-                  : isMember
-                    ? "ดึงข้อมูลสมาชิกจากบัญชี LINE แล้ว"
-                    : "เลือกงานแล้วกรอกข้อมูลผู้สมัคร"}
+                {mineDetail
+                  ? "ข้อมูลที่ท่านส่งไว้และสถานะล่าสุด"
+                  : selected
+                    ? selected.title
+                    : showMine
+                      ? "แตะรายการเพื่อดูรายละเอียดและติดตามสถานะ"
+                      : isMember
+                        ? "ใช้สิทธิสมาชิก ABTA เมื่อสมัครงานที่เปิดรับ"
+                        : "เลือกงานที่เปิดรับสมัคร แล้วกรอกข้อมูลผู้สมัคร"}
               </p>
-              {isMember && !showMine ? (
-                <p className="reg-user">สมาชิก ABTA</p>
+              {isMember && !showMine && !selected && !mineDetail ? (
+                <p className="reg-user">เข้าสู่ระบบในฐานะสมาชิก ABTA</p>
               ) : null}
             </header>
 
-            {error ? <p className="reg-form-error">{error}</p> : null}
+            {error && !confirmOpen ? (
+              <p className="reg-form-error" role="alert">
+                {error}
+              </p>
+            ) : null}
 
-            {showMine ? (
-              <section className="reg-form" aria-busy={minePhase === "loading"}>
-                <div className="reg-mode-tabs" role="tablist" aria-label="โหมดสัมมนา">
+            {mineDetail ? (
+              <section className="reg-form">
+                <button
+                  type="button"
+                  className="reg-btn reg-btn--ghost reg-seminar-back"
+                  onClick={() => setMineDetail(null)}
+                >
+                  ← กลับรายการของฉัน
+                </button>
+
+                <div className="sem-detail-head">
+                  <h2 className="reg-section__title sem-detail-title">
+                    {mineDetail.title}
+                  </h2>
+                  <StatusBadge
+                    status={mineDetail.status}
+                    label={mineDetail.statusLabel}
+                  />
+                </div>
+
+                {(mineDetail.eventDate || mineDetail.location) && (
+                  <p className="reg-seminar-desc">
+                    {[mineDetail.eventDate, mineDetail.location]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
+
+                {mineDetail.status === "rejected" && mineDetail.rejectReason ? (
+                  <div className="sem-reject" role="status">
+                    <strong>เหตุผลที่ไม่ผ่าน</strong>
+                    <p>{mineDetail.rejectReason}</p>
+                  </div>
+                ) : null}
+
+                <dl className="sem-detail">
+                  <div className="sem-detail__row">
+                    <dt>เลขที่ใบสมัคร</dt>
+                    <dd>{mineDetail.registrationId}</dd>
+                  </div>
+                  {applicantFullName(mineDetail) ? (
+                    <div className="sem-detail__row">
+                      <dt>ชื่อผู้สมัคร</dt>
+                      <dd>{applicantFullName(mineDetail)}</dd>
+                    </div>
+                  ) : null}
+                  {mineDetail.phone ? (
+                    <div className="sem-detail__row">
+                      <dt>เบอร์โทร</dt>
+                      <dd>
+                        {formatThaiMobileDisplay(
+                          mineDetail.phone.replace(/\D/g, "").slice(0, 10),
+                        )}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {mineDetail.email ? (
+                    <div className="sem-detail__row">
+                      <dt>อีเมล</dt>
+                      <dd>{mineDetail.email}</dd>
+                    </div>
+                  ) : null}
+                  <div className="sem-detail__row">
+                    <dt>ประเภท</dt>
+                    <dd>{mineDetail.applicantTypeLabel}</dd>
+                  </div>
+                  <div className="sem-detail__row">
+                    <dt>ค่าสมัคร</dt>
+                    <dd>
+                      {mineDetail.feeThb > 0
+                        ? `${mineDetail.feeThb.toLocaleString("th-TH")} บาท`
+                        : "ไม่เสียค่าสมัคร"}
+                    </dd>
+                  </div>
+                  {mineDetail.shirtSize ? (
+                    <div className="sem-detail__row">
+                      <dt>ไซส์เสื้อ</dt>
+                      <dd>{mineDetail.shirtSize}</dd>
+                    </div>
+                  ) : null}
+                  {mineDetail.foodType ? (
+                    <div className="sem-detail__row">
+                      <dt>ประเภทอาหาร</dt>
+                      <dd>{mineDetail.foodType}</dd>
+                    </div>
+                  ) : null}
+                  {mineDetail.notes ? (
+                    <div className="sem-detail__row">
+                      <dt>หมายเหตุ</dt>
+                      <dd>{mineDetail.notes}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+
+                {mineDetail.status === "rejected" ? (
                   <button
                     type="button"
-                    className="reg-mode-tab"
-                    role="tab"
-                    aria-selected={false}
+                    className="reg-btn reg-btn--primary"
                     onClick={() => {
-                      setShowMine(false);
-                      setError(null);
+                      const seminar = items.find(
+                        (s) => s.seminarId === mineDetail.seminarId,
+                      );
+                      setMineDetail(null);
+                      if (seminar) {
+                        startRegister(seminar);
+                      } else {
+                        openBrowseView();
+                      }
                     }}
                   >
-                    สมัครใหม่
+                    สมัครงานนี้อีกครั้ง
                   </button>
-                  <button
-                    type="button"
-                    className="reg-mode-tab reg-mode-tab--active"
-                    role="tab"
-                    aria-selected
-                  >
-                    ของฉัน
-                  </button>
-                </div>
-                <h2 className="reg-section__title">ใบสมัครของฉัน</h2>
+                ) : null}
+              </section>
+            ) : showMine ? (
+              <section className="reg-form" aria-busy={minePhase === "loading"}>
+                <h2 className="reg-section__title">รายการที่สมัครไว้</h2>
                 {minePhase === "loading" || minePhase === "idle" ? (
-                  <p className="reg-lead">กำลังโหลด…</p>
+                  <p className="reg-lead" aria-live="polite">
+                    กำลังโหลดใบสมัคร…
+                  </p>
                 ) : minePhase === "error" ? (
                   <div className="reg-legacy-empty" role="alert">
-                    <p>โหลดใบสมัครไม่สำเร็จ กรุณาเปิดจาก LINE OA อีกครั้ง</p>
+                    <p>
+                      โหลดใบสมัครไม่สำเร็จ กรุณาเปิดจาก LINE OA อีกครั้ง
+                    </p>
                   </div>
                 ) : myRegs.length === 0 ? (
                   <div className="reg-legacy-empty">
                     <p>ยังไม่มีใบสมัครสัมมนา</p>
+                    <button
+                      type="button"
+                      className="reg-btn reg-btn--primary"
+                      onClick={() => openBrowseView()}
+                    >
+                      ไปเลือกงานสมัครใหม่
+                    </button>
                   </div>
                 ) : (
                   <ul className="reg-seminar-list">
                     {myRegs.map((r) => (
                       <li key={r.registrationId} className="reg-seminar-item">
-                        <div className="reg-seminar-item__btn" style={{ cursor: "default" }}>
-                          <strong>{r.title}</strong>
-                          <span className="reg-seminar-item__meta">
-                            {[r.eventDate, r.location, r.statusLabel]
-                              .filter(Boolean)
-                              .join(" · ")}
+                        <button
+                          type="button"
+                          className="reg-btn reg-btn--ghost reg-seminar-item__btn sem-item"
+                          onClick={() => openRegistrationDetail(r)}
+                        >
+                          <span className="sem-item__top">
+                            <strong>{r.title}</strong>
+                            <StatusBadge
+                              status={r.status}
+                              label={r.statusLabel}
+                            />
                           </span>
+                          {(r.eventDate || r.location) && (
+                            <span className="reg-seminar-item__meta">
+                              {[r.eventDate, r.location]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          )}
                           <span className="reg-seminar-item__meta">
                             {r.applicantTypeLabel}
                             {r.feeThb > 0
                               ? ` · ${r.feeThb.toLocaleString("th-TH")} บาท`
                               : " · ไม่เสียค่าสมัคร"}
                           </span>
-                          {(r.shirtSize || r.foodType || r.notes) && (
-                            <span className="reg-seminar-item__meta">
-                              {[
-                                r.shirtSize ? `เสื้อ ${r.shirtSize}` : null,
-                                r.foodType ? `อาหาร ${r.foodType}` : null,
-                                r.notes ? `หมายเหตุ ${r.notes}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </span>
-                          )}
-                        </div>
+                          <span className="sem-item__hint">ดูรายละเอียด →</span>
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -468,26 +700,7 @@ export default function SeminarPage() {
               </section>
             ) : !selected ? (
               <section className="reg-form" aria-busy={listPhase === "loading"}>
-                <div className="reg-mode-tabs" role="tablist" aria-label="โหมดสัมมนา">
-                  <button
-                    type="button"
-                    className="reg-mode-tab reg-mode-tab--active"
-                    role="tab"
-                    aria-selected
-                  >
-                    สมัครใหม่
-                  </button>
-                  <button
-                    type="button"
-                    className="reg-mode-tab"
-                    role="tab"
-                    aria-selected={false}
-                    onClick={() => void openMineView()}
-                  >
-                    ของฉัน
-                  </button>
-                </div>
-                <h2 className="reg-section__title">รายการสัมมนา</h2>
+                <h2 className="reg-section__title">งานที่เปิดรับสมัคร</h2>
                 {listPhase === "loading" ? (
                   <p className="reg-lead" aria-live="polite">
                     กำลังโหลดรายการสัมมนา…
@@ -498,35 +711,60 @@ export default function SeminarPage() {
                   </div>
                 ) : items.length === 0 ? (
                   <div className="reg-legacy-empty">
-                    <p>ยังไม่มีงานสัมมนาที่เปิดรับสมัคร</p>
+                    <p>
+                      ขณะนี้ยังไม่มีงานที่เปิดรับสมัคร — กลับมาดูใหม่ภายหลังได้ครับ
+                    </p>
                   </div>
                 ) : (
                   <ul className="reg-seminar-list">
-                    {items.map((s) => (
-                      <li key={s.seminarId} className="reg-seminar-item">
-                        <button
-                          type="button"
-                          className="reg-btn reg-btn--ghost reg-seminar-item__btn"
-                          onClick={() => {
-                            setSelected(s);
-                            setSlip({ kind: "empty" });
-                            setConfirmOpen(false);
-                            setError(null);
-                            setPhoneTouched(false);
-                            applyPreferredType(s);
-                          }}
-                        >
-                          <strong>{s.title}</strong>
-                          {(s.eventDate || s.location) && (
-                            <span className="reg-seminar-item__meta">
-                              {[s.eventDate, s.location]
-                                .filter(Boolean)
-                                .join(" · ")}
+                    {items.map((s) => {
+                      const existing = regForSeminar(myRegs, s.seminarId);
+                      const blocked = existing
+                        ? isBlockingReg(existing)
+                        : false;
+                      return (
+                        <li key={s.seminarId} className="reg-seminar-item">
+                          <button
+                            type="button"
+                            className={`reg-btn reg-btn--ghost reg-seminar-item__btn sem-item${blocked ? " sem-item--applied" : ""}`}
+                            onClick={() => startRegister(s)}
+                          >
+                            <span className="sem-item__top">
+                              <strong>{s.title}</strong>
+                              {existing ? (
+                                <StatusBadge
+                                  status={existing.status}
+                                  label={existing.statusLabel}
+                                />
+                              ) : (
+                                <span className="sem-status sem-status--open">
+                                  เปิดรับสมัคร
+                                </span>
+                              )}
                             </span>
-                          )}
-                        </button>
-                      </li>
-                    ))}
+                            {(s.eventDate || s.location) && (
+                              <span className="reg-seminar-item__meta">
+                                {[s.eventDate, s.location]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </span>
+                            )}
+                            {s.description ? (
+                              <span className="reg-seminar-item__meta sem-item__desc">
+                                {s.description}
+                              </span>
+                            ) : null}
+                            <span className="sem-item__hint">
+                              {blocked
+                                ? "ดูใบสมัครของคุณ →"
+                                : existing?.status === "rejected"
+                                  ? "สมัครอีกครั้ง →"
+                                  : "สมัครงานนี้ →"}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </section>
@@ -546,13 +784,23 @@ export default function SeminarPage() {
                   ← กลับเลือกรายการ
                 </button>
                 <h2 className="reg-section__title">{selected.title}</h2>
+                {(selected.eventDate || selected.location) && (
+                  <p className="reg-seminar-desc">
+                    {[selected.eventDate, selected.location]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
                 {selected.description ? (
                   <p className="reg-seminar-desc">{selected.description}</p>
                 ) : null}
 
                 {membersOnly ? (
                   <div className="reg-legacy-empty">
-                    <p>สัมมานี้สำหรับสมาชิกเท่านั้น</p>
+                    <p>
+                      สัมมานี้เปิดเฉพาะสมาชิก ABTA —
+                      กรุณาสมัครหรือยืนยันสมาชิกก่อน
+                    </p>
                   </div>
                 ) : confirmOpen ? (
                   <PaymentConfirmPanel
@@ -779,9 +1027,8 @@ export default function SeminarPage() {
                     ) : null}
 
                     <section className="reg-section">
-                      <h2 className="reg-section__title">
-                        ข้อมูลเพิ่มเติม (ไม่บังคับ)
-                      </h2>
+                      <h2 className="reg-section__title">ข้อมูลเพิ่มเติม</h2>
+                      <p className="reg-section__hint">ไม่บังคับ — กรอกได้ถ้ามี</p>
                       <label className="reg-field">
                         <span>ไซส์เสื้อ</span>
                         <input

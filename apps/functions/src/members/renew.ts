@@ -41,6 +41,7 @@ export type RenewDraftResult =
       phone?: string;
       status: string;
       expiryDate?: string;
+      nextExpiryDate?: string;
       feeThb: number;
       memberType: string;
       memberTypeLabel: string;
@@ -132,6 +133,8 @@ export async function getRenewDraft(idToken: string): Promise<RenewDraftResult> 
   const payableType = payableTypeFromMemberType(member.memberType);
   const token = resolvePublicToken(member.publicToken);
   const statusUrl = `${WEB_ORIGIN}/status?m=${encodeURIComponent(member.memberId)}&t=${token}`;
+  const currentExpiry = member.expiryDate?.toDate?.() ?? null;
+  const nextExpiry = nextMembershipExpiryDec31(currentExpiry);
   return {
     ok: true,
     memberId: member.memberId,
@@ -139,7 +142,8 @@ export async function getRenewDraft(idToken: string): Promise<RenewDraftResult> 
     lastName: member.lastName,
     phone: member.phone,
     status: member.status,
-    expiryDate: member.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
+    expiryDate: currentExpiry?.toISOString?.()?.slice(0, 10),
+    nextExpiryDate: nextExpiry.toISOString().slice(0, 10),
     feeThb: renewMembershipFeeThb(payableType),
     memberType: payableType,
     memberTypeLabel:

@@ -18,10 +18,16 @@ export const STAFF_ROLE_LABEL: Record<StaffRole, string> = {
   treasurer: "เหรัญญิก",
 };
 
-/** Bootstrap super-admin — normalize case on every compare. */
-export const SUPER_ADMIN_EMAIL = "phetklaowork01@gmail.com";
+/** Bootstrap / hard-allow super-admins (normalized lowercase). */
+export const SUPER_ADMIN_EMAILS = [
+  "phetklaowork01@gmail.com",
+  "tirawatl@gmail.com",
+] as const;
 
-/** Known Firebase Auth UID for the bootstrap super-admin (Google). */
+/** @deprecated Prefer SUPER_ADMIN_EMAILS — primary bootstrap account. */
+export const SUPER_ADMIN_EMAIL = SUPER_ADMIN_EMAILS[0];
+
+/** Known Firebase Auth UID for the primary bootstrap super-admin (Google). */
 export const SUPER_ADMIN_UID = "HcCJg86QQJPiaBFAFPxL0KLMPjR2";
 
 export interface StaffUserDoc {
@@ -39,18 +45,21 @@ export interface StaffUserDoc {
 }
 
 export function isSuperAdminEmail(email: string): boolean {
-  return normalizeEmail(email) === SUPER_ADMIN_EMAIL;
+  const normalized = normalizeEmail(email);
+  return (SUPER_ADMIN_EMAILS as readonly string[]).includes(normalized);
 }
 
 export function superAdminStaffDoc(
+  email: string,
   overrides?: Partial<StaffUserDoc>,
 ): StaffUserDoc {
+  const normalized = normalizeEmail(email);
   return {
-    email: SUPER_ADMIN_EMAIL,
+    email: normalized,
     roles: [...ALL_STAFF_ROLES],
     isSuperAdmin: true,
     displayName: "Super Admin",
-    uid: SUPER_ADMIN_UID,
+    ...(normalized === SUPER_ADMIN_EMAIL ? { uid: SUPER_ADMIN_UID } : {}),
     ...overrides,
   };
 }

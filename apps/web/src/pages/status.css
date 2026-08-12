@@ -155,10 +155,18 @@
   letter-spacing: 0.01em;
 }
 
-.mcard__expiry {
+.mcard__foot {
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mcard__expiry {
+  min-width: 0;
 }
 
 .mcard__expiry-value {
@@ -172,6 +180,21 @@
   font-style: normal;
   font-weight: 500;
   color: var(--page-gold-pale);
+}
+
+.mcard__qr {
+  flex-shrink: 0;
+  padding: 0.35rem;
+  border-radius: 10px;
+  background: #ffffff;
+  line-height: 0;
+  box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.35);
+}
+
+.mcard__qr svg {
+  display: block;
+  width: 88px;
+  height: 88px;
 }
 
 /* ---------- Status pill ---------- */

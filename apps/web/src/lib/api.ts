@@ -308,6 +308,8 @@ export type RenewDraft = {
   phone?: string;
   status: string;
   expiryDate?: string;
+  /** Projected expiry after renewal is approved (31 Dec next cycle). */
+  nextExpiryDate?: string;
   feeThb: number;
   memberType?: string;
   memberTypeLabel?: string;
@@ -336,6 +338,8 @@ export async function fetchRenewDraft(idToken: string): Promise<RenewDraft> {
     phone: typeof data.phone === "string" ? data.phone : undefined,
     status: data.status,
     expiryDate: data.expiryDate,
+    nextExpiryDate:
+      typeof data.nextExpiryDate === "string" ? data.nextExpiryDate : undefined,
     feeThb: data.feeThb,
     memberType: typeof data.memberType === "string" ? data.memberType : undefined,
     memberTypeLabel:

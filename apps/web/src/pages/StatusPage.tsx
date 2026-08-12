@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { fetchMemberStatus, type PublicStatus } from "../lib/api";
 import { liffPageUrl, readMemberStatusParams } from "../lib/member-links";
 import "./status.css";
@@ -156,12 +157,27 @@ function StatusCard({ data }: { data: PublicStatus }) {
           </span>
         </div>
 
-        <div className="mcard__expiry">
-          <span className="mcard__label">วันหมดอายุ</span>
-          <span className="mcard__expiry-value">
-            {data.expiryLabel ?? "—"}
-            {expiryHint && <em className="mcard__expiry-hint"> · {expiryHint}</em>}
-          </span>
+        <div className="mcard__foot">
+          <div className="mcard__expiry">
+            <span className="mcard__label">วันหมดอายุ</span>
+            <span className="mcard__expiry-value">
+              {data.expiryLabel ?? "—"}
+              {expiryHint && (
+                <em className="mcard__expiry-hint"> · {expiryHint}</em>
+              )}
+            </span>
+          </div>
+          <div className="mcard__qr">
+            <QRCodeSVG
+              value={data.memberId}
+              size={88}
+              level="M"
+              marginSize={1}
+              bgColor="#ffffff"
+              fgColor="#0b3a29"
+              title={`QR หมายเลขสมาชิก ${data.memberId}`}
+            />
+          </div>
         </div>
       </section>
 

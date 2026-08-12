@@ -261,11 +261,12 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
       <header className="bo-agm-hero bo-agm-no-print">
         <div className="bo-agm-hero-copy">
           <p className="bo-muted bo-agm-lead">
-            รายชื่อสมาชิกสามัญที่มีสิทธิ์เข้าร่วมและออกเสียงในประชุมใหญ่ปี{" "}
-            {yearLabel} — ใช้ช่วงปลายมีนาคมก่อนประชุมเมษายน
+            รายงานรายชื่อสมาชิกสามัญที่มีสิทธิ์<strong>เข้าร่วม</strong>
+            ประชุมใหญ่ปี {yearLabel} — ใช้เตรียมบัญชีรายชื่อช่วงปลายมีนาคมก่อนประชุมเมษายน
+            (ไม่ใช่ระบบเช็คอินหรือลงคะแนน)
           </p>
-          <ul className="bo-agm-criteria" aria-label="เงื่อนไขผู้มีสิทธิ์">
-            <li>ประเภท <strong>สามัญ</strong></li>
+          <ul className="bo-agm-criteria" aria-label="เงื่อนไขผู้มีสิทธิ์เข้าร่วม">
+            <li>สมาชิกประเภท <strong>สามัญ</strong></li>
             <li>
               สถานภาพ <strong>สมบูรณ์</strong> / <strong>ใกล้หมดอายุ</strong> /{" "}
               <strong>ชั่วคราว</strong>
@@ -284,9 +285,9 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
       </header>
 
       <div className="bo-agm-print-title" aria-hidden="true">
-        <h2>รายชื่อผู้มีสิทธิ์ประชุมใหญ่ ปี {yearLabel}</h2>
-        <ul className="bo-agm-criteria" aria-label="เงื่อนไขผู้มีสิทธิ์">
-          <li>ประเภท <strong>สามัญ</strong></li>
+        <h2>รายชื่อผู้มีสิทธิ์เข้าร่วมประชุมใหญ่ ปี {yearLabel}</h2>
+        <ul className="bo-agm-criteria" aria-label="เงื่อนไขผู้มีสิทธิ์เข้าร่วม">
+          <li>สมาชิกประเภท <strong>สามัญ</strong></li>
           <li>
             สถานภาพ <strong>สมบูรณ์</strong> / <strong>ใกล้หมดอายุ</strong> /{" "}
             <strong>ชั่วคราว</strong>
@@ -305,7 +306,7 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
             {firstLoad ? "—" : totalDisplay.toLocaleString("th-TH")}
           </div>
           <div className="lbl">
-            {truncated ? "โหลดแล้ว (อาจไม่ครบ)" : "มีสิทธิ์ทั้งหมด"}
+            {truncated ? "โหลดแล้ว (อาจไม่ครบ)" : "ผู้มีสิทธิ์ทั้งหมด"}
           </div>
         </div>
         <button
@@ -352,7 +353,7 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
       <section className="bo-panel" aria-busy={loading || undefined}>
         <div className="bo-panel-head">
           <div>
-            <h2>รายชื่อผู้มีสิทธิ์</h2>
+            <h2>รายชื่อผู้มีสิทธิ์เข้าร่วม</h2>
             <p className="bo-muted bo-agm-head-sub" aria-live="polite">
               {firstLoad
                 ? progressLabel
@@ -442,7 +443,7 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
             {matched > loadedCount
               ? " (ถึงขีดจำกัดการดึงข้อมูลทีละหน้า)"
               : ""}
-            {" "}กรุณารีเฟรชหรือติดต่อผู้ดูแลระบบก่อนใช้เป็นบัญชีผู้มีสิทธิ์ประชุมใหญ่
+            {" "}กรุณารีเฟรชหรือติดต่อผู้ดูแลระบบก่อนใช้เป็นบัญชีรายชื่อผู้มีสิทธิ์เข้าร่วมประชุมใหญ่
             ปุ่มส่งออก CSV ถูกปิดจนกว่าจะโหลดครบ
           </div>
         ) : null}
@@ -476,7 +477,7 @@ export default function AgmReportPage(_props: { me: AdminMe }) {
           <div className="bo-empty">{progressLabel}</div>
         ) : items.length === 0 ? (
           <div className="bo-empty">
-            <strong>ยังไม่มีสมาชิกสามัญที่มีสิทธิ์</strong>
+            <strong>ยังไม่มีสมาชิกสามัญที่มีสิทธิ์เข้าร่วม</strong>
             รายชื่อจะแสดงเมื่อมีสมาชิกสามัญที่ต่ออายุแล้วและยังไม่หมดอายุ
           </div>
         ) : filtered.length === 0 ? (

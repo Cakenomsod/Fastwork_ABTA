@@ -1,6 +1,7 @@
 /**
- * TEMPORARY — open Back Office for client review without Google login.
- * Set to `false` when review is done (must match functions `ADMIN_OPEN_ACCESS`).
+ * TEMPORARY flag retained for emergency review only.
+ * Production: keep `false` so Back Office requires Google login + staff allowlist.
+ * Must match functions `ADMIN_OPEN_ACCESS`.
  */
-export const ADMIN_OPEN_ACCESS = true;
+export const ADMIN_OPEN_ACCESS = false;
 

@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
   type MouseEvent,
 } from "react";
@@ -16,6 +17,12 @@ import { ConfirmDialog } from "../ConfirmDialog";
 import { clickableRowProps } from "../clickableRow";
 
 const ALL_ROLES: StaffRole[] = ["admin", "registrar", "treasurer"];
+
+const ROLE_HINT: Record<StaffRole, string> = {
+  admin: "จัดการเจ้าหน้าที่และข้อมูลสมาชิก",
+  registrar: "ตรวจคิวข้อมูลสมาชิก อนุมัติ/ปฏิเสธ",
+  treasurer: "ตรวจสลิปชำระเงินและใบเสร็จ",
+};
 
 const ERROR_LABEL: Record<string, string> = {
   load_failed: "โหลดรายชื่อไม่สำเร็จ",
@@ -52,8 +59,11 @@ export default function StaffPage(props: { me: AdminMe }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<StaffRow | null>(null);
+  const formRef = useRef<HTMLElement | null>(null);
+  const hasLoadedOnce = useRef(false);
 
   const isEditing = editingEmail !== null;
   const currentEmail = normalizeEmail(props.me.email);
@@ -64,11 +74,14 @@ export default function StaffPage(props: { me: AdminMe }) {
     setDisplayName("");
     setRoles(["registrar"]);
     setFormError(null);
-    setFormSuccess(null);
   }
 
   async function reload() {
-    setLoading(true);
+    if (hasLoadedOnce.current) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setListError(null);
     try {
       setStaff(await fetchStaffList());
@@ -76,6 +89,8 @@ export default function StaffPage(props: { me: AdminMe }) {
       setListError(errorMessage(err, "load_failed"));
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      hasLoadedOnce.current = true;
     }
   }
 
@@ -98,6 +113,9 @@ export default function StaffPage(props: { me: AdminMe }) {
     setRoles([...row.roles]);
     setFormError(null);
     setFormSuccess(null);
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
   }
 
   async function onSave() {
@@ -106,17 +124,23 @@ export default function StaffPage(props: { me: AdminMe }) {
       setFormSuccess(null);
       return;
     }
+    const wasEditing = isEditing;
+    const savedEmail = email.trim();
     setBusy(true);
     setFormError(null);
     setFormSuccess(null);
     try {
       await upsertStaff({
-        email: email.trim(),
+        email: savedEmail,
         roles,
         displayName: displayName.trim() || undefined,
       });
       resetForm();
-      setFormSuccess("บันทึกแล้ว");
+      setFormSuccess(
+        wasEditing
+          ? `อัปเดตเจ้าหน้าที่ «${savedEmail}» แล้ว`
+          : `เพิ่มเจ้าหน้าที่ «${savedEmail}» แล้ว`,
+      );
       await reload();
     } catch (err) {
       setFormError(errorMessage(err, "save_failed"));
@@ -151,6 +175,8 @@ export default function StaffPage(props: { me: AdminMe }) {
     }
   }
 
+  const listBusy = loading || refreshing || busy;
+
   return (
     <div className="bo-staff-page">
       <div className="bo-panel">
@@ -159,9 +185,10 @@ export default function StaffPage(props: { me: AdminMe }) {
           <button
             type="button"
             className="bo-btn bo-btn-ghost bo-btn-sm"
+            disabled={listBusy}
             onClick={() => void reload()}
           >
-            รีเฟรช
+            {refreshing ? "กำลังโหลด…" : "รีเฟรช"}
           </button>
         </div>
         {listError ? (
@@ -177,8 +204,11 @@ export default function StaffPage(props: { me: AdminMe }) {
             เพิ่มเจ้าหน้าที่ใหม่ด้านล่าง
           </div>
         ) : (
-          <div className="bo-table-wrap">
-            <table className="bo-table">
+          <div
+            className={`bo-table-wrap${refreshing ? " is-refreshing" : ""}`}
+            aria-busy={refreshing || undefined}
+          >
+            <table className={`bo-table${refreshing ? " is-refreshing" : ""}`}>
               <thead>
                 <tr>
                   <th>อีเมล</th>
@@ -282,10 +312,50 @@ export default function StaffPage(props: { me: AdminMe }) {
         )}
       </div>
 
-      <div className="bo-staff-form">
-        <h3>{isEditing ? "แก้ไขเจ้าหน้าที่" : "เพิ่มเจ้าหน้าที่"}</h3>
+      <section
+        ref={formRef}
+        className={`bo-staff-form${isEditing ? " is-editing" : ""}`}
+        aria-labelledby="staff-form-title"
+      >
+        <div className="bo-staff-form__head">
+          <div>
+            <h3 id="staff-form-title">
+              {isEditing ? "แก้ไขเจ้าหน้าที่" : "เพิ่มเจ้าหน้าที่"}
+            </h3>
+            <p className="bo-staff-form__hint">
+              {isEditing
+                ? "ปรับชื่อแสดงและบทบาทได้ · อีเมลเปลี่ยนไม่ได้"
+                : "ใช้อีเมล Google ที่เจ้าหน้าที่ใช้ล็อกอิน Back Office"}
+            </p>
+          </div>
+          {isEditing ? (
+            <button
+              type="button"
+              className="bo-btn bo-btn-ghost bo-btn-sm"
+              disabled={busy}
+              onClick={() => {
+                resetForm();
+                setFormSuccess(null);
+              }}
+            >
+              ยกเลิกการแก้ไข
+            </button>
+          ) : null}
+        </div>
+
+        {isEditing ? (
+          <div className="bo-staff-form__editing" role="status">
+            กำลังแก้ไข{" "}
+            <strong>{displayName.trim() || email}</strong>
+            {displayName.trim() ? (
+              <span className="bo-staff-form__editing-email">{email}</span>
+            ) : null}
+          </div>
+        ) : null}
+
         {formSuccess ? <div className="bo-form-success">{formSuccess}</div> : null}
         {formError ? <div className="bo-error">{formError}</div> : null}
+
         <div className="bo-form-grid">
           <div className="bo-field">
             <label htmlFor="staff-email">อีเมล Google</label>
@@ -293,7 +363,7 @@ export default function StaffPage(props: { me: AdminMe }) {
               id="staff-email"
               type="email"
               value={email}
-              disabled={isEditing}
+              disabled={isEditing || busy}
               onChange={(e) => {
                 setEmail(e.target.value);
                 setFormSuccess(null);
@@ -301,6 +371,11 @@ export default function StaffPage(props: { me: AdminMe }) {
               placeholder="name@gmail.com"
               autoComplete="email"
             />
+            {isEditing ? (
+              <p className="bo-staff-form__field-note">
+                อีเมลถูกผูกกับบัญชีแล้ว ไม่สามารถเปลี่ยนได้
+              </p>
+            ) : null}
           </div>
           <div className="bo-field">
             <label htmlFor="staff-name">ชื่อแสดง (ไม่บังคับ)</label>
@@ -308,6 +383,7 @@ export default function StaffPage(props: { me: AdminMe }) {
               id="staff-name"
               type="text"
               value={displayName}
+              disabled={busy}
               onChange={(e) => {
                 setDisplayName(e.target.value);
                 setFormSuccess(null);
@@ -315,21 +391,38 @@ export default function StaffPage(props: { me: AdminMe }) {
               placeholder="เช่น เพชญเกล้า"
             />
           </div>
-          <fieldset className="bo-field bo-staff-roles-fieldset">
-            <legend>บทบาท (เลือกได้หลายอัน)</legend>
-            <div className="bo-check-row">
-              {ALL_ROLES.map((r) => (
-                <label key={r} className="bo-check">
-                  <input
-                    type="checkbox"
-                    checked={roles.includes(r)}
-                    onChange={() => toggleRole(r)}
-                  />
-                  {ROLE_LABEL[r]}
-                </label>
-              ))}
+
+          <fieldset className="bo-staff-role-picker" disabled={busy}>
+            <legend>บทบาท</legend>
+            <p className="bo-staff-role-picker__lead">
+              เลือกได้มากกว่าหนึ่ง · ต้องมีอย่างน้อยหนึ่งบทบาท
+            </p>
+            <div className="bo-staff-role-picker__list">
+              {ALL_ROLES.map((r) => {
+                const on = roles.includes(r);
+                return (
+                  <label
+                    key={r}
+                    className={`bo-staff-role-option${on ? " is-on" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => toggleRole(r)}
+                    />
+                    <span className="bo-staff-role-option__check" aria-hidden>
+                      {on ? "✓" : ""}
+                    </span>
+                    <span className="bo-staff-role-option__text">
+                      <strong>{ROLE_LABEL[r]}</strong>
+                      <em>{ROLE_HINT[r]}</em>
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </fieldset>
+
           <div className="bo-staff-form-actions">
             <button
               type="button"
@@ -337,14 +430,21 @@ export default function StaffPage(props: { me: AdminMe }) {
               disabled={busy}
               onClick={() => void onSave()}
             >
-              บันทึก
+              {busy
+                ? "กำลังบันทึก…"
+                : isEditing
+                  ? "บันทึกการแก้ไข"
+                  : "เพิ่มเจ้าหน้าที่"}
             </button>
             {isEditing ? (
               <button
                 type="button"
                 className="bo-btn bo-btn-ghost"
                 disabled={busy}
-                onClick={resetForm}
+                onClick={() => {
+                  resetForm();
+                  setFormSuccess(null);
+                }}
               >
                 ยกเลิก
               </button>
@@ -352,9 +452,11 @@ export default function StaffPage(props: { me: AdminMe }) {
           </div>
         </div>
         <div className="bo-note">
-          เฉพาะแอดมิน / super-admin จัดการเจ้าหน้าที่ได้ · อีเมลต้องตรงกับบัญชี Google ที่ใช้ล็อกอิน
+          เฉพาะแอดมิน / super-admin จัดการเจ้าหน้าที่ได้ · อีเมลต้องตรงกับบัญชี
+          Google ที่ใช้ล็อกอิน · บัญชี super-admin อ่านอย่างเดียว
+          ไม่สามารถลบตัวเองหรือ super-admin ได้
         </div>
-      </div>
+      </section>
 
       <ConfirmDialog
         open={deleteTarget != null}

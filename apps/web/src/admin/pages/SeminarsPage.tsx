@@ -190,6 +190,27 @@ function resolveSeminarTitle(
   return "";
 }
 
+type QueueSeminarOption = {
+  seminarId: string;
+  title: string;
+  closed: boolean;
+};
+
+function pickQueueSeminarId(
+  preferred: string | null,
+  options: QueueSeminarOption[],
+  pendingBySeminar: Map<string, number>,
+): string | null {
+  if (options.length === 0) return null;
+  if (preferred && options.some((o) => o.seminarId === preferred)) {
+    return preferred;
+  }
+  const withPending = options.find(
+    (o) => (pendingBySeminar.get(o.seminarId) ?? 0) > 0,
+  );
+  return withPending?.seminarId ?? options[0]?.seminarId ?? null;
+}
+
 export default function SeminarsPage() {
   const [seminars, setSeminars] = useState<Seminar[]>([]);
   const [regs, setRegs] = useState<Registration[]>([]);
@@ -197,6 +218,14 @@ export default function SeminarsPage() {
   const [titleById, setTitleById] = useState<Map<string, string>>(
     () => new Map(),
   );
+  const [pendingBySeminar, setPendingBySeminar] = useState<Map<string, number>>(
+    () => new Map(),
+  );
+  const [queueOptions, setQueueOptions] = useState<QueueSeminarOption[]>([]);
+  const [selectedSeminarId, setSelectedSeminarId] = useState<string | null>(
+    null,
+  );
+  const [regsLoading, setRegsLoading] = useState(false);
   const [regFilter, setRegFilter] = useState<RegFilter>("pending");
   const [form, setForm] = useState<SeminarForm>(emptyForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -222,6 +251,18 @@ export default function SeminarsPage() {
     if (regFilter === "all") return regs;
     return regs.filter((r) => isPendingReg(r.status));
   }, [regs, regFilter]);
+
+  const selectedQueueOption = useMemo(
+    () =>
+      queueOptions.find((o) => o.seminarId === selectedSeminarId) ?? null,
+    [queueOptions, selectedSeminarId],
+  );
+
+  const selectedSeminarTitle = useMemo(() => {
+    if (!selectedSeminarId) return "";
+    if (selectedQueueOption?.title) return selectedQueueOption.title;
+    return resolveSeminarTitle(selectedSeminarId, undefined, titleById);
+  }, [selectedSeminarId, selectedQueueOption, titleById]);
 
   const previewLines = useMemo(() => {
     const lines: string[] = [];
@@ -252,6 +293,44 @@ export default function SeminarsPage() {
     });
   }
 
+  function buildQueueOptions(
+    nextSeminars: Seminar[],
+    allRegs: Registration[],
+    titles: Map<string, string>,
+  ): QueueSeminarOption[] {
+    const options: QueueSeminarOption[] = [];
+    const seen = new Set<string>();
+    for (const s of nextSeminars) {
+      options.push({
+        seminarId: s.seminarId,
+        title: s.title?.trim() || s.seminarId,
+        closed: false,
+      });
+      seen.add(s.seminarId);
+    }
+    const closedIds = new Set<string>();
+    for (const r of allRegs) {
+      if (!seen.has(r.seminarId)) closedIds.add(r.seminarId);
+    }
+    for (const id of closedIds) {
+      const title =
+        titles.get(id)?.trim() ||
+        allRegs.find((r) => r.seminarId === id)?.seminarTitle?.trim() ||
+        id;
+      options.push({ seminarId: id, title, closed: true });
+    }
+    return options;
+  }
+
+  function buildPendingMap(allRegs: Registration[]): Map<string, number> {
+    const map = new Map<string, number>();
+    for (const r of allRegs) {
+      if (!isPendingReg(r.status)) continue;
+      map.set(r.seminarId, (map.get(r.seminarId) ?? 0) + 1);
+    }
+    return map;
+  }
+
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
@@ -274,16 +353,76 @@ export default function SeminarsPage() {
     setFormError(null);
   }
 
+  async function loadQueueForSeminar(seminarId: string) {
+    setRegsLoading(true);
+    try {
+      const r = await fetchAdminSeminarRegistrations(seminarId);
+      const nextRegs = (r.items as Registration[]) ?? [];
+      setRegs(nextRegs);
+      setPendingBySeminar((prev) => {
+        const map = new Map(prev);
+        map.set(
+          seminarId,
+          nextRegs.filter((reg) => isPendingReg(reg.status)).length,
+        );
+        return map;
+      });
+      mergeTitles([], nextRegs);
+    } finally {
+      setRegsLoading(false);
+    }
+  }
+
+  async function selectSeminar(seminarId: string) {
+    if (seminarId === selectedSeminarId) return;
+    setSelectedSeminarId(seminarId);
+    setDetail(null);
+    setError(null);
+    try {
+      await loadQueueForSeminar(seminarId);
+    } catch (err) {
+      setError(errorMessage(err, "load_failed"));
+      setRegs([]);
+    }
+  }
+
   async function reload() {
-    const [s, r] = await Promise.all([
+    const [s, all] = await Promise.all([
       fetchAdminSeminars(),
       fetchAdminSeminarRegistrations(),
     ]);
     const nextSeminars = (s.items as Seminar[]) ?? [];
-    const nextRegs = (r.items as Registration[]) ?? [];
+    const allRegs = (all.items as Registration[]) ?? [];
+
+    const nextTitles = new Map<string, string>();
+    for (const sem of nextSeminars) {
+      const t = sem.title?.trim();
+      if (t) nextTitles.set(sem.seminarId, t);
+    }
+    for (const r of allRegs) {
+      const t = r.seminarTitle?.trim();
+      if (t) nextTitles.set(r.seminarId, t);
+    }
+
+    const nextPending = buildPendingMap(allRegs);
+    const nextOptions = buildQueueOptions(nextSeminars, allRegs, nextTitles);
+    const nextSelected = pickQueueSeminarId(
+      selectedSeminarId,
+      nextOptions,
+      nextPending,
+    );
+
     setSeminars(nextSeminars);
-    setRegs(nextRegs);
-    mergeTitles(nextSeminars, nextRegs);
+    setPendingBySeminar(nextPending);
+    setQueueOptions(nextOptions);
+    setSelectedSeminarId(nextSelected);
+    mergeTitles(nextSeminars, allRegs);
+
+    if (nextSelected) {
+      setRegs(allRegs.filter((r) => r.seminarId === nextSelected));
+    } else {
+      setRegs([]);
+    }
   }
 
   useEffect(() => {
@@ -704,123 +843,189 @@ export default function SeminarsPage() {
       <section className="bo-panel">
         <div className="bo-panel-head bo-seminar-regs-head">
           <div className="bo-seminar-regs-title">
-            <h2>คิวใบสมัคร</h2>
+            <div>
+              <h2>คิวใบสมัคร</h2>
+              {selectedSeminarTitle ? (
+                <p className="bo-seminar-regs-sub">
+                  {selectedQueueOption?.closed
+                    ? `${selectedSeminarTitle} · ปิดรับสมัครแล้ว`
+                    : selectedSeminarTitle}
+                </p>
+              ) : (
+                <p className="bo-seminar-regs-sub">
+                  เลือกงานด้านล่างเพื่อดูคิวของงานนั้น
+                </p>
+              )}
+            </div>
             {pendingCount > 0 ? (
-              <span className="bo-review-queue-count" title="รอพิจารณา">
+              <span className="bo-review-queue-count" title="รอพิจารณาในงานนี้">
                 {pendingCount}
               </span>
             ) : null}
           </div>
-          <div className="bo-filter-group">
-            <span className="bo-filter-label" id="sem-reg-filter-label">
-              สถานะ
-            </span>
-            <div
-              className="bo-seg"
-              role="group"
-              aria-labelledby="sem-reg-filter-label"
-            >
-              <button
-                type="button"
-                className={`bo-seg-btn${regFilter === "pending" ? " is-active" : ""}`}
-                onClick={() => setRegFilter("pending")}
+          {selectedSeminarId ? (
+            <div className="bo-filter-group">
+              <span className="bo-filter-label" id="sem-reg-filter-label">
+                สถานะในงานนี้
+              </span>
+              <div
+                className="bo-seg"
+                role="group"
+                aria-labelledby="sem-reg-filter-label"
               >
-                รอพิจารณา
-                {pendingCount > 0 ? ` (${pendingCount})` : ""}
-              </button>
-              <button
-                type="button"
-                className={`bo-seg-btn${regFilter === "all" ? " is-active" : ""}`}
-                onClick={() => setRegFilter("all")}
-              >
-                ทั้งหมด ({regs.length})
-              </button>
+                <button
+                  type="button"
+                  className={`bo-seg-btn${regFilter === "pending" ? " is-active" : ""}`}
+                  disabled={regsLoading}
+                  onClick={() => setRegFilter("pending")}
+                >
+                  รอพิจารณา
+                  {pendingCount > 0 ? ` (${pendingCount})` : ""}
+                </button>
+                <button
+                  type="button"
+                  className={`bo-seg-btn${regFilter === "all" ? " is-active" : ""}`}
+                  disabled={regsLoading}
+                  onClick={() => setRegFilter("all")}
+                >
+                  ทั้งหมด ({regs.length})
+                </button>
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
-        <div className="bo-table-wrap">
-          <table className="bo-table">
-            <thead>
-              <tr>
-                <th>ชื่อ</th>
-                <th>งาน</th>
-                <th>ประเภท</th>
-                <th>สถานะ</th>
-                <th>การดำเนินการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRegs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="bo-seminar-regs-empty">
-                    {regs.length === 0
-                      ? "ยังไม่มีใบสมัคร"
-                      : regFilter === "pending"
-                        ? "ไม่มีใบสมัครรอพิจารณา — ดู «ทั้งหมด» เพื่อประวัติ"
-                        : "ยังไม่มีใบสมัคร"}
-                  </td>
-                </tr>
-              ) : (
-                filteredRegs.map((r) => {
-                  const rowBusy = decidingId === r.registrationId;
-                  const seminarTitle = resolveSeminarTitle(
-                    r.seminarId,
-                    r.seminarTitle,
-                    titleById,
-                  );
+
+        {queueOptions.length === 0 ? (
+          <p className="bo-seminar-empty">
+            ยังไม่มีงานสัมมนา — สร้างงานก่อน แล้วคิวใบสมัครจะแสดงที่นี่
+          </p>
+        ) : (
+          <>
+            <div className="bo-seminar-queue-pick">
+              <span className="bo-filter-label" id="sem-queue-pick-label">
+                เลือกงาน
+              </span>
+              <div
+                className="bo-seg bo-seminar-queue-pick__seg"
+                role="tablist"
+                aria-labelledby="sem-queue-pick-label"
+              >
+                {queueOptions.map((opt) => {
+                  const pending = pendingBySeminar.get(opt.seminarId) ?? 0;
+                  const active = opt.seminarId === selectedSeminarId;
                   return (
-                    <tr key={r.registrationId}>
-                      <td>
-                        {r.firstName} {r.lastName}
-                      </td>
-                      <td>{seminarTitle}</td>
-                      <td>
-                        <span title={r.applicantType}>
-                          {pricingLabel(r.applicantType)} ({formatFee(r.feeThb)})
+                    <button
+                      key={opt.seminarId}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      className={`bo-seg-btn bo-seminar-queue-pick__btn${active ? " is-active" : ""}`}
+                      disabled={regsLoading && !active}
+                      onClick={() => void selectSeminar(opt.seminarId)}
+                    >
+                      <span className="bo-seminar-queue-pick__name">
+                        {opt.title}
+                        {opt.closed ? " · ปิดแล้ว" : ""}
+                      </span>
+                      {pending > 0 ? (
+                        <span
+                          className="bo-seminar-queue-pick__count"
+                          title={`${pending} รายการรอพิจารณา`}
+                        >
+                          {pending}
                         </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bo-table-wrap">
+              <table className="bo-table">
+                <thead>
+                  <tr>
+                    <th>ชื่อ</th>
+                    <th>ประเภท</th>
+                    <th>สถานะ</th>
+                    <th>การดำเนินการ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {regsLoading ? (
+                    <tr>
+                      <td colSpan={4} className="bo-seminar-regs-empty">
+                        กำลังโหลดคิวใบสมัคร…
                       </td>
-                      <td>{regStatusBadge(r.status)}</td>
-                      <td>
-                        <div className="bo-seminar-reg-actions">
-                          <button
-                            type="button"
-                            className="bo-btn bo-btn-ghost bo-btn-sm"
-                            onClick={() => setDetail(r)}
-                          >
-                            ดูรายละเอียด
-                          </button>
-                          {r.status !== "confirmed" &&
-                          r.status !== "rejected" ? (
-                            <>
-                              <button
-                                type="button"
-                                className="bo-btn bo-btn-primary bo-btn-sm"
-                                disabled={rowBusy}
-                                onClick={() =>
-                                  void approveRegistration(r.registrationId)
-                                }
-                              >
-                                {rowBusy ? "กำลังบันทึก…" : "อนุมัติ"}
-                              </button>
+                    </tr>
+                  ) : filteredRegs.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="bo-seminar-regs-empty">
+                        {regs.length === 0
+                          ? "งานนี้ยังไม่มีใบสมัคร"
+                          : regFilter === "pending"
+                            ? "ไม่มีใบสมัครรอพิจารณาในงานนี้ — ดู «ทั้งหมด» เพื่อประวัติ"
+                            : "งานนี้ยังไม่มีใบสมัคร"}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRegs.map((r) => {
+                      const rowBusy = decidingId === r.registrationId;
+                      return (
+                        <tr key={r.registrationId}>
+                          <td>
+                            {r.firstName} {r.lastName}
+                          </td>
+                          <td>
+                            <span title={r.applicantType}>
+                              {pricingLabel(r.applicantType)} (
+                              {formatFee(r.feeThb)})
+                            </span>
+                          </td>
+                          <td>{regStatusBadge(r.status)}</td>
+                          <td>
+                            <div className="bo-seminar-reg-actions">
                               <button
                                 type="button"
                                 className="bo-btn bo-btn-ghost bo-btn-sm"
-                                disabled={rowBusy}
-                                onClick={() => setRejecting(r)}
+                                onClick={() => setDetail(r)}
                               >
-                                ปฏิเสธ
+                                ดูรายละเอียด
                               </button>
-                            </>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                              {r.status !== "confirmed" &&
+                              r.status !== "rejected" ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="bo-btn bo-btn-primary bo-btn-sm"
+                                    disabled={rowBusy}
+                                    onClick={() =>
+                                      void approveRegistration(r.registrationId)
+                                    }
+                                  >
+                                    {rowBusy ? "กำลังบันทึก…" : "อนุมัติ"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="bo-btn bo-btn-ghost bo-btn-sm"
+                                    disabled={rowBusy}
+                                    onClick={() => setRejecting(r)}
+                                  >
+                                    ปฏิเสธ
+                                  </button>
+                                </>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
 
       {detail ? (

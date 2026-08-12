@@ -94,14 +94,15 @@ export async function authenticateAdmin(req: Request): Promise<AuthResult> {
     return { ok: false, error: "email_required", status: 403 };
   }
 
-  // Always upsert the bootstrap super-admin on every auth gate.
+  // Always upsert bootstrap super-admins on every auth gate.
   let staff: StaffUserDoc | undefined;
   try {
     const bootstrapped = await ensureSuperAdminBootstrap({
+      email,
       uid: decoded.uid,
       displayName: decoded.name,
     });
-    if (isSuperAdminEmail(email)) {
+    if (isSuperAdminEmail(email) && bootstrapped) {
       staff = bootstrapped;
     }
   } catch (err) {
@@ -114,7 +115,7 @@ export async function authenticateAdmin(req: Request): Promise<AuthResult> {
 
   // Hard allow: super-admin email must never be blocked even if Firestore write failed.
   if (!staff && isSuperAdminEmail(email)) {
-    staff = superAdminStaffDoc({
+    staff = superAdminStaffDoc(email, {
       uid: decoded.uid,
       displayName: decoded.name || "Super Admin",
     });

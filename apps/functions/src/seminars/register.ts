@@ -137,9 +137,14 @@ export async function listMySeminarRegistrations(idToken?: string): Promise<
         applicantType: string;
         applicantTypeLabel: string;
         feeThb: number;
+        firstName?: string;
+        lastName?: string;
+        phone?: string;
+        email?: string;
         shirtSize?: string;
         foodType?: string;
         notes?: string;
+        rejectReason?: string;
       }>;
     }
   | { ok: false; error: string; status: number }
@@ -177,9 +182,14 @@ export async function listMySeminarRegistrations(idToken?: string): Promise<
         applicantTypeLabel:
           SEMINAR_PRICING_LABEL[r.applicantType] ?? r.applicantType,
         feeThb: r.feeThb,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        phone: r.phone,
+        email: r.email,
         shirtSize: r.shirtSize,
         foodType: r.foodType,
         notes: r.notes,
+        rejectReason: r.rejectReason,
       };
     }),
   );

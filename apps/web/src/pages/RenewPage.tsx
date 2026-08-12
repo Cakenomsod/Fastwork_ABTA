@@ -8,9 +8,14 @@ import { liffPageUrl, memberStatusHrefFromUrl } from "../lib/member-links";
 import { getIdToken, initLiff, type LiffPhase } from "../lib/liff";
 import {
   formatFeeThb,
+  formatExpiryYmdThai,
+  formatThaiDateLong,
   memberTypeLabel,
+  nextMembershipExpiryDec31,
+  parseDateOnly,
   PAYABLE_MEMBER_TYPE_OPTIONS,
   parsePayableMemberType,
+  projectedRenewalExpiryYmd,
   renewMembershipFeeThb,
   type PayableMemberType,
 } from "../lib/membership-fees";
@@ -146,6 +151,14 @@ export default function RenewPage() {
     draft?.memberTypeLabel?.trim() ||
     (draft?.memberType ? memberTypeLabel(parsePayableMemberType(draft.memberType)) : "");
 
+  const currentExpiryLabel = formatExpiryYmdThai(draft?.expiryDate);
+  const nextExpiryYmd =
+    draft?.nextExpiryDate || projectedRenewalExpiryYmd(draft?.expiryDate);
+  const nextExpiryLabel = formatExpiryYmdThai(nextExpiryYmd);
+  const nextExpiryDate =
+    parseDateOnly(nextExpiryYmd) ??
+    nextMembershipExpiryDec31(parseDateOnly(draft?.expiryDate));
+
   return (
     <div className="reg-shell">
       <div className="reg-atmosphere" aria-hidden />
@@ -217,9 +230,33 @@ export default function RenewPage() {
                   <br />
                   เลขสมาชิก {draft.memberId}
                   {currentTypeLabel ? ` · ${currentTypeLabel}` : ""}
-                  {draft.expiryDate ? ` · หมดอายุ ${draft.expiryDate}` : ""}
                 </p>
               </header>
+
+              <div className="reg-expiry-panel" aria-label="ช่วงอายุสมาชิก">
+                <div className="reg-expiry-panel__row">
+                  <span className="reg-expiry-panel__label">หมดอายุปัจจุบัน</span>
+                  <strong className="reg-expiry-panel__value">
+                    {currentExpiryLabel}
+                  </strong>
+                </div>
+                <div className="reg-expiry-panel__arrow" aria-hidden>
+                  →
+                </div>
+                <div className="reg-expiry-panel__row reg-expiry-panel__row--next">
+                  <span className="reg-expiry-panel__label">
+                    หลังต่ออายุ (เมื่ออนุมัติแล้ว)
+                  </span>
+                  <strong className="reg-expiry-panel__value">
+                    {nextExpiryLabel}
+                  </strong>
+                </div>
+                <p className="reg-expiry-panel__hint">
+                  สมาชิกภาพครบรอบสิ้นปี — หากต่ออายุตอนนี้
+                  จะขยายไปถึงสิ้นปีถัดไป (
+                  {formatThaiDateLong(nextExpiryDate)})
+                </p>
+              </div>
 
               {draft.pendingRenewal ? (
                 <div className="reg-form">
@@ -261,6 +298,14 @@ export default function RenewPage() {
                       {
                         label: "ประเภทสมาชิก",
                         value: memberTypeLabel(memberType),
+                      },
+                      {
+                        label: "หมดอายุปัจจุบัน",
+                        value: currentExpiryLabel,
+                      },
+                      {
+                        label: "หมดอายุหลังต่ออายุ",
+                        value: nextExpiryLabel,
                       },
                       {
                         label: "ค่าธรรมเนียม",
