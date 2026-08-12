@@ -122,15 +122,6 @@ export function PaymentsHistoryPanel(props: PaymentsHistoryPanelProps) {
                               >
                                 เปิดใบเสร็จ
                               </button>
-                              <button
-                                type="button"
-                                className="bo-btn bo-btn-primary bo-btn-xs"
-                                onClick={() =>
-                                  openReceiptPrint(row.paymentId, true)
-                                }
-                              >
-                                พิมพ์
-                              </button>
                             </div>
                           </>
                         ) : (
