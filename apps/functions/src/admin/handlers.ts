@@ -1250,3 +1250,86 @@ export async function handleAdminBroadcastLogs(
   );
   res.status(200).json({ ok: true, logs });
 }
+
+export async function handleAdminReceiptSearch(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar", "treasurer"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const receiptKindRaw = String(req.query.receiptKind ?? "").trim();
+  const receiptKind =
+    receiptKindRaw === "temp" || receiptKindRaw === "official"
+      ? receiptKindRaw
+      : undefined;
+  const receiptSeq = String(
+    req.query.receiptSeq ?? req.query.receiptNumber ?? req.query.q ?? "",
+  ).trim();
+  const memberId = String(req.query.memberId ?? "").trim();
+  const firstName = String(req.query.firstName ?? "").trim();
+  const lastName = String(req.query.lastName ?? "").trim();
+  const phone = String(req.query.phone ?? "").trim();
+  const pageRaw = Number(req.query.page ?? 1);
+  const pageSizeRaw = Number(req.query.pageSize ?? req.query.limit ?? 10);
+
+  const { searchReceipts } = await import("./receipt-search");
+  try {
+    const result = await searchReceipts({
+      receiptKind,
+      receiptSeq: receiptSeq || undefined,
+      memberId: memberId || undefined,
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      phone: phone || undefined,
+      page: Number.isFinite(pageRaw) ? pageRaw : 1,
+      pageSize: Number.isFinite(pageSizeRaw) ? pageSizeRaw : 10,
+    });
+    res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "search_failed";
+    if (msg === "receipt_kind_required") {
+      jsonError(res, 400, "receipt_kind_required");
+      return;
+    }
+    jsonError(res, 500, "search_failed");
+  }
+}
+
+export async function handleAdminReceiptDetail(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin", "registrar", "treasurer"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const paymentId = String(req.query.paymentId ?? "").trim();
+  if (!paymentId) {
+    jsonError(res, 400, "payment_id_required");
+    return;
+  }
+
+  const { getReceiptDetailForPayment } = await import("./receipt-search");
+  const receipt = await getReceiptDetailForPayment(paymentId);
+  if (!receipt) {
+    jsonError(res, 404, "not_found");
+    return;
+  }
+  res.status(200).json({ ok: true, receipt });
+}

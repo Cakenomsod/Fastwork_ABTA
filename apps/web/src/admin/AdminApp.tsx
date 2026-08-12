@@ -34,12 +34,18 @@ const MessageTemplatesPage = lazy(
   () => import("./pages/MessageTemplatesPage"),
 );
 const AgmReportPage = lazy(() => import("./pages/AgmReportPage"));
+const ReceiptsPage = lazy(() => import("./pages/ReceiptsPage"));
+const AdminReceiptPrintPage = lazy(
+  () => import("./pages/AdminReceiptPrintPage"),
+);
 import "./admin.css";
 
 type AdminRoute =
   | "dashboard"
   | "data"
   | "slips"
+  | "receipts"
+  | "receipts-print"
   | "legacy"
   | "legacy-import"
   | "seminars"
@@ -52,6 +58,8 @@ function parseRoute(pathname: string): AdminRoute {
   const p = pathname.replace(/\/+$/, "") || "/admin";
   if (p.endsWith("/data") || p.endsWith("/reviews/data")) return "data";
   if (p.endsWith("/slips") || p.endsWith("/reviews/slips")) return "slips";
+  if (p.endsWith("/receipts/print")) return "receipts-print";
+  if (p.endsWith("/receipts")) return "receipts";
   if (p.endsWith("/legacy/import") || p.endsWith("/legacy-import")) {
     return "legacy-import";
   }
@@ -75,6 +83,8 @@ function navigate(route: AdminRoute) {
     dashboard: "/admin",
     data: "/admin/data",
     slips: "/admin/slips",
+    receipts: "/admin/receipts",
+    "receipts-print": "/admin/receipts/print",
     legacy: "/admin/legacy",
     "legacy-import": "/admin/legacy/import",
     seminars: "/admin/seminars",
@@ -128,6 +138,11 @@ export default function AdminApp() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("bo-nav-open", navOpen);
+    return () => document.body.classList.remove("bo-nav-open");
+  }, [navOpen]);
 
   useEffect(() => {
     // Wait until Firebase auth settles (null or User).
@@ -282,16 +297,33 @@ export default function AdminApp() {
     );
   }
 
-  const titleMap: Record<AdminRoute, string> = {
+  if (route === "receipts-print") {
+    return (
+      <Suspense
+        fallback={
+          <div className="rcpt-shell">
+            <main className="rcpt-wrap">
+              <p className="rcpt-lead">กำลังโหลดใบเสร็จ…</p>
+            </main>
+          </div>
+        }
+      >
+        <AdminReceiptPrintPage />
+      </Suspense>
+    );
+  }
+
+  const titleMap: Record<Exclude<AdminRoute, "receipts-print">, string> = {
     dashboard: "ค้นหาสมาชิก",
     data: "ตรวจข้อมูลสมาชิก",
     slips: "ตรวจสลิป / ใบเสร็จ",
+    receipts: "ค้นหาใบเสร็จ",
     legacy: "สมาชิกเก่า",
     "legacy-import": "นำเข้าสมาชิกเก่า",
     seminars: "สัมมนา",
     broadcast: "ส่งข้อความแบบกลุ่ม",
     "message-templates": "แม่แบบข้อความ",
-    agm: "สิทธิ์ประชุมใหญ่",
+    agm: "รายชื่อผู้มีสิทธิ์ประชุม",
     staff: "จัดการเจ้าหน้าที่",
   };
 
@@ -304,6 +336,8 @@ export default function AdminApp() {
     page = (
       <SlipReviewPage me={me} onChanged={() => refreshCounts(setCounts)} />
     );
+  } else if (route === "receipts") {
+    page = <ReceiptsPage me={me} />;
   } else if (route === "legacy") {
     page = <LegacyMembersPage />;
   } else if (route === "legacy-import" && canImportLegacy) {
@@ -331,6 +365,14 @@ export default function AdminApp() {
 
   return (
     <div className="bo-root">
+      {navOpen ? (
+        <button
+          type="button"
+          className="bo-nav-backdrop"
+          aria-label="ปิดเมนู"
+          onClick={() => setNavOpen(false)}
+        />
+      ) : null}
       <div className="bo-layout">
         <aside className={`bo-sidebar${navOpen ? " nav-open" : ""}`}>
           <div className="bo-brand">
@@ -373,96 +415,111 @@ export default function AdminApp() {
           </div>
 
           <nav className="bo-nav" id="bo-mobile-nav" aria-label="เมนูหลัก">
-            <p className="bo-nav-section">สมาชิก</p>
-            <NavBtn
-              active={route === "dashboard"}
-              onClick={() => go("dashboard")}
-              label="ค้นหาสมาชิก"
-            />
+            <NavGroup title="หลัก">
+              <NavBtn
+                active={route === "dashboard"}
+                onClick={() => go("dashboard")}
+                label="ค้นหาสมาชิก"
+                icon="members"
+              />
+              <NavBtn
+                active={route === "receipts"}
+                onClick={() => go("receipts")}
+                label="ค้นหาใบเสร็จ"
+                icon="receipt"
+              />
+            </NavGroup>
+
+            {(canSeeData || canSeeSlips) && (
+              <NavGroup title="คิวตรวจ">
+                {canSeeData && (
+                  <NavBtn
+                    active={route === "data"}
+                    onClick={() => go("data")}
+                    label="ตรวจข้อมูลสมาชิก"
+                    count={counts.data}
+                    icon="review-data"
+                  />
+                )}
+                {canSeeSlips && (
+                  <NavBtn
+                    active={route === "slips"}
+                    onClick={() => go("slips")}
+                    label="ตรวจสลิป / ใบเสร็จ"
+                    count={counts.slips}
+                    icon="review-slip"
+                  />
+                )}
+              </NavGroup>
+            )}
+
             {canSeeData && (
-              <NavBtn
-                active={route === "data"}
-                onClick={() => go("data")}
-                label="ตรวจข้อมูล"
-                count={counts.data}
-              />
+              <NavGroup title="กิจกรรม">
+                <NavBtn
+                  active={route === "seminars"}
+                  onClick={() => go("seminars")}
+                  label="สัมมนา"
+                  icon="seminar"
+                />
+                <NavBtn
+                  active={route === "agm"}
+                  onClick={() => go("agm")}
+                  label="รายชื่อผู้มีสิทธิ์ประชุม"
+                  icon="agm"
+                />
+              </NavGroup>
             )}
-            {canSeeSlips && (
-              <NavBtn
-                active={route === "slips"}
-                onClick={() => go("slips")}
-                label="ตรวจสลิป"
-                count={counts.slips}
-              />
-            )}
-            {canSeeData && (
-              <NavBtn
-                active={route === "seminars"}
-                onClick={() => go("seminars")}
-                label="สัมมนา"
-              />
-            )}
+
             {canBroadcast && (
-              <NavBtn
-                active={route === "broadcast"}
-                onClick={() => go("broadcast")}
-                label="ส่งข้อความแบบกลุ่ม"
-              />
-            )}
-            {canSeeData && (
-              <NavBtn
-                active={route === "agm"}
-                onClick={() => go("agm")}
-                label="สิทธิ์ประชุมใหญ่"
-              />
+              <NavGroup title="LINE">
+                <NavBtn
+                  active={route === "broadcast"}
+                  onClick={() => go("broadcast")}
+                  label="ส่งข้อความแบบกลุ่ม"
+                  icon="broadcast"
+                />
+                <NavBtn
+                  active={route === "message-templates"}
+                  onClick={() => go("message-templates")}
+                  label="แม่แบบข้อความ"
+                  icon="template"
+                />
+              </NavGroup>
             )}
 
-            <p className="bo-nav-section">ข้อมูลเก่า</p>
-            <NavBtn
-              active={route === "legacy"}
-              onClick={() => go("legacy")}
-              label="สมาชิกเก่า"
-            />
-            {canImportLegacy ? (
+            <NavGroup title="ข้อมูลเก่า">
               <NavBtn
-                active={route === "legacy-import"}
-                onClick={() => go("legacy-import")}
-                label="นำเข้า Excel"
+                active={route === "legacy"}
+                onClick={() => go("legacy")}
+                label="สมาชิกเก่า"
+                icon="legacy"
               />
-            ) : null}
+              {canImportLegacy ? (
+                <NavBtn
+                  active={route === "legacy-import"}
+                  onClick={() => go("legacy-import")}
+                  label="นำเข้า Excel"
+                  icon="import"
+                />
+              ) : null}
+            </NavGroup>
 
-            {canBroadcast || me.canManageStaff ? (
-              <>
-                <p className="bo-nav-section">ระบบ</p>
-                {canBroadcast ? (
-                  <NavBtn
-                    active={route === "message-templates"}
-                    onClick={() => go("message-templates")}
-                    label="แม่แบบข้อความ"
-                  />
-                ) : null}
-                {me.canManageStaff ? (
-                  <NavBtn
-                    active={route === "staff"}
-                    onClick={() => go("staff")}
-                    label="เจ้าหน้าที่"
-                  />
-                ) : null}
-              </>
+            {me.canManageStaff ? (
+              <NavGroup title="ตั้งค่า">
+                <NavBtn
+                  active={route === "staff"}
+                  onClick={() => go("staff")}
+                  label="จัดการเจ้าหน้าที่"
+                  icon="staff"
+                />
+              </NavGroup>
             ) : null}
           </nav>
 
           <div className="bo-sidebar-foot">
             <strong>{me.displayName || "เจ้าหน้าที่"}</strong>
             <span>{me.email}</span>
-            <div
-              style={{
-                marginTop: "0.45rem",
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "0.25rem",
-              }}
-            >
+            <div className="bo-sidebar-foot__roles">
               {me.roles.map((r: StaffRole) => (
                 <span key={r} className={`bo-badge role-${r}`}>
                   {ROLE_LABEL[r]}
@@ -473,7 +530,7 @@ export default function AdminApp() {
         </aside>
         <div className="bo-main">
           <header className="bo-topbar">
-            <h1>{titleMap[route]}</h1>
+            <h1>{titleMap[route as Exclude<AdminRoute, "receipts-print">]}</h1>
             <div className="bo-topbar-actions">
               {user ? (
                 <button
@@ -512,11 +569,132 @@ export default function AdminApp() {
   );
 }
 
+function NavGroup(props: { title: string; children: ReactNode }) {
+  return (
+    <div className="bo-nav-group">
+      <p className="bo-nav-section">{props.title}</p>
+      <div className="bo-nav-group__items">{props.children}</div>
+    </div>
+  );
+}
+
+type NavIconName =
+  | "members"
+  | "receipt"
+  | "review-data"
+  | "review-slip"
+  | "seminar"
+  | "agm"
+  | "broadcast"
+  | "template"
+  | "legacy"
+  | "import"
+  | "staff";
+
+function NavIcon(props: { name: NavIconName }) {
+  const svgProps = {
+    className: "bo-nav-btn__icon",
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  switch (props.name) {
+    case "members":
+      return (
+        <svg {...svgProps}>
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+      );
+    case "receipt":
+      return (
+        <svg {...svgProps}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+        </svg>
+      );
+    case "review-data":
+      return (
+        <svg {...svgProps}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case "review-slip":
+      return (
+        <svg {...svgProps}>
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M7 8h10M7 12h6" />
+        </svg>
+      );
+    case "seminar":
+      return (
+        <svg {...svgProps}>
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </svg>
+      );
+    case "agm":
+      return (
+        <svg {...svgProps}>
+          <path d="M3 3v18h18" />
+          <path d="M18 17V9M13 17V5M8 17v-3" />
+        </svg>
+      );
+    case "broadcast":
+      return (
+        <svg {...svgProps}>
+          <path d="m3 11 18-5v12L3 14v-3z" />
+          <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+        </svg>
+      );
+    case "template":
+      return (
+        <svg {...svgProps}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6M8 13h8M8 17h5" />
+        </svg>
+      );
+    case "legacy":
+      return (
+        <svg {...svgProps}>
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      );
+    case "import":
+      return (
+        <svg {...svgProps}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <path d="m7 10 5 5 5-5M12 15V3" />
+        </svg>
+      );
+    case "staff":
+      return (
+        <svg {...svgProps}>
+          <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 function NavBtn(props: {
   label: string;
   active: boolean;
   onClick: () => void;
   count?: number;
+  icon?: NavIconName;
 }) {
   return (
     <button
@@ -524,7 +702,8 @@ function NavBtn(props: {
       className={`bo-nav-btn${props.active ? " active" : ""}`}
       onClick={props.onClick}
     >
-      {props.label}
+      {props.icon ? <NavIcon name={props.icon} /> : null}
+      <span className="bo-nav-btn__label">{props.label}</span>
       {props.count != null && props.count > 0 ? (
         <span className="bo-nav-count">{props.count}</span>
       ) : null}

@@ -1,6 +1,7 @@
 /** Admin Back Office API client — Firebase Auth Bearer token. */
 
 import { apiBase } from "./api";
+import type { PublicStatus } from "./api";
 import { ADMIN_OPEN_ACCESS } from "./admin-open-access";
 import { getIdToken } from "./firebase";
 
@@ -310,6 +311,85 @@ export async function searchAdminMembers(
     pageSize: data.pageSize ?? opts.pageSize ?? opts.limit ?? 10,
     pageCount: data.pageCount ?? 1,
   };
+}
+
+export type ReceiptKind = "official" | "temp";
+
+export type ReceiptSearchItem = {
+  paymentId: string;
+  memberId: string;
+  fullName: string;
+  phone?: string;
+  receiptNumber: string;
+  amount?: number;
+  receiptStatus: string;
+  receiptStatusLabel: string;
+  paymentKind?: string;
+  paymentKindLabel: string;
+  createdAt?: string;
+  verifiedAt?: string;
+  printPath: string;
+  memberReceiptUrl?: string;
+};
+
+export type ReceiptSearchResult = {
+  items: ReceiptSearchItem[];
+  matched: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
+
+export type AdminReceiptDetail = PublicStatus & {
+  paymentId: string;
+  memberReceiptUrl?: string;
+  printUrl?: string;
+};
+
+export async function searchAdminReceipts(opts: {
+  receiptKind?: ReceiptKind;
+  receiptSeq?: string;
+  memberId?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<ReceiptSearchResult> {
+  const params = new URLSearchParams();
+  if (opts.receiptKind) params.set("receiptKind", opts.receiptKind);
+  const seq = opts.receiptSeq?.trim();
+  if (seq) params.set("receiptSeq", seq);
+  const memberId = opts.memberId?.trim();
+  if (memberId) params.set("memberId", memberId);
+  const firstName = opts.firstName?.trim();
+  if (firstName) params.set("firstName", firstName);
+  const lastName = opts.lastName?.trim();
+  if (lastName) params.set("lastName", lastName);
+  const phone = opts.phone?.trim();
+  if (phone) params.set("phone", phone);
+  if (opts.page != null) params.set("page", String(opts.page));
+  if (opts.pageSize != null) params.set("pageSize", String(opts.pageSize));
+  const data = await adminFetch<ReceiptSearchResult>(
+    `/admin/receipts/search?${params}`,
+  );
+  return {
+    items: data.items ?? [],
+    matched: data.matched ?? 0,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? opts.pageSize ?? 10,
+    pageCount: data.pageCount ?? 1,
+  };
+}
+
+export async function fetchAdminReceiptDetail(
+  paymentId: string,
+): Promise<AdminReceiptDetail> {
+  const params = new URLSearchParams({ paymentId });
+  const data = await adminFetch<{ receipt: AdminReceiptDetail }>(
+    `/admin/receipts/detail?${params}`,
+  );
+  return data.receipt;
 }
 
 /** Correct member / receipt numbers (transactional + counter bump). */

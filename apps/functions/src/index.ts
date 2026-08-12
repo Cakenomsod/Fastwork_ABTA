@@ -30,6 +30,8 @@ import {
   handleAdminCreateMessageTemplate,
   handleAdminUpsertMessageTemplate,
   handleAdminDeleteMessageTemplate,
+  handleAdminReceiptSearch,
+  handleAdminReceiptDetail,
   handleApproveData,
   handleApproveSlip,
   handlePendingDataReviews,
@@ -188,6 +190,14 @@ export const api = onRequest(
     }
     if (path === "/admin/members/search" && req.method === "GET") {
       await handleAdminMemberSearch(req, res);
+      return;
+    }
+    if (path === "/admin/receipts/search" && req.method === "GET") {
+      await handleAdminReceiptSearch(req, res);
+      return;
+    }
+    if (path === "/admin/receipts/detail" && req.method === "GET") {
+      await handleAdminReceiptDetail(req, res);
       return;
     }
     if (
