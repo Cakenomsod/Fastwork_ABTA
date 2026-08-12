@@ -167,3 +167,10 @@ export function requireStaffManager(session: AdminSession): AuthResult {
   }
   return { ok: true, session };
 }
+
+export function requireSuperAdmin(session: AdminSession): AuthResult {
+  if (!session.staff.isSuperAdmin) {
+    return { ok: false, error: "forbidden_role", status: 403 };
+  }
+  return { ok: true, session };
+}

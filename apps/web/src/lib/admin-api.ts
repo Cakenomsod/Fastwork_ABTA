@@ -490,6 +490,69 @@ export function canDeleteMember(me: AdminMe): boolean {
   return me.isSuperAdmin || me.roles.includes("admin");
 }
 
+export function canCreateMember(me: AdminMe): boolean {
+  return me.isSuperAdmin || me.roles.includes("admin");
+}
+
+export const WIPE_CONFIRM_PHRASE = "ล้างข้อมูลทั้งหมด";
+
+export type WipeCollectionCount = { name: string; count: number };
+export type WipeStorageCount = { prefix: string; count: number };
+
+export type WipePreview = {
+  collections: WipeCollectionCount[];
+  storage: WipeStorageCount[];
+  keep: string[];
+};
+
+export type WipeResult = {
+  firestoreDeleted: number;
+  storageDeleted: number;
+  collections: Array<{ name: string; deleted: number }>;
+  storage: Array<{ prefix: string; deleted: number }>;
+};
+
+export async function fetchWipePreview(): Promise<WipePreview> {
+  const data = await adminFetch<{
+    preview: { collections: WipeCollectionCount[]; storage: WipeStorageCount[] };
+    keep: string[];
+  }>("/admin/system/wipe");
+  return {
+    collections: data.preview.collections,
+    storage: data.preview.storage,
+    keep: data.keep,
+  };
+}
+
+export async function runSystemWipe(confirm: string): Promise<WipeResult> {
+  return adminFetch<WipeResult>("/admin/system/wipe", {
+    method: "POST",
+    body: JSON.stringify({ confirm }),
+  });
+}
+
+export async function createAdminMember(input: {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  legalEntityName?: string;
+  buildingName?: string;
+  organization?: string;
+  memberType?: string;
+  expiryDate?: string;
+  isBoardMember?: boolean;
+  tags?: string[];
+}): Promise<{ memberId: string; member: MemberDetail }> {
+  return adminFetch<{ memberId: string; member: MemberDetail }>(
+    "/admin/members/create",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
 /** PATCH member profile fields (not ID renumbering). */
 export async function updateMemberProfile(input: {
   memberId: string;

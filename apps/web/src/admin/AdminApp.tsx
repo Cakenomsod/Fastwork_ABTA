@@ -10,6 +10,7 @@ import {
   fetchAdminMe,
   fetchDashboard,
   canSendBroadcast,
+  canCreateMember,
   type AdminMe,
   type DashboardData,
   type StaffRole,
@@ -35,6 +36,8 @@ const MessageTemplatesPage = lazy(
 );
 const AgmReportPage = lazy(() => import("./pages/AgmReportPage"));
 const ReceiptsPage = lazy(() => import("./pages/ReceiptsPage"));
+const CreateMemberPage = lazy(() => import("./pages/CreateMemberPage"));
+const SystemWipePage = lazy(() => import("./pages/SystemWipePage"));
 const AdminReceiptPrintPage = lazy(
   () => import("./pages/AdminReceiptPrintPage"),
 );
@@ -52,7 +55,9 @@ type AdminRoute =
   | "broadcast"
   | "message-templates"
   | "agm"
-  | "staff";
+  | "staff"
+  | "create-member"
+  | "wipe";
 
 function parseRoute(pathname: string): AdminRoute {
   const p = pathname.replace(/\/+$/, "") || "/admin";
@@ -75,6 +80,10 @@ function parseRoute(pathname: string): AdminRoute {
   if (p.endsWith("/broadcast")) return "broadcast";
   if (p.endsWith("/agm") || p.endsWith("/agm-report")) return "agm";
   if (p.endsWith("/staff")) return "staff";
+  if (p.endsWith("/members/new") || p.endsWith("/create-member")) {
+    return "create-member";
+  }
+  if (p.endsWith("/system/wipe") || p.endsWith("/wipe")) return "wipe";
   return "dashboard";
 }
 
@@ -92,6 +101,8 @@ function navigate(route: AdminRoute) {
     "message-templates": "/admin/message-templates",
     agm: "/admin/agm",
     staff: "/admin/staff",
+    "create-member": "/admin/members/new",
+    wipe: "/admin/system/wipe",
   };
   window.history.pushState({}, "", map[route]);
   window.dispatchEvent(new PopStateEvent("popstate"));
@@ -222,6 +233,10 @@ export default function AdminApp() {
     () => Boolean(me && canSendBroadcast(me)),
     [me],
   );
+  const canCreate = useMemo(
+    () => Boolean(me && canCreateMember(me)),
+    [me],
+  );
 
   if (user === undefined) {
     return (
@@ -325,6 +340,8 @@ export default function AdminApp() {
     "message-templates": "แม่แบบข้อความ",
     agm: "รายชื่อผู้มีสิทธิ์ประชุม",
     staff: "จัดการเจ้าหน้าที่",
+    "create-member": "สร้างสมาชิก",
+    wipe: "ล้างข้อมูลทดลอง",
   };
 
   let page: ReactNode = <DashboardPage me={me} onCounts={setCounts} />;
@@ -352,6 +369,10 @@ export default function AdminApp() {
     page = <AgmReportPage me={me} />;
   } else if (route === "staff" && me.canManageStaff) {
     page = <StaffPage me={me} />;
+  } else if (route === "create-member" && canCreate) {
+    page = <CreateMemberPage me={me} />;
+  } else if (route === "wipe" && me.isSuperAdmin) {
+    page = <SystemWipePage />;
   } else if (route !== "dashboard") {
     page = (
       <div className="bo-panel">
@@ -507,10 +528,27 @@ export default function AdminApp() {
             {me.canManageStaff ? (
               <NavGroup title="ตั้งค่า">
                 <NavBtn
+                  active={route === "create-member"}
+                  onClick={() => go("create-member")}
+                  label="สร้างสมาชิก"
+                  icon="create-member"
+                />
+                <NavBtn
                   active={route === "staff"}
                   onClick={() => go("staff")}
                   label="จัดการเจ้าหน้าที่"
                   icon="staff"
+                />
+              </NavGroup>
+            ) : null}
+
+            {me.isSuperAdmin ? (
+              <NavGroup title="ระบบ">
+                <NavBtn
+                  active={route === "wipe"}
+                  onClick={() => go("wipe")}
+                  label="ล้างข้อมูลทดลอง"
+                  icon="wipe"
                 />
               </NavGroup>
             ) : null}
@@ -589,7 +627,9 @@ type NavIconName =
   | "template"
   | "legacy"
   | "import"
-  | "staff";
+  | "staff"
+  | "create-member"
+  | "wipe";
 
 function NavIcon(props: { name: NavIconName }) {
   const svgProps = {
@@ -682,6 +722,20 @@ function NavIcon(props: { name: NavIconName }) {
         <svg {...svgProps}>
           <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      );
+    case "create-member":
+      return (
+        <svg {...svgProps}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M19 8v6M22 11h-6" />
+        </svg>
+      );
+    case "wipe":
+      return (
+        <svg {...svgProps}>
+          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
         </svg>
       );
     default:

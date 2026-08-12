@@ -8,6 +8,7 @@ import {
   authenticateAdmin,
   requireRoles,
   requireStaffManager,
+  requireSuperAdmin,
 } from "./auth";
 import {
   approveDataReview,
@@ -1332,4 +1333,116 @@ export async function handleAdminReceiptDetail(
     return;
   }
   res.status(200).json({ ok: true, receipt });
+}
+
+/** GET preview of what a system wipe would delete. Super-admin only. */
+export async function handleAdminWipePreview(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireSuperAdmin(auth.session);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const { previewSystemWipe, WIPE_KEEP_COLLECTIONS } = await import("./wipe");
+  const preview = await previewSystemWipe();
+  res.status(200).json({
+    ok: true,
+    preview,
+    keep: [...WIPE_KEEP_COLLECTIONS],
+  });
+}
+
+/** POST wipe operational data. Super-admin only; requires typed confirm. */
+export async function handleAdminWipe(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireSuperAdmin(auth.session);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const confirm = String(body.confirm ?? "").trim();
+  const { runSystemWipe, WIPE_CONFIRM_PHRASE } = await import("./wipe");
+  const result = await runSystemWipe({
+    confirm,
+    actorEmail: auth.session.email,
+  });
+  if (!result.ok) {
+    jsonError(res, result.status, result.error);
+    return;
+  }
+  res.status(200).json({
+    ok: true,
+    confirmPhrase: WIPE_CONFIRM_PHRASE,
+    ...result.result,
+  });
+}
+
+/** POST create a member from Back Office. Admin / super-admin. */
+export async function handleAdminCreateMember(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = await authenticateAdmin(req);
+  if (!auth.ok) {
+    jsonError(res, auth.status, auth.error);
+    return;
+  }
+  const gate = requireRoles(auth.session, ["admin"]);
+  if (!gate.ok) {
+    jsonError(res, gate.status, gate.error);
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const { createMemberFromAdmin } = await import("./create-member");
+  const result = await createMemberFromAdmin({
+    input: {
+      firstName: String(body.firstName ?? ""),
+      lastName: String(body.lastName ?? ""),
+      phone: body.phone != null ? String(body.phone) : undefined,
+      email: body.email != null ? String(body.email) : undefined,
+      legalEntityName:
+        body.legalEntityName != null
+          ? String(body.legalEntityName)
+          : undefined,
+      buildingName:
+        body.buildingName != null ? String(body.buildingName) : undefined,
+      organization:
+        body.organization != null ? String(body.organization) : undefined,
+      memberType:
+        body.memberType != null ? String(body.memberType) : undefined,
+      expiryDate:
+        body.expiryDate != null ? String(body.expiryDate) : undefined,
+      isBoardMember:
+        body.isBoardMember != null ? Boolean(body.isBoardMember) : undefined,
+      tags: body.tags,
+    },
+    actorEmail: auth.session.email,
+  });
+  if (!result.ok) {
+    jsonError(res, result.status, result.error);
+    return;
+  }
+  res.status(200).json({
+    ok: true,
+    memberId: result.memberId,
+    member: result.member,
+  });
 }
