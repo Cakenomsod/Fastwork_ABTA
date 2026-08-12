@@ -1,15 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 import { memberNameParts, type AdminMe, type MemberDetail } from "../lib/admin-api";
 import MemberDetailExtras from "./MemberDetailExtras";
-
-function receiptPrintPath(paymentId: string, autoPrint = false): string {
-  const base = `/admin/receipts/print?paymentId=${encodeURIComponent(paymentId)}`;
-  return autoPrint ? `${base}&print=1` : base;
-}
-
-function openReceipt(paymentId: string, autoPrint = false) {
-  window.open(receiptPrintPath(paymentId, autoPrint), "_blank", "noopener,noreferrer");
-}
+import { openReceiptPrint } from "./receiptPrint";
 
 export interface MemberDetailDrawerProps {
   open: boolean;
@@ -119,7 +111,7 @@ export function MemberDetailDrawer(props: MemberDetailDrawerProps) {
                           type="button"
                           className="bo-btn bo-btn-ghost bo-btn-xs"
                           onClick={() =>
-                            openReceipt(props.detail!.paymentId!)
+                            openReceiptPrint(props.detail!.paymentId!)
                           }
                         >
                           เปิดใบเสร็จ
@@ -128,7 +120,7 @@ export function MemberDetailDrawer(props: MemberDetailDrawerProps) {
                           type="button"
                           className="bo-btn bo-btn-primary bo-btn-xs"
                           onClick={() =>
-                            openReceipt(props.detail!.paymentId!, true)
+                            openReceiptPrint(props.detail!.paymentId!, true)
                           }
                         >
                           พิมพ์

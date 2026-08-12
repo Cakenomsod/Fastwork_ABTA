@@ -4,6 +4,7 @@ import {
   type MemberPaymentRow,
 } from "../lib/admin-api";
 import SlipImage from "./SlipImage";
+import { openReceiptPrint } from "./receiptPrint";
 
 function formatDate(iso?: string): string {
   if (!iso) return "—";
@@ -105,18 +106,36 @@ export function PaymentsHistoryPanel(props: PaymentsHistoryPanelProps) {
                       <td>{row.paymentKindLabel}</td>
                       <td>{formatAmount(row.amount)}</td>
                       <td>
-                        {receipt ? <code>{receipt}</code> : "—"}
-                        {row.receiptStatusLabel ? (
-                          <div
-                            style={{
-                              fontSize: "0.72rem",
-                              color: "var(--bo-muted)",
-                              marginTop: "0.15rem",
-                            }}
-                          >
-                            {row.receiptStatusLabel}
-                          </div>
-                        ) : null}
+                        {receipt ? (
+                          <>
+                            <code>{receipt}</code>
+                            {row.receiptStatusLabel ? (
+                              <div className="bo-payment-receipt-status">
+                                {row.receiptStatusLabel}
+                              </div>
+                            ) : null}
+                            <div className="bo-payment-receipt-actions">
+                              <button
+                                type="button"
+                                className="bo-btn bo-btn-ghost bo-btn-xs"
+                                onClick={() => openReceiptPrint(row.paymentId)}
+                              >
+                                เปิดใบเสร็จ
+                              </button>
+                              <button
+                                type="button"
+                                className="bo-btn bo-btn-primary bo-btn-xs"
+                                onClick={() =>
+                                  openReceiptPrint(row.paymentId, true)
+                                }
+                              >
+                                พิมพ์
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td>
                         {row.statusLabel}

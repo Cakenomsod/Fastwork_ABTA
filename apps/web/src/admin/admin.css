@@ -5478,32 +5478,30 @@ button.bo-stat--btn:disabled {
 }
 
 .bo-receipts-search__sections {
-  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 0;
   border: 1px solid var(--bo-line);
   border-radius: 12px;
   overflow: hidden;
 }
 
-.bo-receipts-or {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-  background: #fff;
-  border: 1px solid var(--bo-line);
-  border-radius: 999px;
-  padding: 0.18rem 0.6rem;
+.bo-receipts-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.7rem;
+  background: var(--bo-bg-soft, #f7faf7);
+  border-left: 1px solid var(--bo-line);
+  border-right: 1px solid var(--bo-line);
+  min-width: 2.75rem;
+}
+
+.bo-receipts-divider span {
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--bo-muted);
-  text-transform: uppercase;
-  pointer-events: none;
-  white-space: nowrap;
 }
 
 .bo-receipts-section {
@@ -5512,8 +5510,17 @@ button.bo-stat--btn:disabled {
   min-width: 0;
 }
 
-.bo-receipts-section + .bo-receipts-section {
-  border-left: 1px solid var(--bo-line);
+.bo-payment-receipt-status {
+  font-size: 0.72rem;
+  color: var(--bo-muted);
+  margin-top: 0.15rem;
+}
+
+.bo-payment-receipt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
 }
 
 .bo-receipts-section__title {
@@ -5672,16 +5679,13 @@ button.bo-stat--btn:disabled {
     grid-template-columns: 1fr;
   }
 
-  .bo-receipts-or {
-    top: auto;
-    left: 50%;
-    bottom: calc(50% - 0.85rem);
-    transform: translate(-50%, 0);
-  }
-
-  .bo-receipts-section + .bo-receipts-section {
+  .bo-receipts-divider {
     border-left: 0;
+    border-right: 0;
     border-top: 1px solid var(--bo-line);
+    border-bottom: 1px solid var(--bo-line);
+    padding: 0.45rem 1rem;
+    min-width: 0;
   }
 }
 

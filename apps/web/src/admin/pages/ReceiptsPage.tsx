@@ -196,7 +196,6 @@ export default function ReceiptsPage(_props: { me: AdminMe }) {
           ) : null}
 
           <div className="bo-receipts-search__sections">
-            <div className="bo-receipts-or" aria-hidden="true">หรือ</div>
             <section
               className="bo-receipts-section"
               aria-labelledby={`${formId}-receipt`}
@@ -259,6 +258,10 @@ export default function ReceiptsPage(_props: { me: AdminMe }) {
                 </label>
               </div>
             </section>
+
+            <div className="bo-receipts-divider" aria-hidden="true">
+              <span>หรือ</span>
+            </div>
 
             <section
               className="bo-receipts-section"
