@@ -181,10 +181,10 @@ export default function ReceiptsPage(_props: { me: AdminMe }) {
         onSubmit={onSubmit}
       >
         <div className="bo-panel-head bo-receipts-search__head">
-          <h2>เงื่อนไขค้นหา</h2>
+          <h2>ค้นหาใบเสร็จ</h2>
           <p>
-            ค้นจากเลขที่ใบเสร็จ (เลือกประเภทแล้วกรอกเลข) หรือข้อมูลสมาชิก —
-            เปิดดูและพิมพ์ได้จาก Back Office
+            กรอก<strong>อย่างน้อยหนึ่งช่อง</strong> — เลขที่ใบเสร็จ
+            หรือข้อมูลสมาชิก — แล้วกดค้นหา
           </p>
         </div>
 
@@ -196,6 +196,7 @@ export default function ReceiptsPage(_props: { me: AdminMe }) {
           ) : null}
 
           <div className="bo-receipts-search__sections">
+            <div className="bo-receipts-or" aria-hidden="true">หรือ</div>
             <section
               className="bo-receipts-section"
               aria-labelledby={`${formId}-receipt`}
@@ -265,6 +266,9 @@ export default function ReceiptsPage(_props: { me: AdminMe }) {
             >
               <h3 className="bo-receipts-section__title" id={`${formId}-member`}>
                 ข้อมูลสมาชิก
+                <span className="bo-receipts-section__optional">
+                  กรอกช่องไหนก็ได้
+                </span>
               </h3>
               <div className="bo-receipts-member-grid">
                 <label className="bo-field" htmlFor={`${formId}-member-id`}>
@@ -357,7 +361,8 @@ export default function ReceiptsPage(_props: { me: AdminMe }) {
         ) : !searched ? (
           <div className="bo-empty bo-empty--guide">
             <strong>ยังไม่ได้ค้นหา</strong>
-            ระบุเลขที่ใบเสร็จหรือข้อมูลสมาชิก แล้วกดค้นหา
+            กรอกเลขที่ใบเสร็จ หรือชื่อ / เลขสมาชิก / เบอร์โทร อย่างน้อยหนึ่งช่อง
+            แล้วกดค้นหา
           </div>
         ) : items.length === 0 ? (
           <div className="bo-empty bo-empty--guide">

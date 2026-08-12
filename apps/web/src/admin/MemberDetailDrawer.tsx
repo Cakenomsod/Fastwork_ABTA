@@ -2,6 +2,15 @@ import { useEffect, useId, useRef } from "react";
 import { memberNameParts, type AdminMe, type MemberDetail } from "../lib/admin-api";
 import MemberDetailExtras from "./MemberDetailExtras";
 
+function receiptPrintPath(paymentId: string, autoPrint = false): string {
+  const base = `/admin/receipts/print?paymentId=${encodeURIComponent(paymentId)}`;
+  return autoPrint ? `${base}&print=1` : base;
+}
+
+function openReceipt(paymentId: string, autoPrint = false) {
+  window.open(receiptPrintPath(paymentId, autoPrint), "_blank", "noopener,noreferrer");
+}
+
 export interface MemberDetailDrawerProps {
   open: boolean;
   loading?: boolean;
@@ -101,7 +110,32 @@ export function MemberDetailDrawer(props: MemberDetailDrawerProps) {
                 </div>
                 <div className="bo-detail-row">
                   <span>เลขใบเสร็จ</span>
-                  <strong>{props.detail.receiptNumber || "—"}</strong>
+                  <strong className="bo-detail-receipt-row">
+                    {props.detail.receiptNumber || "—"}
+                    {props.detail.paymentId &&
+                    props.detail.receiptNumber ? (
+                      <span className="bo-detail-receipt-actions">
+                        <button
+                          type="button"
+                          className="bo-btn bo-btn-ghost bo-btn-xs"
+                          onClick={() =>
+                            openReceipt(props.detail!.paymentId!)
+                          }
+                        >
+                          เปิดใบเสร็จ
+                        </button>
+                        <button
+                          type="button"
+                          className="bo-btn bo-btn-primary bo-btn-xs"
+                          onClick={() =>
+                            openReceipt(props.detail!.paymentId!, true)
+                          }
+                        >
+                          พิมพ์
+                        </button>
+                      </span>
+                    ) : null}
+                  </strong>
                 </div>
                 <div className="bo-detail-row">
                   <span>สถานะ</span>
