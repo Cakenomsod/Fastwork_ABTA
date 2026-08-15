@@ -492,6 +492,8 @@ export function devAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
         amount: 500,
         item: "ค่าสมาชิก",
         expiryDate: "2025-06-30",
+        slipUrl:
+          "https://drive.google.com/open?id=1Gnq5IHq-ZWd3Uin91tMm0goHuA0Rz1kd",
         transferredAt: "2024-07-01",
       },
     ];

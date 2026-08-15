@@ -3,11 +3,17 @@ import {
   fetchLegacyPayments,
   type LegacyPaymentRow,
 } from "../lib/admin-api";
+import DriveFileCard from "./DriveFileCard";
 
 function formatDate(iso?: string): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleDateString("th-TH", { dateStyle: "medium" });
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const hasTime = iso.includes("T") && !iso.endsWith("T00:00:00.000Z");
+    return hasTime
+      ? d.toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })
+      : d.toLocaleDateString("th-TH", { dateStyle: "medium" });
   } catch {
     return iso;
   }
@@ -46,6 +52,13 @@ export function LegacyPaymentsPanel(props: LegacyPaymentsPanelProps) {
     };
   }, [props.legacyMemberId]);
 
+  const showReceipt = items.some((row) => Boolean(row.receiptNumber));
+  const showAmount = items.some((row) => row.amount != null);
+  const showExpiry = items.some((row) => Boolean(row.expiryDate));
+  const showSlip = items.some(
+    (row) => Boolean(row.slipUrl) || (row.slipUrls?.length ?? 0) > 0,
+  );
+
   return (
     <div className="bo-panel-nested">
       <div className="bo-panel-head">
@@ -73,23 +86,57 @@ export function LegacyPaymentsPanel(props: LegacyPaymentsPanelProps) {
           <table className="bo-table">
             <thead>
               <tr>
-                <th>ใบเสร็จ</th>
-                <th>จำนวน</th>
+                {showReceipt ? <th>ใบเสร็จ</th> : null}
+                {showAmount ? <th>จำนวน</th> : null}
                 <th>รายการ</th>
-                <th>หมดอายุ</th>
+                {showExpiry ? <th>หมดอายุ</th> : null}
                 <th>วันที่</th>
+                {showSlip ? <th>สลิป</th> : null}
               </tr>
             </thead>
             <tbody>
-              {items.map((row, i) => (
-                <tr key={`${row.receiptNumber ?? "row"}-${i}`}>
-                  <td>{row.receiptNumber ? <code>{row.receiptNumber}</code> : "—"}</td>
-                  <td>{formatAmount(row.amount)}</td>
-                  <td>{row.item || "—"}</td>
-                  <td>{formatDate(row.expiryDate)}</td>
-                  <td>{formatDate(row.transferredAt)}</td>
-                </tr>
-              ))}
+              {items.map((row, i) => {
+                const slips =
+                  row.slipUrls && row.slipUrls.length > 0
+                    ? row.slipUrls
+                    : row.slipUrl
+                      ? [row.slipUrl]
+                      : [];
+                return (
+                  <tr key={`${row.receiptNumber ?? "row"}-${i}`}>
+                    {showReceipt ? (
+                      <td>
+                        {row.receiptNumber ? (
+                          <code>{row.receiptNumber}</code>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    ) : null}
+                    {showAmount ? <td>{formatAmount(row.amount)}</td> : null}
+                    <td>{row.item || "—"}</td>
+                    {showExpiry ? <td>{formatDate(row.expiryDate)}</td> : null}
+                    <td>{formatDate(row.transferredAt)}</td>
+                    {showSlip ? (
+                      <td>
+                        {slips.length ? (
+                          <div className="bo-legacy-slip-cell">
+                            {slips.map((url) => (
+                              <DriveFileCard
+                                key={url}
+                                url={url}
+                                label="สลิปโอนเงิน"
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -44,6 +44,10 @@ export interface LegacyMemberDoc {
   registrarChecked?: boolean;
   reviewedAt?: Timestamp;
   certifiedAt?: Timestamp;
+  /** Google Drive (or http) links from Excel attachment columns. */
+  idCardFileUrls?: string[];
+  businessRegFileUrls?: string[];
+  otherDocumentUrls?: string[];
   importedAt: Timestamp;
   sourceFile: string;
   updatedAt?: Timestamp;
@@ -62,6 +66,9 @@ export interface LegacyPaymentDoc {
   treasurerCheckedAt?: Timestamp;
   expiryDate?: Timestamp;
   receiptEmailFlag?: boolean;
+  /** Transfer-slip image from Excel (usually a Google Drive URL). */
+  slipUrl?: string;
+  slipUrls?: string[];
   importedAt: Timestamp;
   sourceFile: string;
 }
@@ -75,6 +82,29 @@ export const LEGACY_STATUS_LABEL: Record<LegacyMemberStatus, string> = {
   non_active: "NonActive",
   pending: "Pending",
 };
+
+/**
+ * Overlay calendar expiry onto Excel Active/Expired.
+ * Keeps Pending / NonActive as recorded. Date-only timestamps are UTC noon.
+ */
+export function applyLegacyExpiryStatus(
+  status: LegacyMemberStatus,
+  expiry: Timestamp | undefined,
+  now: Date = new Date(),
+): LegacyMemberStatus {
+  if (status === "pending" || status === "non_active") return status;
+  if (!expiry) return status;
+  const todayNoon = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    12,
+    0,
+    0,
+  );
+  if (expiry.toMillis() < todayNoon) return "expired";
+  return "active";
+}
 
 export function mapExcelStatus(raw: unknown): LegacyMemberStatus {
   const s = String(raw ?? "")

@@ -67,6 +67,9 @@ async function main() {
   console.log(`✓ Upserted ${result.members} legacyMembers`);
   console.log(`✓ Upserted ${result.payments} legacyPayments`);
   console.log(`✓ Upserted ${result.feeMasters} membership fee masters`);
+  console.log(
+    `✓ Attachments on ${result.attachmentMembers} members · ${result.paymentSlips} payment slips`,
+  );
   console.log("Sample:");
   for (const m of result.sample) {
     console.log(

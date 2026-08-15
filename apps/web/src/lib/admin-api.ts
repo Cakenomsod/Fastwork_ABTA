@@ -193,6 +193,8 @@ export interface LegacyPaymentRow {
   item?: string;
   expiryDate?: string;
   transferredAt?: string;
+  slipUrl?: string;
+  slipUrls?: string[];
 }
 
 export interface MemberPaymentRow {
@@ -612,7 +614,7 @@ export async function fetchMemberPayments(
 export type LegacyImportWarning = {
   sheet: "Member" | "Transaction";
   row: number;
-  reason: "missing_member_id" | "incomplete_row";
+  reason: "missing_member_id" | "incomplete_row" | "duplicate_member_id";
 };
 
 export interface LegacyImportResult {
@@ -629,6 +631,9 @@ export interface LegacyImportResult {
   skippedMembers?: number;
   skippedPayments?: number;
   warnings?: LegacyImportWarning[];
+  attachmentMembers?: number;
+  paymentSlips?: number;
+  statusCounts?: Record<string, number>;
   dryRun?: boolean;
 }
 
@@ -654,6 +659,9 @@ export interface LegacyMemberListRow {
   entityTypeLabel?: string;
   expiryDate?: string;
   sourceFile?: string;
+  idCardFileUrls?: string[];
+  businessRegFileUrls?: string[];
+  otherDocumentUrls?: string[];
   lineBound: boolean;
   boundMemberId?: string;
   boundFullName?: string;

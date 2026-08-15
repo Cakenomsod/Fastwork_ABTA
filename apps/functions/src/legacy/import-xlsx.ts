@@ -5,9 +5,11 @@
 
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import * as XLSX from "xlsx";
+import { extractHttpUrls, googleDriveFileId } from "./excel-urls";
 import {
   LEGACY_MEMBERS_COLLECTION,
   LEGACY_PAYMENTS_COLLECTION,
+  applyLegacyExpiryStatus,
   mapExcelEntityType,
   mapExcelMemberType,
   mapExcelStatus,
@@ -24,7 +26,7 @@ export type LegacyImportWarning = {
   sheet: "Member" | "Transaction";
   /** 1-based Excel row (header = 1). */
   row: number;
-  reason: "missing_member_id" | "incomplete_row";
+  reason: "missing_member_id" | "incomplete_row" | "duplicate_member_id";
 };
 
 export type LegacyImportResult = {
@@ -42,8 +44,13 @@ export type LegacyImportResult = {
   skippedMembers: number;
   /** Transaction sheet rows with content that were neither payment nor fee master. */
   skippedPayments: number;
-  /** Sample of skip reasons (capped). */
+  /** Sample of skip / duplicate reasons (capped). */
   warnings: LegacyImportWarning[];
+  /** Members with at least one attachment URL. */
+  attachmentMembers: number;
+  /** Transaction rows that include a slip image URL. */
+  paymentSlips: number;
+  statusCounts: Record<string, number>;
   /** True when parse-only; no Firestore writes. */
   dryRun: boolean;
 };
@@ -81,6 +88,59 @@ function asString(v: unknown): string | undefined {
   return String(v).trim() || undefined;
 }
 
+function asEmail(v: unknown): string | undefined {
+  const s = asString(v);
+  if (!s || !s.includes("@")) return undefined;
+  return s;
+}
+
+function asIdNumber(v: unknown): string | undefined {
+  if (v == null || v === "") return undefined;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return String(Math.trunc(v));
+  }
+  const s = String(v).trim();
+  return s || undefined;
+}
+
+function laterTimestamp(
+  a: Timestamp | undefined,
+  b: Timestamp | undefined,
+): Timestamp | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return a.toMillis() >= b.toMillis() ? a : b;
+}
+
+function overlayHyperlinks(
+  sheet: XLSX.WorkSheet,
+  rows: Record<string, unknown>[],
+): void {
+  if (!sheet["!ref"]) return;
+  const range = XLSX.utils.decode_range(sheet["!ref"]);
+  const headers: string[] = [];
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const headerCell = sheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+    headers[C] = headerCell ? String(headerCell.v ?? "").trim() : "";
+  }
+  rows.forEach((row, i) => {
+    const R = range.s.r + 1 + i;
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const key = headers[C];
+      if (!key) continue;
+      const excelCell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
+      const target = excelCell?.l?.Target as string | undefined;
+      if (!target || !/^https?:\/\//i.test(target)) continue;
+      const existing = row[key];
+      const existingStr =
+        existing == null || existing === "" ? "" : String(existing);
+      if (!existingStr.includes(target)) {
+        row[key] = existingStr ? `${existingStr}, ${target}` : target;
+      }
+    }
+  });
+}
+
 /** Date-only → UTC noon so th-TH / UTC clients keep the same calendar day. */
 function dateOnlyTimestamp(
   year: number,
@@ -100,23 +160,19 @@ function toGregorianYear(year: number): number {
  */
 const EXCEL_DATE_FP_SLACK_MS = 5_000;
 
-function excelCalendarParts(d: Date): {
-  rawYear: number;
-  monthIndex: number;
-  day: number;
-  hasClockTime: boolean;
-} {
+function looksLikeExcelDateOnly(d: Date): boolean {
+  const uh = d.getUTCHours();
+  const um = d.getUTCMinutes();
+  const us = d.getUTCSeconds();
+  if (um <= 1 && us < 10 && (uh === 0 || uh === 16 || uh === 17)) return true;
+  if (uh === 16 && um === 59) return true;
+  if (uh === 23 && um >= 59) return true;
+  const h = d.getHours();
+  const min = d.getMinutes();
+  if (h === 0 && min === 0) return true;
+  if (h === 23 && min >= 59) return true;
   const shifted = new Date(d.getTime() + EXCEL_DATE_FP_SLACK_MS);
-  const h = shifted.getHours();
-  const min = shifted.getMinutes();
-  const sec = shifted.getSeconds();
-  const hasClockTime = !(h === 0 && min === 0 && sec === 0);
-  return {
-    rawYear: shifted.getFullYear(),
-    monthIndex: shifted.getMonth(),
-    day: shifted.getDate(),
-    hasClockTime,
-  };
+  return shifted.getHours() === 0 && shifted.getMinutes() === 0 && shifted.getSeconds() < 10;
 }
 
 /**
@@ -126,15 +182,17 @@ function excelCalendarParts(d: Date): {
 export function parseFlexibleDate(v: unknown): Timestamp | undefined {
   if (v == null || v === "") return undefined;
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
-    const parts = excelCalendarParts(v);
-    const year = toGregorianYear(parts.rawYear);
-    if (!parts.hasClockTime || parts.rawYear > 2400) {
-      return dateOnlyTimestamp(year, parts.monthIndex, parts.day);
-    }
-    if (year !== v.getFullYear()) {
-      const fixed = new Date(v.getTime());
-      fixed.setFullYear(year);
-      return Timestamp.fromDate(fixed);
+    if (looksLikeExcelDateOnly(v) || v.getFullYear() > 2400) {
+      // Thai workbooks (UTC+7): local midnight is stored as 16:59/17:00 UTC.
+      const shifted = new Date(
+        v.getTime() + 7 * 3600 * 1000 + EXCEL_DATE_FP_SLACK_MS,
+      );
+      const year = toGregorianYear(shifted.getUTCFullYear());
+      return dateOnlyTimestamp(
+        year,
+        shifted.getUTCMonth(),
+        shifted.getUTCDate(),
+      );
     }
     return Timestamp.fromDate(v);
   }
@@ -204,10 +262,12 @@ function sheetToRows(
 ): Record<string, unknown>[] {
   const sheet = wb.Sheets[name];
   if (!sheet) return [];
-  return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: null,
     raw: true,
   });
+  overlayHyperlinks(sheet, rows);
+  return rows;
 }
 
 function buildMember(
@@ -245,9 +305,25 @@ function buildMember(
     cell(row, "ประเภทสมาชิก"),
   );
 
-  const idRaw = cell(row, "เลขที่บัตรประชาชน/นิติบุคคล");
-  const idNumber =
-    idRaw == null || idRaw === "" ? undefined : String(idRaw).trim();
+  const idNumber = asIdNumber(cell(row, "เลขที่บัตรประชาชน/นิติบุคคล"));
+  const sheetExpiry = parseFlexibleDate(
+    cell(row, "ExpiryData", "ExpiryDate", "วันที่พ้นสมาชิกภาพ"),
+  );
+  const expiryDate = laterTimestamp(
+    sheetExpiry,
+    expiryByMember.get(legacyMemberId),
+  );
+  const excelStatus = mapExcelStatus(cell(row, "สถานะ"));
+  const idCardFileUrls = extractHttpUrls(cell(row, "ไฟล์สำเนาบัตรประชาชน"));
+  const businessRegFileUrls = extractHttpUrls(
+    cell(row, "ไฟล์ทะเบียนสถานประกอบการ"),
+  );
+  const otherDocumentUrls = extractHttpUrls(
+    cell(
+      row,
+      "ไฟล์เอกสารอื่นๆ เช่น หนังสือรับรองบริษัท ใบอนุญาตก่อสร้าง ใบประกอบธุรกิจ",
+    ),
+  );
 
   return {
     legacyMemberId,
@@ -257,9 +333,9 @@ function buildMember(
     buildingName,
     organization: buildingName,
     phone: asString(cell(row, "เบอร์โทรติดต่อ")),
-    email: asString(cell(row, "ที่อยู่อีเมล")),
-    status: mapExcelStatus(cell(row, "สถานะ")),
-    expiryDate: expiryByMember.get(legacyMemberId),
+    email: asEmail(cell(row, "ที่อยู่อีเมล")),
+    status: applyLegacyExpiryStatus(excelStatus, expiryDate),
+    expiryDate,
     memberType,
     memberTypeLabel,
     entityType,
@@ -271,6 +347,11 @@ function buildMember(
     registrarChecked: asBool(cell(row, "นายทะเบียนตรวจสอบ")),
     reviewedAt: parseFlexibleDate(cell(row, "วันที่นายทะเบียนตรวจสอบ")),
     certifiedAt: parseFlexibleDate(cell(row, "วันที่รับรองสมาชิกภาพ")),
+    idCardFileUrls: idCardFileUrls.length ? idCardFileUrls : undefined,
+    businessRegFileUrls: businessRegFileUrls.length
+      ? businessRegFileUrls
+      : undefined,
+    otherDocumentUrls: otherDocumentUrls.length ? otherDocumentUrls : undefined,
     importedAt,
     sourceFile,
     updatedAt: importedAt,
@@ -287,25 +368,41 @@ function buildPayment(
   if (!legacyMemberId) return null;
 
   const receiptNumber = asString(cell(row, "เลขที่ใบเสร็จ"));
-  const legacyPaymentId = `${legacyMemberId}_${receiptNumber ?? index}`;
+  const transferredAt = parseFlexibleDate(
+    cell(row, "วันเวลาโอนเงิน", "DateStamp"),
+  );
+  const slipUrls = extractHttpUrls(
+    cell(row, "รูปภาพหลักฐานการโอนเงิน", "ไฟล์สลิป", "สลิปโอนเงิน"),
+  );
+  const slipUrl = slipUrls[0];
+  const stableKey =
+    receiptNumber ??
+    googleDriveFileId(slipUrl ?? "") ??
+    (transferredAt ? String(transferredAt.toMillis()) : String(index));
+  const legacyPaymentId = `${legacyMemberId}_${stableKey}`;
+
+  const amountRaw = cell(row, "จำนวนเงิน");
+  const amount =
+    typeof amountRaw === "number"
+      ? amountRaw
+      : amountRaw != null && amountRaw !== ""
+        ? Number(amountRaw) || undefined
+        : undefined;
 
   return {
     legacyPaymentId,
     legacyMemberId,
-    transferredAt: parseFlexibleDate(
-      cell(row, "วันเวลาโอนเงิน", "DateStamp"),
-    ),
+    transferredAt,
     item: asString(cell(row, "รายการ")),
     itemType: asString(cell(row, "ประเภทรายการ")),
-    amount:
-      typeof cell(row, "จำนวนเงิน") === "number"
-        ? (cell(row, "จำนวนเงิน") as number)
-        : Number(cell(row, "จำนวนเงิน")) || undefined,
+    amount,
     receiptNumber,
     treasurerChecked: asBool(cell(row, "เหรัญญิกตรวจสอบ")),
     treasurerCheckedAt: parseFlexibleDate(cell(row, "วันที่เหรัญญิกตรวจสอบ")),
     expiryDate: parseFlexibleDate(cell(row, "วันที่พ้นสมาชิกภาพ")),
     receiptEmailFlag: asBool(cell(row, "อีเมล์ใบเสร็จ")),
+    slipUrl,
+    slipUrls: slipUrls.length ? slipUrls : undefined,
     importedAt,
     sourceFile,
   };
@@ -424,11 +521,18 @@ export async function importLegacyWorkbookFromBuffer(
     }
   });
 
-  const members: LegacyMemberDoc[] = [];
+  const membersById = new Map<string, LegacyMemberDoc>();
   memberRows.forEach((row, i) => {
     const m = buildMember(row, safeName, importedAt, expiryByMember);
     if (m) {
-      members.push(m);
+      if (membersById.has(m.legacyMemberId)) {
+        pushWarning({
+          sheet: "Member",
+          row: i + 2,
+          reason: "duplicate_member_id",
+        });
+      }
+      membersById.set(m.legacyMemberId, m);
       return;
     }
     if (rowHasContent(row)) {
@@ -441,6 +545,8 @@ export async function importLegacyWorkbookFromBuffer(
     }
   });
 
+  const members = [...membersById.values()];
+
   if (members.length === 0) {
     throw new LegacyImportError("no_members_parsed");
   }
@@ -451,17 +557,36 @@ export async function importLegacyWorkbookFromBuffer(
     status: m.status,
     memberTypeLabel: m.memberTypeLabel,
   }));
+  const attachmentMembers = members.filter(
+    (m) =>
+      (m.idCardFileUrls?.length ?? 0) +
+        (m.businessRegFileUrls?.length ?? 0) +
+        (m.otherDocumentUrls?.length ?? 0) >
+      0,
+  ).length;
+  const paymentSlips = payments.filter((p) => Boolean(p.slipUrl)).length;
+  const statusCounts: Record<string, number> = {};
+  for (const m of members) {
+    statusCounts[m.status] = (statusCounts[m.status] ?? 0) + 1;
+  }
+
+  const summary = {
+    sourceFile: safeName,
+    sample,
+    skippedMembers,
+    skippedPayments,
+    warnings,
+    attachmentMembers,
+    paymentSlips,
+    statusCounts,
+  };
 
   if (dryRun) {
     return {
       members: members.length,
       payments: payments.length,
       feeMasters: feeMasters.length,
-      sourceFile: safeName,
-      sample,
-      skippedMembers,
-      skippedPayments,
-      warnings,
+      ...summary,
       dryRun: true,
     };
   }
@@ -519,11 +644,7 @@ export async function importLegacyWorkbookFromBuffer(
     members: writtenMembers,
     payments: writtenPayments,
     feeMasters: writtenFees,
-    sourceFile: safeName,
-    sample,
-    skippedMembers,
-    skippedPayments,
-    warnings,
+    ...summary,
     dryRun: false,
   };
 }

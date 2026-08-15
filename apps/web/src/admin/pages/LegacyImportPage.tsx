@@ -27,6 +27,7 @@ const ERROR_LABEL: Record<string, string> = {
 const WARN_REASON_LABEL: Record<LegacyImportWarning["reason"], string> = {
   missing_member_id: "ไม่มีเลขที่สมาชิก",
   incomplete_row: "ข้อมูลไม่ครบ",
+  duplicate_member_id: "เลขที่สมาชิกซ้ำ — ใช้แถวล่าสุด",
 };
 
 function errorMessage(err: unknown): string {
@@ -64,15 +65,27 @@ function SkipReport(props: {
   warnings: LegacyImportWarning[];
 }) {
   const { skippedMembers, skippedPayments, warnings } = props;
-  if (skippedMembers === 0 && skippedPayments === 0) return null;
+  if (
+    skippedMembers === 0 &&
+    skippedPayments === 0 &&
+    warnings.length === 0
+  ) {
+    return null;
+  }
 
   return (
     <div className="bo-legacy-skip" role="status">
-      <strong>รายงานแถวที่ข้าม</strong>
-      <p>
-        สมาชิก {skippedMembers.toLocaleString("th-TH")} แถว · ประวัติชำระ{" "}
-        {skippedPayments.toLocaleString("th-TH")} แถว (มีข้อมูลแต่ไม่นำเข้าได้)
-      </p>
+      <strong>
+        {skippedMembers + skippedPayments > 0
+          ? "รายงานแถวที่ข้าม"
+          : "ข้อควรทราบ"}
+      </strong>
+      {skippedMembers + skippedPayments > 0 ? (
+        <p>
+          สมาชิก {skippedMembers.toLocaleString("th-TH")} แถว · ประวัติชำระ{" "}
+          {skippedPayments.toLocaleString("th-TH")} แถว (มีข้อมูลแต่ไม่นำเข้าได้)
+        </p>
+      ) : null}
       {warnings.length > 0 ? (
         <ul>
           {warnings.map((w) => (
@@ -262,12 +275,28 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
   const skippedPayments = display?.skippedPayments ?? 0;
   const warnings = display?.warnings ?? [];
   const sample = display?.sample ?? [];
+  const statusCounts = display?.statusCounts ?? {};
+  const statusLine = Object.entries(statusCounts)
+    .map(([key, n]) => {
+      const label =
+        key === "active"
+          ? "ใช้งาน"
+          : key === "expired"
+            ? "หมดอายุ"
+            : key === "non_active"
+              ? "ไม่ใช้งาน"
+              : key === "pending"
+                ? "รอดำเนินการ"
+                : key;
+      return `${label} ${n.toLocaleString("th-TH")}`;
+    })
+    .join(" · ");
 
   const confirmDescription = file
     ? [
         `ไฟล์: ${file.name} (${formatBytes(file.size)})`,
         preview
-          ? `จะนำเข้า ประมาณ สมาชิก ${preview.members.toLocaleString("th-TH")} · ประวัติชำระ ${preview.payments.toLocaleString("th-TH")} · ค่าธรรมเนียม ${preview.feeMasters.toLocaleString("th-TH")}`
+          ? `จะนำเข้า ประมาณ สมาชิก ${preview.members.toLocaleString("th-TH")} · ประวัติชำระ ${preview.payments.toLocaleString("th-TH")} · ค่าธรรมเนียม ${preview.feeMasters.toLocaleString("th-TH")}${preview.attachmentMembers ? ` · ไฟล์แนบ ${preview.attachmentMembers.toLocaleString("th-TH")} ราย` : ""}${preview.paymentSlips ? ` · สลิป ${preview.paymentSlips.toLocaleString("th-TH")} ใบ` : ""}`
           : null,
         "ระบบจะเพิ่มหรืออัปเดตสมาชิกเก่าตามเลขสมาชิกเก่า หากมีข้อมูลอยู่แล้ว ฟิลด์จากไฟล์จะทับค่าเดิม",
         "ไม่สามารถยกเลิกทีละแถวหลังนำเข้าได้",
@@ -291,6 +320,14 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
             <li>
               ต้องมีชีต <strong>Member</strong> (และ <strong>Transaction</strong>{" "}
               ถ้ามีประวัติชำระ)
+            </li>
+            <li>
+              อ่านวันหมดอายุจากคอลัมน์ <strong>ExpiryData</strong> และคำนวณสถานะ
+              Active / Expired ตามวันที่นั้น
+            </li>
+            <li>
+              ลิงก์ไฟล์ในคอลัมน์สำเนาบัตร / ทะเบียน / เอกสารอื่น / สลิปโอน
+              จะถูกเก็บและแสดงในหน้ารายละเอียด
             </li>
             <li>รองรับไฟล์ .xlsx / .xls ขนาดไม่เกิน 8 MB</li>
             <li>ขั้นตอน: ตรวจสอบไฟล์ → ยืนยัน → เขียนข้อมูล</li>
@@ -338,6 +375,13 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
                 {preview.members.toLocaleString("th-TH")} · ประวัติชำระ{" "}
                 {preview.payments.toLocaleString("th-TH")} · ค่าธรรมเนียม{" "}
                 {preview.feeMasters.toLocaleString("th-TH")}
+                {preview.attachmentMembers
+                  ? ` · ไฟล์แนบ ${preview.attachmentMembers.toLocaleString("th-TH")} ราย`
+                  : ""}
+                {preview.paymentSlips
+                  ? ` · สลิป ${preview.paymentSlips.toLocaleString("th-TH")} ใบ`
+                  : ""}
+                {statusLine ? ` · ${statusLine}` : ""}
               </p>
               <span className="bo-legacy-source">
                 ไฟล์ต้นทาง: {preview.sourceFile}
@@ -358,6 +402,18 @@ export default function LegacyImportPage(props: LegacyImportPageProps) {
                 <li>
                   ค่าธรรมเนียม {result.feeMasters.toLocaleString("th-TH")} รายการ
                 </li>
+                {result.attachmentMembers ? (
+                  <li>
+                    ไฟล์แนบ {result.attachmentMembers.toLocaleString("th-TH")}{" "}
+                    ราย
+                  </li>
+                ) : null}
+                {result.paymentSlips ? (
+                  <li>
+                    สลิปโอน {result.paymentSlips.toLocaleString("th-TH")} ใบ
+                  </li>
+                ) : null}
+                {statusLine ? <li>{statusLine}</li> : null}
               </ul>
               <span className="bo-legacy-source">
                 ไฟล์ต้นทาง: {result.sourceFile}

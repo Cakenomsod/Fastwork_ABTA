@@ -4,6 +4,7 @@ import {
   LEGACY_STATUS_LABEL,
   type LegacyMemberListRow,
 } from "../lib/admin-api";
+import LegacyAttachmentsPanel from "./LegacyAttachmentsPanel";
 import LegacyPaymentsPanel from "./LegacyPaymentsPanel";
 
 export interface LegacyMemberDetailDrawerProps {
@@ -190,6 +191,11 @@ export function LegacyMemberDetailDrawer(props: LegacyMemberDetailDrawerProps) {
                 ) : null}
               </section>
 
+              <LegacyAttachmentsPanel
+                idCardFileUrls={row.idCardFileUrls}
+                businessRegFileUrls={row.businessRegFileUrls}
+                otherDocumentUrls={row.otherDocumentUrls}
+              />
               <LegacyPaymentsPanel legacyMemberId={row.legacyMemberId} />
             </>
           )}

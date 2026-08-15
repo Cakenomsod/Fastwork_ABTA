@@ -627,6 +627,8 @@ export async function handleAdminLegacyPayments(
       itemType: r.itemType,
       expiryDate: r.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
       transferredAt: r.transferredAt?.toDate?.()?.toISOString?.(),
+      slipUrl: r.slipUrl,
+      slipUrls: r.slipUrls,
     })),
   });
 }
@@ -757,6 +759,9 @@ export async function handleAdminListLegacyMembers(
       entityTypeLabel: m.entityTypeLabel,
       expiryDate: m.expiryDate?.toDate?.()?.toISOString?.()?.slice(0, 10),
       sourceFile: m.sourceFile,
+      idCardFileUrls: m.idCardFileUrls,
+      businessRegFileUrls: m.businessRegFileUrls,
+      otherDocumentUrls: m.otherDocumentUrls,
       lineBound: Boolean(bound),
       boundMemberId: bound?.memberId,
       boundFullName: bound?.fullName || undefined,
